@@ -1,5 +1,5 @@
 const config = {
-  plugins: ['@tailwindcss/postcss'],
+  extends: ['@itaober/commitlint-config'],
 };
 
 export default config;
