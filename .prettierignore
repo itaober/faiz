@@ -1,0 +1,13 @@
+*.ico
+*.svg
+*.png
+*.jpg
+*.gif
+.prettierignore
+.env.*
+.gitignore
+.sentryclirc
+.npmrc
+.nvmrc
+*.tsx.snap
+pnpm-lock.yaml
