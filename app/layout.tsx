@@ -3,7 +3,7 @@ import './globals.css';
 import type { Metadata } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
 
-import { getUser } from '@/lib/data/get-user';
+import { getAuthorInfo } from '@/lib/data/meta';
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -16,16 +16,16 @@ const geistMono = Geist_Mono({
 });
 
 export async function generateMetadata(): Promise<Metadata> {
-  const user = await getUser();
+  const authorInfo = await getAuthorInfo();
 
-  if (!user) {
+  if (!authorInfo) {
     return { title: 'Faiz' };
   }
 
   return {
-    title: `${user.name}'s Blog`,
-    description: user?.bio,
-    icons: user?.avatar,
+    title: `${authorInfo.name}'s Blog`,
+    description: authorInfo?.bio,
+    icons: authorInfo?.avatar,
   };
 }
 
