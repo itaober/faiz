@@ -3,7 +3,9 @@ import './globals.css';
 import type { Metadata } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
 
-import { getAuthorInfo } from '@/lib/data/meta';
+import { getMetaInfo } from '@/lib/data/meta';
+
+import Header from './_components/header';
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -16,7 +18,7 @@ const geistMono = Geist_Mono({
 });
 
 export async function generateMetadata(): Promise<Metadata> {
-  const authorInfo = await getAuthorInfo();
+  const authorInfo = await getMetaInfo();
 
   if (!authorInfo) {
     return { title: 'Faiz' };
@@ -36,7 +38,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>{children}</body>
+      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+        <Header />
+        <main className="pt-20">{children}</main>
+      </body>
     </html>
   );
 }

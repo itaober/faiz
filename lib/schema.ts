@@ -1,6 +1,6 @@
 import z from 'zod';
 
-export const AuthorSchema = z.object({
+export const MetaSchema = z.object({
   name: z.string(),
   bio: z.string().optional(),
   avatar: z.string().optional(),
