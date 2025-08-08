@@ -10,7 +10,7 @@ const Header = async () => {
 
   return (
     <header className="sticky top-0 z-50 w-full bg-white/30 backdrop-blur-md">
-      <div className="mx-auto flex h-20 max-w-4xl items-center justify-between">
+      <div className="mx-auto flex max-w-4xl items-center justify-between px-6 py-4">
         <Link href="/">
           <Image
             src={avatar}

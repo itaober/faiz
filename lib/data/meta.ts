@@ -1,6 +1,16 @@
 import { cache } from 'react';
+import z from 'zod';
 
-import { MetaSchema } from '@/lib/schema';
+export const MetaSchema = z.object({
+  name: z.string(),
+  bio: z.string().optional(),
+  avatar: z.string().optional(),
+  social: z
+    .object({
+      github: z.string().optional(),
+    })
+    .optional(),
+});
 
 export const getMetaInfo = cache(async () => {
   try {
