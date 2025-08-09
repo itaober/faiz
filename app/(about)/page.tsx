@@ -4,16 +4,20 @@ import { getAboutMDX } from '@/lib/data/mdx';
 
 export default async function About() {
   const aboutMDX = await getAboutMDX();
-  const { content, data } = aboutMDX ?? {};
+
+  if (!aboutMDX) {
+    // TODO: Empty status
+    return null;
+  }
+
+  const { content, data } = aboutMDX;
 
   return (
     <div className="max-w-4xl overflow-y-hidden">
-      <div>
-        <h1>{data.title}</h1>
-        <article>
-          <MDXRemote source={content} />
-        </article>
-      </div>
+      <h1 className="mb-8 text-4xl font-extrabold">{data.title}</h1>
+      <article className="prose dark:prose-invert">
+        <MDXRemote source={content} />
+      </article>
     </div>
   );
 }

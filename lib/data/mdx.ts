@@ -1,4 +1,4 @@
-import fs from 'fs';
+import fs from 'fs/promises';
 import matter from 'gray-matter';
 import path from 'path';
 import z from 'zod';
@@ -9,7 +9,7 @@ export const MDXSchema = z.object({
     title: z.string(),
     createdTime: z.string(),
     updatedTime: z.string(),
-    tags: z.array(z.string()),
+    tags: z.array(z.string()).default([]),
   }),
 });
 
@@ -18,21 +18,21 @@ const contentDir = path.join(process.cwd(), 'content');
 export const getMDXRawData = async (filePath: string) => {
   try {
     const fullPath = path.join(contentDir, filePath);
-    const mdxData = fs.readFileSync(fullPath, 'utf-8');
-    return mdxData;
+    return await fs.readFile(fullPath, 'utf-8');
   } catch (error) {
-    console.error('Error reading or parsing mdx data:', error);
+    console.error(`Error reading mdx file: ${filePath}`, error);
     return null;
   }
 };
 
-export const getAboutMDX = async () => {
-  const mdxData = await getMDXRawData('about.mdx');
-  const mattered = matter(mdxData || '');
-  return MDXSchema.parse(mattered);
+const getParsedMDX = async (filePath: string) => {
+  const mdxData = await getMDXRawData(filePath);
+  if (!mdxData) {
+    return null;
+  }
+  return MDXSchema.parse(matter(mdxData));
 };
 
-export const getPostMDX = async (filePath: string) => {
-  const mdxData = await getMDXRawData(filePath);
-  return matter(mdxData || '');
-};
+export const getAboutMDX = () => getParsedMDX('about.mdx');
+
+export const getPostMDX = async (filePath: string) => getParsedMDX(filePath);
