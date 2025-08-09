@@ -13,7 +13,7 @@ export default async function About() {
   const { content, data } = aboutMDX;
 
   return (
-    <div className="max-w-4xl overflow-y-hidden">
+    <div className="h-[1000px] max-w-4xl overflow-y-hidden">
       <h1 className="mb-8 text-4xl font-extrabold">{data.title}</h1>
       <article className="prose dark:prose-invert">
         <MDXRemote source={content} />
