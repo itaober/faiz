@@ -11,14 +11,14 @@ const Header = async () => {
   const { avatar = '' } = metaInfo ?? {};
 
   const navList = [
-    <Link key="about" href="/about">
-      About
+    <Link key="posts" href="/posts">
+      Posts
     </Link>,
     <ThemeToggle key="theme-toggle" />,
   ];
 
   return (
-    <header className="sticky top-0 z-50 w-full bg-white/30 backdrop-blur-md dark:bg-black/30">
+    <header className="bg-background/60 sticky top-0 z-50 w-full backdrop-blur">
       <div className="mx-auto flex max-w-4xl items-center justify-between px-6 py-4">
         <Link href="/">
           <Image
