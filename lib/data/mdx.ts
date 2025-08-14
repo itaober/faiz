@@ -1,9 +1,9 @@
 import dayjs from 'dayjs';
-import fs from 'fs/promises';
 import matter from 'gray-matter';
-import path from 'path';
 import { cache } from 'react';
 import z from 'zod';
+
+import { fetchGitHubDir, fetchGitHubText } from './common';
 
 export const MDXSchema = z.object({
   content: z.string(),
@@ -15,45 +15,50 @@ export const MDXSchema = z.object({
   }),
 });
 
-const contentDir = path.join(process.cwd(), 'content');
-const postsDir = path.join(contentDir, 'posts');
+// ================================
+// Helpers
+// ================================
+const parseMDX = (raw: string | null) => (raw ? MDXSchema.parse(matter(raw)) : null);
 
-export const getMDXRawData = async (filePath: string) => {
+// ================================
+// GitHub MDX Fetchers
+// ================================
+export const getAboutMDX = cache(async () => {
   try {
-    return await fs.readFile(filePath, 'utf-8');
+    const raw = await fetchGitHubText('content/about.mdx');
+    return parseMDX(raw);
   } catch (error) {
-    console.error(`Error reading mdx file: ${filePath}`, error);
+    console.error('Failed to fetch about.mdx:', error);
     return null;
   }
-};
-
-const getParsedMDX = async (filePath: string) => {
-  const mdxData = await getMDXRawData(filePath);
-  if (!mdxData) {
-    return null;
-  }
-  return MDXSchema.parse(matter(mdxData));
-};
-
-export const getAboutMDX = () => getParsedMDX(path.join(contentDir, 'about.mdx'));
+});
 
 export const getPostList = cache(async () => {
   try {
-    const files = await fs.readdir(postsDir);
-    const postList = await Promise.all(
-      files.map(async file => {
-        const filePath = path.join(postsDir, file);
-        const parsedMDX = await getParsedMDX(filePath);
-        return parsedMDX ? MDXSchema.parse(parsedMDX).data : null;
+    const files = await fetchGitHubDir('content/posts');
+    const posts = await Promise.all(
+      files.map(async path => {
+        const raw = await fetchGitHubText(path);
+        const parsed = parseMDX(raw);
+        return parsed ? parsed.data : null;
       }),
     );
-    return postList
+
+    return posts
       .filter((p): p is z.infer<typeof MDXSchema>['data'] => p !== null)
       .sort((a, b) => dayjs(b.createdTime).diff(dayjs(a.createdTime)));
   } catch (error) {
-    console.error('Error reading or parsing posts mdx meta data:', error);
+    console.error('Failed to fetch posts list:', error);
     return [];
   }
 });
 
-export const getPostMDX = async (slug: string) => getParsedMDX(path.join(postsDir, `${slug}.mdx`));
+export const getPostMDX = cache(async (slug: string) => {
+  try {
+    const raw = await fetchGitHubText(`content/posts/${slug}.mdx`);
+    return parseMDX(raw);
+  } catch (error) {
+    console.error(`Failed to fetch post ${slug}:`, error);
+    return null;
+  }
+});

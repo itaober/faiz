@@ -1,6 +1,8 @@
 import { cache } from 'react';
 import z from 'zod';
 
+import { fetchGitHubJson } from './common';
+
 export const MetaSchema = z.object({
   name: z.string(),
   bio: z.string().optional(),
@@ -14,10 +16,10 @@ export const MetaSchema = z.object({
 
 export const getMetaInfo = cache(async () => {
   try {
-    const authorData = await import('@/content/meta.json');
+    const authorData = await fetchGitHubJson('/content/meta.json');
     return MetaSchema.parse(authorData);
   } catch (error) {
-    console.error('Error reading or parsing meta data:', error);
+    console.error('Failed to fetch or parse meta data:', error);
     return null;
   }
 });
