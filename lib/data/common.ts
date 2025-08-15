@@ -34,7 +34,7 @@ const fetchGitHubRaw = async (path: string, init?: RequestInit) => {
   const res = await fetch(url, {
     ...init,
     next: {
-      revalidate: 60,
+      revalidate: 5 * 60,
       ...init?.next,
     },
   });
@@ -49,7 +49,7 @@ const fetchGitHubApi = async (path: string, init?: RequestInit) => {
   const res = await fetch(url, {
     ...init,
     next: {
-      revalidate: 60,
+      revalidate: 5 * 60,
       ...init?.next,
     },
     headers: {
