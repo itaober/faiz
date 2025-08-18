@@ -30,11 +30,11 @@ const Header = async () => {
           />
         </Link>
         <nav aria-label="Primary navigation">
-          <ul className="flex items-center gap-4 md:gap-6">
+          <ul className="group flex items-center gap-4 md:gap-6">
             {navList.map((el, index) => (
               <li
                 key={index}
-                className="flex items-center text-gray-500 hover:text-gray-700 dark:text-gray-200 dark:hover:text-gray-400"
+                className="flex items-center opacity-70 transition-opacity hover:opacity-100 active:opacity-100"
               >
                 {el}
               </li>
