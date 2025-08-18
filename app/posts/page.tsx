@@ -1,7 +1,8 @@
 import dayjs from 'dayjs';
-import Link from 'next/link';
 
 import { getPostList } from '@/lib/data/mdx';
+
+import PostItem from './_components/post-item';
 
 export default async function PostsPage() {
   const postList = await getPostList();
@@ -25,18 +26,14 @@ export default async function PostsPage() {
   return (
     <div className="max-w-4xl overflow-y-hidden">
       <h1 className="mb-8 text-4xl font-extrabold">Posts</h1>
-      <article>
+      <article className="space-y-8">
         {sortedPostsByYear.map(([year, posts]) => {
           return (
-            <section key={year} className="mb-6">
+            <section key={year}>
               <h2 className="mb-2 text-2xl font-bold">{year}</h2>
-              <ul className="flex flex-col gap-2">
+              <ul className="flex flex-col gap-6 md:gap-4">
                 {posts.map(post => (
-                  <li key={post.title}>
-                    <Link href={`/posts/${post.title}`}>
-                      <span>{post.title}</span>
-                    </Link>
-                  </li>
+                  <PostItem key={post.title} {...post} />
                 ))}
               </ul>
             </section>

@@ -14,6 +14,8 @@ export const MDXSchema = z.object({
   }),
 });
 
+export type MDXData = z.infer<typeof MDXSchema>['data'];
+
 // ================================
 // Helpers
 // ================================
