@@ -11,7 +11,7 @@ const PostItem = (props: MDXData) => {
     <li>
       <Link
         href={`/posts/${title}`}
-        className="group flex flex-col items-start gap-1 md:flex-row md:items-baseline md:gap-6"
+        className="group flex flex-col items-start gap-1 md:flex-row md:items-center md:gap-6"
       >
         <span className="text-lg opacity-70 transition-opacity group-hover:opacity-100">
           {title}
