@@ -1,9 +1,8 @@
 import Image from 'next/image';
 import Link from 'next/link';
 
+import ThemeToggle from '@/components/theme-toggle';
 import { getMetaInfo } from '@/lib/data/meta';
-
-import ThemeToggle from './theme-toggle';
 
 const Header = async () => {
   const metaInfo = await getMetaInfo();
@@ -11,6 +10,9 @@ const Header = async () => {
   const { avatar = '' } = metaInfo ?? {};
 
   const navList = [
+    <Link key="lines" href="/lines">
+      Lines
+    </Link>,
     <Link key="posts" href="/posts">
       Posts
     </Link>,

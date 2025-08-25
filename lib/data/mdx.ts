@@ -19,7 +19,7 @@ export type MDXData = z.infer<typeof MDXSchema>['data'];
 // ================================
 // Helpers
 // ================================
-const parseMDX = (raw: string | null) => (raw ? MDXSchema.parse(matter(raw)) : null);
+export const parseMDX = (raw: string | null) => (raw ? MDXSchema.parse(matter(raw)) : null);
 
 // ================================
 // GitHub MDX Fetchers
@@ -30,6 +30,16 @@ export const getAboutMDX = async () => {
     return parseMDX(raw);
   } catch (error) {
     console.error('Failed to fetch about.mdx:', error);
+    return null;
+  }
+};
+
+export const getLinesMDX = async () => {
+  try {
+    const raw = await fetchGitHubText('content/lines.mdx');
+    return parseMDX(raw);
+  } catch (error) {
+    console.error('Failed to fetch lines.mdx:', error);
     return null;
   }
 };

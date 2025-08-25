@@ -1,25 +1,27 @@
 import { notFound } from 'next/navigation';
 import { MDXRemote } from 'next-mdx-remote/rsc';
 
-import { getAboutMDX } from '@/lib/data/mdx';
+import { getLinesMDX } from '@/lib/data/mdx';
 
 import PostTitle from '../_components/post-title';
 
-export default async function AboutPage() {
-  const aboutMDX = await getAboutMDX();
+const LinesPage = async () => {
+  const linesMDX = await getLinesMDX();
 
-  if (!aboutMDX) {
+  if (!linesMDX) {
     notFound();
   }
 
-  const { content, data } = aboutMDX;
+  const { content, data } = linesMDX;
 
   return (
     <div className="max-w-4xl overflow-y-hidden">
-      <PostTitle title={data.title} />
+      <PostTitle {...data} />
       <article className="prose dark:prose-invert">
         <MDXRemote source={content} />
       </article>
     </div>
   );
-}
+};
+
+export default LinesPage;

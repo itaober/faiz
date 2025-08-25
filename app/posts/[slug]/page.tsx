@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation';
 import { MDXRemote } from 'next-mdx-remote/rsc';
 
+import PostTitle from '@/app/_components/post-title';
 import { getPostMDX } from '@/lib/data/mdx';
 
 interface IPostPageProps {
@@ -22,7 +23,7 @@ export default async function PostPage({ params }: IPostPageProps) {
 
   return (
     <article className="max-w-4xl overflow-y-hidden">
-      <h1 className="mb-8 text-4xl font-extrabold">{data.title}</h1>
+      <PostTitle title={data.title} createdTime={data.createdTime} tags={data.tags} />
       <article className="prose dark:prose-invert">
         <MDXRemote source={content} />
       </article>

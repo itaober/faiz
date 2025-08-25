@@ -35,3 +35,14 @@ body {
 button {
   cursor: pointer;
 }
+
+@utility prose {
+  blockquote {
+    p {
+      &:first-of-type::before,
+      &:last-of-type::after {
+        content: none;
+      }
+    }
+  }
+}
