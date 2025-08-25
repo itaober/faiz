@@ -16,7 +16,6 @@ const PostItem = (props: MDXData) => {
         <span className="text-lg opacity-70 transition-opacity group-hover:opacity-100">
           {title}
         </span>
-
         <div className="flex flex-wrap items-baseline gap-1.5 text-xs opacity-40 transition-opacity group-hover:opacity-70 md:text-sm">
           <time dateTime={createdTime}>{dayjs(createdTime).format('MMM DD')}</time>
           {tags.length > 0 && <span>·</span>}

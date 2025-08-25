@@ -23,7 +23,7 @@ export default async function PostPage({ params }: IPostPageProps) {
 
   return (
     <article className="max-w-4xl overflow-y-hidden">
-      <PostTitle title={data.title} createdTime={data.createdTime} tags={data.tags} />
+      <PostTitle {...data} />
       <article className="prose dark:prose-invert">
         <MDXRemote source={content} />
       </article>

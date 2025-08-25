@@ -11,6 +11,7 @@ export const MDXSchema = z.object({
     createdTime: z.string(),
     updatedTime: z.string(),
     tags: z.array(z.string()).default([]),
+    pinned: z.boolean().optional(),
   }),
 });
 

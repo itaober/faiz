@@ -1,5 +1,5 @@
 import dayjs from 'dayjs';
-import { CalendarIcon, RefreshCwIcon } from 'lucide-react';
+import { CalendarIcon, HistoryIcon } from 'lucide-react';
 import { Fragment } from 'react';
 
 import { Badge } from '@/components/badge';
@@ -25,7 +25,7 @@ const PostTitle = ({ title, createdTime, updatedTime, tags, className }: IPostTi
   if (updatedTime) {
     metaList.push({
       id: 'updatedTime',
-      icon: <RefreshCwIcon className="size-3.5" />,
+      icon: <HistoryIcon className="size-3.5" />,
       content: dayjs(updatedTime).format('MMM DD, YYYY'),
     });
   }
