@@ -27,7 +27,7 @@ export const parseMDX = (raw: string | null) => (raw ? MDXSchema.parse(matter(ra
 // ================================
 export const getAboutMDX = async () => {
   try {
-    const raw = await fetchGitHubText('content/about.mdx');
+    const raw = await fetchGitHubText('pages/about.mdx');
     return parseMDX(raw);
   } catch (error) {
     console.error('Failed to fetch about.mdx:', error);
@@ -37,7 +37,7 @@ export const getAboutMDX = async () => {
 
 export const getLinesMDX = async () => {
   try {
-    const raw = await fetchGitHubText('content/lines.mdx');
+    const raw = await fetchGitHubText('pages/lines.mdx');
     return parseMDX(raw);
   } catch (error) {
     console.error('Failed to fetch lines.mdx:', error);
@@ -47,7 +47,7 @@ export const getLinesMDX = async () => {
 
 export const getPostList = async () => {
   try {
-    const files = await fetchGitHubDir('content/posts');
+    const files = await fetchGitHubDir('posts');
     const posts = await Promise.all(
       files.map(async path => {
         const raw = await fetchGitHubText(path);
@@ -67,7 +67,7 @@ export const getPostList = async () => {
 
 export const getPostMDX = async (slug: string) => {
   try {
-    const raw = await fetchGitHubText(`content/posts/${slug}.mdx`);
+    const raw = await fetchGitHubText(`posts/${slug}.mdx`);
     return parseMDX(raw);
   } catch (error) {
     console.error(`Failed to fetch post ${slug}:`, error);

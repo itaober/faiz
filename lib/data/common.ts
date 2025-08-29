@@ -3,22 +3,26 @@
 // ================================
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
 
-interface IGetGitHubBaseUrlOptions {
+interface IGitHubApiOptions {
   username: string;
   repo: string;
   branch?: string;
 }
 
-const getGitHubApiUrl = (
-  path: string,
-  { username, repo, branch = 'main' }: IGetGitHubBaseUrlOptions,
-) => `https://api.github.com/repos/${username}/${repo}/contents/${path}?ref=${branch}`;
+const GIT_HUB_API_OPTIONS: IGitHubApiOptions = {
+  username: 'itaober',
+  repo: 'faiz',
+  branch: 'content',
+};
+
+const getGitHubApiUrl = (path: string, { username, repo, branch } = GIT_HUB_API_OPTIONS) =>
+  `https://api.github.com/repos/${username}/${repo}/contents/${path}?ref=${branch}`;
 
 // ================================
 // Low-level Fetch Functions
 // ================================
 const fetchGitHubApi = async (path: string, init?: RequestInit) => {
-  const url = getGitHubApiUrl(path, { username: 'itaober', repo: 'faiz', branch: 'main' });
+  const url = getGitHubApiUrl(path);
 
   try {
     const res = await fetch(url, {

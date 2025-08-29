@@ -16,7 +16,7 @@ export const MetaSchema = z.object({
 
 export const getMetaInfo = cache(async () => {
   try {
-    const authorData = await fetchGitHubJson('/content/meta.json');
+    const authorData = await fetchGitHubJson('data/meta.json');
     return MetaSchema.parse(authorData);
   } catch (error) {
     console.error('Failed to fetch or parse meta data:', error);
