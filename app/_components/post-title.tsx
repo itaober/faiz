@@ -22,7 +22,7 @@ const PostTitle = ({ title, createdTime, updatedTime, tags, className }: IPostTi
     });
   }
 
-  if (updatedTime) {
+  if (updatedTime && !dayjs(updatedTime).isSame(createdTime, 'day')) {
     metaList.push({
       id: 'updatedTime',
       icon: <HistoryIcon className="size-3.5" />,
