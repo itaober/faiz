@@ -4,6 +4,7 @@ import type { Metadata } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
 import { ThemeProvider } from 'next-themes';
 
+import { ThemeScript, ThemeSync } from '@/components/theme-script';
 import { getMetaInfo } from '@/lib/data/meta';
 
 import Header from './_components/header';
@@ -39,8 +40,12 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        <ThemeScript />
+      </head>
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+          <ThemeSync />
           <Header />
           <main className="mx-auto max-w-3xl px-6 py-12">{children}</main>
         </ThemeProvider>
