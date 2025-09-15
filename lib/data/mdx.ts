@@ -1,5 +1,6 @@
 import dayjs from 'dayjs';
 import matter from 'gray-matter';
+import { cache } from 'react';
 import z from 'zod';
 
 import { fetchGitHubDir, fetchGitHubText } from './common';
@@ -25,7 +26,7 @@ export const parseMDX = (raw: string | null) => (raw ? MDXSchema.parse(matter(ra
 // ================================
 // GitHub MDX Fetchers
 // ================================
-export const getAboutMDX = async () => {
+export const getAboutMDX = cache(async () => {
   try {
     const raw = await fetchGitHubText('pages/about.mdx');
     return parseMDX(raw);
@@ -33,9 +34,9 @@ export const getAboutMDX = async () => {
     console.error('Failed to fetch about.mdx:', error);
     return null;
   }
-};
+});
 
-export const getLinesMDX = async () => {
+export const getLinesMDX = cache(async () => {
   try {
     const raw = await fetchGitHubText('pages/lines.mdx');
     return parseMDX(raw);
@@ -43,9 +44,9 @@ export const getLinesMDX = async () => {
     console.error('Failed to fetch lines.mdx:', error);
     return null;
   }
-};
+});
 
-export const getPostList = async () => {
+export const getPostList = cache(async () => {
   try {
     const files = await fetchGitHubDir('posts');
     const posts = await Promise.all(
@@ -63,9 +64,9 @@ export const getPostList = async () => {
     console.error('Failed to fetch posts list:', error);
     return [];
   }
-};
+});
 
-export const getPostMDX = async (slug: string) => {
+export const getPostMDX = cache(async (slug: string) => {
   try {
     const raw = await fetchGitHubText(`posts/${slug}.mdx`);
     return parseMDX(raw);
@@ -73,4 +74,4 @@ export const getPostMDX = async (slug: string) => {
     console.error(`Failed to fetch post ${slug}:`, error);
     return null;
   }
-};
+});

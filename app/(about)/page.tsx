@@ -5,6 +5,14 @@ import { getAboutMDX } from '@/lib/data/mdx';
 
 import PostTitle from '../_components/post-title';
 
+export async function generateMetadata() {
+  const aboutMDX = await getAboutMDX();
+  if (!aboutMDX) {
+    return {};
+  }
+  return { title: aboutMDX.data.title };
+}
+
 export default async function AboutPage() {
   const aboutMDX = await getAboutMDX();
 

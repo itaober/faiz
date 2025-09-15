@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { MDXRemote } from 'next-mdx-remote/rsc';
 
@@ -5,9 +6,12 @@ import PostTitle from '@/app/_components/post-title';
 import { getPostMDX } from '@/lib/data/mdx';
 
 interface IPostPageProps {
-  params: Promise<{
-    slug: string;
-  }>;
+  params: Promise<{ slug: string }>;
+}
+
+export async function generateMetadata({ params }: IPostPageProps): Promise<Metadata> {
+  const { slug } = await params;
+  return { title: { absolute: decodeURIComponent(slug) } };
 }
 
 export default async function PostPage({ params }: IPostPageProps) {

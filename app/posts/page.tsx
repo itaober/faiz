@@ -6,6 +6,10 @@ import PostItem from './_components/post-item';
 
 const PINNED_KEY = 'Pinned';
 
+export const metadata = {
+  title: 'Posts',
+};
+
 export default async function PostsPage() {
   const postList = await getPostList();
 

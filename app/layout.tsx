@@ -23,11 +23,19 @@ export async function generateMetadata(): Promise<Metadata> {
   const authorInfo = await getMetaInfo();
 
   if (!authorInfo) {
-    return { title: 'Faiz' };
+    return {
+      title: {
+        default: 'Faiz',
+        template: '%s - Faiz',
+      },
+    };
   }
 
   return {
-    title: `${authorInfo.name}'s Blog`,
+    title: {
+      default: authorInfo.name,
+      template: `%s - ${authorInfo.name}`,
+    },
     description: authorInfo?.bio,
     icons: authorInfo?.avatar,
   };
