@@ -1,3 +1,4 @@
+import { RssIcon } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 
@@ -15,6 +16,9 @@ const Header = async () => {
     </Link>,
     <Link key="posts" href="/posts">
       Posts
+    </Link>,
+    <Link key="feed" href="/feed.xml">
+      <RssIcon className="size-5" />
     </Link>,
     <ThemeToggle key="theme-toggle" />,
   ];

@@ -16,6 +16,8 @@ export const MDXSchema = z.object({
   }),
 });
 
+type MDXPost = z.infer<typeof MDXSchema>;
+
 export type MDXData = z.infer<typeof MDXSchema>['data'];
 
 // ================================
@@ -53,13 +55,13 @@ export const getPostList = cache(async () => {
       files.map(async path => {
         const raw = await fetchGitHubText(path);
         const parsed = parseMDX(raw);
-        return parsed ? parsed.data : null;
+        return parsed ?? null;
       }),
     );
 
     return posts
-      .filter((p): p is z.infer<typeof MDXSchema>['data'] => p !== null)
-      .sort((a, b) => dayjs(b.createdTime).diff(dayjs(a.createdTime)));
+      .filter(Boolean)
+      .sort((a, b) => dayjs(b?.data.createdTime).diff(dayjs(a?.data.createdTime))) as MDXPost[];
   } catch (error) {
     console.error('Failed to fetch posts list:', error);
     return [];

@@ -15,12 +15,12 @@ export default async function PostsPage() {
 
   const groupedPostsByYear = postList.reduce(
     (acc, post) => {
-      if (post.pinned) {
+      if (post?.data.pinned) {
         acc[PINNED_KEY] = [...(acc[PINNED_KEY] || []), post];
         return acc;
       }
 
-      const year = dayjs(post.createdTime).format('YYYY');
+      const year = dayjs(post?.data.createdTime).format('YYYY');
       if (!acc[year]) {
         acc[year] = [];
       }
@@ -50,7 +50,7 @@ export default async function PostsPage() {
               <h2 className="mb-2 text-2xl font-bold">{groupTitle}</h2>
               <ul className="flex flex-col gap-6 md:gap-4">
                 {posts.map(post => (
-                  <PostItem key={post.title} {...post} />
+                  <PostItem key={post?.data.title} {...post?.data} />
                 ))}
               </ul>
             </section>

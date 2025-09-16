@@ -38,6 +38,17 @@ export async function generateMetadata(): Promise<Metadata> {
     },
     description: authorInfo?.bio,
     icons: authorInfo?.avatar,
+    alternates: {
+      canonical: authorInfo?.site,
+      types: {
+        'application/rss+xml': [
+          {
+            url: `${authorInfo?.site}/feed.xml`,
+            title: 'RSS Feed',
+          },
+        ],
+      },
+    },
   };
 }
 

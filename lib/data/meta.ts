@@ -7,6 +7,7 @@ export const MetaSchema = z.object({
   name: z.string(),
   bio: z.string().optional(),
   avatar: z.string().optional(),
+  site: z.string().optional(),
   social: z
     .object({
       github: z.string().optional(),
