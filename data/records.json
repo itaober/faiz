@@ -9,8 +9,26 @@
       "type": "book"
     }
   ],
-  "movie": [],
-  "tv": [],
+  "movie": [
+    {
+      "title": "情书",
+      "link": "https://movie.douban.com/subject/1292220/",
+      "coverUrl": "/api/image/assets/records/movie_情书.webp",
+      "createdTime": "2025-05-25",
+      "rating": 9.5,
+      "type": "movie"
+    }
+  ],
+  "tv": [
+    {
+      "title": "东京爱情故事",
+      "link": "https://movie.douban.com/subject/1438760/",
+      "coverUrl": "/api/image/assets/records/tv_东京爱情故事.webp",
+      "createdTime": "2025-05-29",
+      "rating": 8.2,
+      "type": "tv"
+    }
+  ],
   "music": [],
   "game": []
 }
