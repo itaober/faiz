@@ -3,12 +3,6 @@ import { NextResponse } from 'next/server';
 
 import { fetchGitHubApi } from '@/lib/data/common';
 
-interface IOptions {
-  params: {
-    path: string[];
-  };
-}
-
 const cacheControl = [
   'public',
   `max-age=${7 * 24 * 60 * 60}`,
@@ -17,7 +11,7 @@ const cacheControl = [
   'immutable',
 ].join(', ');
 
-export async function GET(req: NextRequest, { params }: IOptions) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ path: string[] }> }) {
   try {
     const { path } = await params;
     const res = await fetchGitHubApi(path.join('/'), {
