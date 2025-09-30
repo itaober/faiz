@@ -9,7 +9,7 @@ interface IGitHubApiOptions {
   branch?: string;
 }
 
-const GIT_HUB_API_OPTIONS: IGitHubApiOptions = {
+export const GIT_HUB_API_OPTIONS: IGitHubApiOptions = {
   username: 'itaober',
   repo: 'faiz',
   branch: 'content',
@@ -21,7 +21,7 @@ const getGitHubApiUrl = (path: string, { username, repo, branch } = GIT_HUB_API_
 // ================================
 // Low-level Fetch Functions
 // ================================
-const fetchGitHubApi = async (path: string, init?: RequestInit) => {
+export const fetchGitHubApi = async (path: string, init?: RequestInit) => {
   const url = getGitHubApiUrl(path);
 
   try {
