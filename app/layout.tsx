@@ -6,7 +6,7 @@ import { Geist, Geist_Mono } from 'next/font/google';
 import { ThemeProvider } from 'next-themes';
 
 import { ThemeScript, ThemeSync } from '@/components/theme-script';
-import { getMetaInfo } from '@/lib/data/meta';
+import { getMetaInfo } from '@/lib/data/data';
 
 import Header from './_components/header';
 

@@ -3,7 +3,8 @@ import Image from 'next/image';
 import Link from 'next/link';
 
 import ThemeToggle from '@/components/theme-toggle';
-import { getMetaInfo } from '@/lib/data/meta';
+import { getMetaInfo } from '@/lib/data/data';
+import { cn } from '@/lib/utils';
 
 const Header = async () => {
   const metaInfo = await getMetaInfo();
@@ -16,6 +17,9 @@ const Header = async () => {
     </Link>,
     <Link key="posts" href="/posts">
       Posts
+    </Link>,
+    <Link key="records" href="/records">
+      Records
     </Link>,
     <Link key="feed" href="/feed.xml">
       <RssIcon className="size-5" />
@@ -40,7 +44,12 @@ const Header = async () => {
             {navList.map((el, index) => (
               <li
                 key={index}
-                className="flex items-center opacity-70 transition-opacity hover:opacity-100 active:opacity-100"
+                className={cn(
+                  'opacity-70 transition-opacity hover:opacity-100 active:opacity-100',
+                  {
+                    'hidden md:inline-flex': el.key === 'feed',
+                  },
+                )}
               >
                 {el}
               </li>

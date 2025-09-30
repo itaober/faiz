@@ -2,8 +2,8 @@ import dayjs from 'dayjs';
 import { Feed } from 'feed';
 import { marked } from 'marked';
 
+import { getMetaInfo } from '@/lib/data/data';
 import { getPostList } from '@/lib/data/mdx';
-import { getMetaInfo } from '@/lib/data/meta';
 
 export async function GET() {
   const [metaInfo, postList] = await Promise.all([getMetaInfo(), getPostList()]);

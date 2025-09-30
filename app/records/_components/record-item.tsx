@@ -1,0 +1,40 @@
+import dayjs from 'dayjs';
+import Image from 'next/image';
+import Link from 'next/link';
+
+import { Badge } from '@/components/badge';
+import type { RecordItem } from '@/lib/data/data';
+
+interface IRecordItemProps extends RecordItem {
+  typeLabel?: string;
+}
+
+export default function RecordItem({
+  title,
+  link,
+  coverUrl,
+  createdTime,
+  rating,
+  typeLabel,
+}: IRecordItemProps) {
+  return (
+    <div
+      key={title}
+      className="flex flex-col gap-1 rounded-md border border-transparent p-1.5 transition-all duration-200 hover:border-gray-300 hover:bg-gray-50 dark:hover:border-gray-700 dark:hover:bg-gray-900"
+    >
+      <div className="relative aspect-[2/3] w-full">
+        <Image src={coverUrl} alt={title} fill className="rounded object-cover" />
+      </div>
+      <Link href={link} className="truncate text-sm font-medium hover:underline">
+        {title}
+      </Link>
+      <div className="flex items-center gap-1 text-sm opacity-70">
+        <span>{rating}</span>
+        <span>·</span>
+        <span>{dayjs(createdTime).format('MMM DD')}</span>
+        {typeLabel && <span>·</span>}
+        {typeLabel && <Badge variant="outline">{typeLabel}</Badge>}
+      </div>
+    </div>
+  );
+}
