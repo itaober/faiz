@@ -21,11 +21,35 @@
   ],
   "tv": [
     {
+      "title": "潜行狙击",
+      "link": "https://movie.douban.com/subject/5965670/",
+      "coverUrl": "/api/image/assets/records/tv_潜行狙击.webp",
+      "createdTime": "2025-04-30",
+      "rating": 8.2,
+      "type": "tv"
+    },
+    {
+      "title": "学警狙击",
+      "link": "https://movie.douban.com/subject/3134607/",
+      "coverUrl": "/api/image/assets/records/tv_学警狙击.webp",
+      "createdTime": "2025-05-22",
+      "rating": 8.0,
+      "type": "tv"
+    },
+    {
       "title": "东京爱情故事",
       "link": "https://movie.douban.com/subject/1438760/",
       "coverUrl": "/api/image/assets/records/tv_东京爱情故事.webp",
       "createdTime": "2025-05-29",
-      "rating": 8.2,
+      "rating": 8.4,
+      "type": "tv"
+    },
+    {
+      "title": "掩耳盗邻",
+      "link": "https://movie.douban.com/subject/36691469/",
+      "coverUrl": "/api/image/assets/records/tv_掩耳盗邻.webp",
+      "createdTime": "2025-08-12",
+      "rating": 7.8,
       "type": "tv"
     }
   ],
