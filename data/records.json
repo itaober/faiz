@@ -51,6 +51,22 @@
       "createdTime": "2025-08-12",
       "rating": 7.8,
       "type": "tv"
+    },
+    {
+      "title": "庆余年 第一季",
+      "link": "https://movie.douban.com/subject/25853071/",
+      "coverUrl": "/api/image/assets/records/tv_庆余年1.webp",
+      "createdTime": "2025-08-26",
+      "rating": 7.9,
+      "type": "tv"
+    },
+    {
+      "title": "庆余年 第二季",
+      "link": "https://movie.douban.com/subject/34937650/",
+      "coverUrl": "/api/image/assets/records/tv_庆余年2.webp",
+      "createdTime": "2025-09-15",
+      "rating": 7.5,
+      "type": "tv"
     }
   ],
   "music": [],
