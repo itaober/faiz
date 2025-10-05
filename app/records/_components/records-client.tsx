@@ -50,7 +50,7 @@ export function RecordsClient({ records }: IRecordsClientProps) {
     }
     const currentRecordList =
       (activeTab === 'all' ? Object.values(records).flat() : records[activeTab])?.sort((a, b) =>
-        dayjs(b.createdTime).diff(dayjs(a.createdTime)),
+        dayjs(a.createdTime).diff(dayjs(b.createdTime)),
       ) || [];
 
     const groupedRecordsByYear = currentRecordList.reduce(
