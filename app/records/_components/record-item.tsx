@@ -4,8 +4,12 @@ import Link from 'next/link';
 
 import { Badge } from '@/components/badge';
 import type { RecordItem } from '@/lib/data/data';
+import { cn } from '@/lib/utils';
+
+import type { Tab } from './constants';
 
 interface IRecordItemProps extends RecordItem {
+  tab: Tab;
   typeLabel?: string;
 }
 
@@ -15,14 +19,20 @@ export default function RecordItem({
   coverUrl,
   createdTime,
   rating,
+  tab,
   typeLabel,
 }: IRecordItemProps) {
+  const isMusicTab = tab === 'music';
   return (
     <div
       key={title}
       className="flex flex-col gap-1 rounded-md border border-transparent p-1.5 transition-all duration-200 hover:border-gray-300 hover:bg-gray-50 dark:hover:border-gray-700 dark:hover:bg-gray-900"
     >
-      <div className="relative aspect-[2/3] w-full">
+      <div
+        className={cn('relative aspect-[2/3] w-full', {
+          'aspect-square': isMusicTab,
+        })}
+      >
         <Image src={coverUrl} alt={title} fill className="rounded object-cover" />
       </div>
       <Link href={link} className="truncate text-sm font-medium hover:underline">

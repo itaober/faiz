@@ -3,39 +3,11 @@ import dayjs from 'dayjs';
 import { useMemo, useState } from 'react';
 
 import PostTitle from '@/app/_components/post-title';
-import type { Records, RecordType } from '@/lib/data/data';
+import type { Records } from '@/lib/data/data';
 import { cn } from '@/lib/utils';
 
+import { type Tab, tabList } from './constants';
 import RecordItem from './record-item';
-
-const tabList: { label: string; value: RecordType | 'all' }[] = [
-  {
-    label: 'All',
-    value: 'all',
-  },
-  {
-    label: 'Book',
-    value: 'book',
-  },
-  {
-    label: 'Movie',
-    value: 'movie',
-  },
-  {
-    label: 'TV',
-    value: 'tv',
-  },
-  {
-    label: 'Music',
-    value: 'music',
-  },
-  {
-    label: 'Game',
-    value: 'game',
-  },
-] as const;
-
-type Tab = (typeof tabList)[number]['value'];
 
 interface IRecordsClientProps {
   records: Records | null;
@@ -103,6 +75,7 @@ export function RecordsClient({ records }: IRecordsClientProps) {
                 <RecordItem
                   key={record.title}
                   {...record}
+                  tab={activeTab}
                   typeLabel={getTypeLabel(record.type as Tab)}
                 />
               ))}
