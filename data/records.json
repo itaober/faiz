@@ -69,6 +69,79 @@
       "type": "tv"
     }
   ],
-  "music": [],
+  "music": [
+    {
+      "title": "黄金时代",
+      "link": "https://music.douban.com/subject/1406080/",
+      "coverUrl": "/api/image/assets/records/music_黄金时代.webp",
+      "createdTime": "2024-10-12",
+      "rating": 8.6,
+      "type": "music"
+    },
+    {
+      "title": "劳动之余",
+      "link": "https://music.douban.com/subject/35450427/",
+      "coverUrl": "/api/image/assets/records/music_劳动之余.webp",
+      "createdTime": "2024-10-12",
+      "rating": 8.6,
+      "type": "music"
+    },
+    {
+      "title": "爱是昂贵的",
+      "link": "https://music.douban.com/subject/35337043/",
+      "coverUrl": "/api/image/assets/records/music_爱是昂贵的.webp",
+      "createdTime": "2024-10-12",
+      "rating": 8.0,
+      "type": "music"
+    },
+    {
+      "title": "冀西南林路行",
+      "link": "https://music.douban.com/subject/35292992/",
+      "coverUrl": "/api/image/assets/records/music_冀西南林路行.webp",
+      "createdTime": "2024-11-18",
+      "rating": 9.2,
+      "type": "music"
+    },
+    {
+      "title": "万能青年旅店",
+      "link": "https://music.douban.com/subject/5344708/",
+      "coverUrl": "/api/image/assets/records/music_万能青年旅店.webp",
+      "createdTime": "2021-06-02",
+      "rating": 9.1,
+      "type": "music"
+    },
+    {
+      "title": "白日梦蓝",
+      "link": "https://music.douban.com/subject/3566567/",
+      "coverUrl": "/api/image/assets/records/music_白日梦蓝.webp",
+      "createdTime": "2025-11-18",
+      "rating": 8.7,
+      "type": "music"
+    },
+    {
+      "title": "生之响往",
+      "link": "https://music.douban.com/subject/30203903/",
+      "coverUrl": "/api/image/assets/records/music_生之响往.webp",
+      "createdTime": "2025-11-18",
+      "rating": 8.5,
+      "type": "music"
+    },
+    {
+      "title": "David Tao",
+      "link": "https://music.douban.com/subject/1407329/",
+      "coverUrl": "/api/image/assets/records/music_David Tao.webp",
+      "createdTime": "2025-04-14",
+      "rating": 8.5,
+      "type": "music"
+    },
+    {
+      "title": "秋：故事",
+      "link": "https://music.douban.com/subject/24870385/",
+      "coverUrl": "/api/image/assets/records/music_秋：故事.webp",
+      "createdTime": "2025-05-07",
+      "rating": 8.2,
+      "type": "music"
+    }
+  ],
   "game": []
 }
