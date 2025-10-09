@@ -45,7 +45,7 @@ const Header = async () => {
               <li
                 key={index}
                 className={cn(
-                  'opacity-70 transition-opacity hover:opacity-100 active:opacity-100',
+                  'flex items-center justify-center opacity-70 transition-opacity hover:opacity-100 active:opacity-100',
                   {
                     'hidden md:inline-flex': el.key === 'feed',
                   },
