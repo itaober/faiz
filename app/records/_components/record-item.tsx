@@ -39,7 +39,7 @@ export default function RecordItem({
         {title}
       </Link>
       <div className="flex items-center gap-1 text-sm opacity-70">
-        <span>{rating}</span>
+        <span>{rating.toFixed(1)}</span>
         <span>·</span>
         <span>{dayjs(createdTime).format('MMM DD')}</span>
         {typeLabel && <span>·</span>}
