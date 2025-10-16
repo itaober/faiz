@@ -46,7 +46,7 @@ export default function RecordItem({
     >
       <div
         className={cn({
-          'bg-foreground/95 fixed inset-0 z-50 flex items-center justify-center px-6 backdrop-blur md:px-0':
+          'fixed inset-0 z-50 flex items-center justify-center bg-black/90 px-6 backdrop-blur md:px-0':
             isPreview,
         })}
         onClick={() => setIsPreview(!isPreview)}
