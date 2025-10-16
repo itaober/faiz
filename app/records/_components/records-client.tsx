@@ -70,7 +70,7 @@ export function RecordsClient({ records }: IRecordsClientProps) {
         {sortedRecordsByYear.map(([year, records]) => (
           <section key={year}>
             <h2 className="mb-4 text-2xl font-bold">{year}</h2>
-            <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
               {records.map(record => (
                 <RecordItem
                   key={record.title}

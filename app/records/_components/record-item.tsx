@@ -1,6 +1,7 @@
 import dayjs from 'dayjs';
 import Image from 'next/image';
 import Link from 'next/link';
+import { useEffect, useState } from 'react';
 
 import { Badge } from '@/components/badge';
 import type { RecordItem } from '@/lib/data/data';
@@ -20,20 +21,51 @@ export default function RecordItem({
   createdTime,
   rating,
   tab,
+  type,
   typeLabel,
 }: IRecordItemProps) {
+  const [isPreview, setIsPreview] = useState(false);
+
   const isMusicTab = tab === 'music';
+  const isMusicType = type === 'music';
+
+  const isAspectSquare = isMusicTab || (isMusicType && isPreview);
+
+  useEffect(() => {
+    if (isPreview) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'auto';
+    }
+  }, [isPreview]);
+
   return (
     <div
       key={title}
       className="flex flex-col gap-1 rounded-md border border-transparent p-1.5 transition-all duration-200 hover:border-neutral-200 hover:bg-neutral-50 dark:hover:border-neutral-800 dark:hover:bg-neutral-900"
     >
       <div
-        className={cn('relative aspect-[2/3] w-full', {
-          'aspect-square': isMusicTab,
+        className={cn({
+          'bg-foreground/95 fixed inset-0 z-50 flex items-center justify-center px-6 backdrop-blur md:px-0':
+            isPreview,
         })}
+        onClick={() => setIsPreview(!isPreview)}
       >
-        <Image src={coverUrl} alt={title} fill className="rounded object-cover" />
+        <div
+          className={cn('relative aspect-[2/3] w-full', {
+            'aspect-square': isAspectSquare,
+            'max-w-lg': isPreview,
+          })}
+        >
+          <Image
+            src={coverUrl}
+            alt={title}
+            fill
+            className={cn('rounded object-cover', {
+              'rounded-none': isPreview,
+            })}
+          />
+        </div>
       </div>
       <Link href={link} className="truncate text-sm font-medium hover:underline">
         {title}
