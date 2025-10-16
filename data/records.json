@@ -75,7 +75,7 @@
       "link": "https://music.douban.com/subject/1406080/",
       "coverUrl": "/api/image/assets/records/music_黄金时代.jpg",
       "createdTime": "2024-10-12",
-      "rating": 8.6,
+      "rating": 8.5,
       "type": "music"
     },
     {
@@ -140,6 +140,14 @@
       "coverUrl": "/api/image/assets/records/music_秋：故事.jpg",
       "createdTime": "2025-05-07",
       "rating": 8.2,
+      "type": "music"
+    },
+    {
+      "title": "没有鸟鸣，关上窗吧",
+      "link": "https://music.douban.com/subject/33446085/",
+      "coverUrl": "/api/image/assets/records/music_没有鸟鸣，关上窗吧.jpg",
+      "createdTime": "2025-10-16",
+      "rating": 8.5,
       "type": "music"
     }
   ],
