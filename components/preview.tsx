@@ -58,8 +58,8 @@ const PreviewTrigger = ({ children, className }: IPreviewTriggerProps) => {
     <div
       data-preview={isPreview}
       className={cn(
-        'cursor-pointer',
         {
+          'cursor-pointer': !isPreview,
           'fixed inset-0 z-50 flex items-center justify-center bg-black/90 px-6 backdrop-blur md:px-0 dark:bg-black/80':
             isPreview,
         },
@@ -107,7 +107,7 @@ const PreviewImage = ({ src, alt, className, ...props }: ImageProps) => {
       className={cn(
         'rounded object-cover',
         {
-          'rounded-none': !isPreview,
+          'rounded-none': isPreview,
         },
         className,
       )}
