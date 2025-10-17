@@ -40,7 +40,7 @@ export default function RecordItem({
               'data-[preview=true]:aspect-square': isMusicType,
             })}
           >
-            <PreviewImage src={coverUrl} alt={title} fill />
+            <PreviewImage src={coverUrl} alt={title} />
           </PreviewContent>
         </PreviewTrigger>
       </Preview>
