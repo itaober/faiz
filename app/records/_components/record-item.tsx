@@ -44,7 +44,7 @@ export default function RecordItem({
           </PreviewContent>
         </PreviewTrigger>
       </Preview>
-      <Link href={link} className="truncate text-sm font-medium hover:underline">
+      <Link href={link} target="_blank" className="truncate text-sm font-medium hover:underline">
         {title}
       </Link>
       <div className="flex items-center gap-1 text-sm opacity-70">
