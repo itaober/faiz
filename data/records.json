@@ -157,6 +157,14 @@
       "createdTime": "2025-10-16",
       "rating": 8.5,
       "type": "music"
+    },
+    {
+      "title": "在雨后醒来",
+      "link": "https://music.douban.com/subject/37663914/",
+      "coverUrl": "/api/image/assets/records/music_在雨后醒来.jpg",
+      "createdTime": "2025-10-15",
+      "rating": 8.4,
+      "type": "music"
     }
   ],
   "game": []
