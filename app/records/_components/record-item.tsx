@@ -1,8 +1,15 @@
 import dayjs from 'dayjs';
+import Image from 'next/image';
 import Link from 'next/link';
 
 import { Badge } from '@/components/badge';
-import { Preview, PreviewContent, PreviewImage, PreviewTrigger } from '@/components/preview';
+import {
+  Preview,
+  PreviewContent,
+  PreviewImage,
+  PreviewPortal,
+  PreviewTrigger,
+} from '@/components/preview';
 import type { RecordItem } from '@/lib/data/data';
 import { cn } from '@/lib/utils';
 
@@ -31,22 +38,33 @@ export default function RecordItem({
       key={title}
       className="flex flex-col gap-1 rounded-md border border-transparent p-1.5 transition-all duration-200 hover:border-neutral-200 hover:bg-neutral-50 dark:hover:border-neutral-800 dark:hover:bg-neutral-900"
     >
+      {/* Cover */}
       <Preview>
         <PreviewTrigger>
-          <PreviewContent
-            isMusicType={isMusicType}
-            className={cn('aspect-[2/3]', {
+          <div
+            className={cn('relative aspect-[2/3] w-full', {
               'aspect-square': isMusicTab,
-              'data-[preview=true]:aspect-square': isMusicType,
+            })}
+          >
+            <Image src={coverUrl} alt={title} fill className="rounded object-cover" />
+          </div>
+        </PreviewTrigger>
+        <PreviewPortal>
+          <PreviewContent
+            className={cn({
+              'aspect-[2/3]': !isMusicType,
+              'aspect-square': isMusicType,
             })}
           >
             <PreviewImage src={coverUrl} alt={title} />
           </PreviewContent>
-        </PreviewTrigger>
+        </PreviewPortal>
       </Preview>
+      {/* Title */}
       <Link href={link} target="_blank" className="truncate text-sm font-medium hover:underline">
         {title}
       </Link>
+      {/* Other info */}
       <div className="flex items-center gap-1 text-sm opacity-70">
         <span>{rating.toFixed(1)}</span>
         <span>·</span>
