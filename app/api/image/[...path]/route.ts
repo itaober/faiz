@@ -11,6 +11,21 @@ const cacheControl = [
   'immutable',
 ].join(', ');
 
+const getContentType = (path: string): string => {
+  const ext = path.split('.').pop()?.toLowerCase();
+  const mimeTypes: Record<string, string> = {
+    png: 'image/png',
+    jpg: 'image/jpeg',
+    jpeg: 'image/jpeg',
+    gif: 'image/gif',
+    webp: 'image/webp',
+    svg: 'image/svg+xml',
+    ico: 'image/x-icon',
+    bmp: 'image/bmp',
+  };
+  return mimeTypes[ext || ''] || 'application/octet-stream';
+};
+
 export async function GET(req: NextRequest, { params }: { params: Promise<{ path: string[] }> }) {
   try {
     const { path } = await params;
@@ -20,11 +35,13 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ path
       },
     });
 
-    const contentType = res.headers.get('content-type') || 'application/octet-stream';
+    const contentType = getContentType(path.join('/'));
     const buffer = await res.arrayBuffer();
+
     return new NextResponse(buffer, {
       headers: {
         'Content-Type': contentType,
+        'Content-Disposition': 'inline',
         'Cache-Control': cacheControl,
         'CDN-Cache-Control': cacheControl,
         Vary: 'Accept-Encoding',
