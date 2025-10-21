@@ -167,5 +167,14 @@
       "type": "music"
     }
   ],
-  "game": []
+  "game": [
+    {
+      "title": "阿瓦隆",
+      "link": "https://andyventure.com/boardgame-avalon/",
+      "coverUrl": "/api/image/assets/records/game_阿瓦隆.webp",
+      "createdTime": "2025-10-18",
+      "rating": 8.0,
+      "type": "game"
+    }
+  ]
 }
