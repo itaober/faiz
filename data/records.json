@@ -91,7 +91,7 @@
       "link": "https://music.douban.com/subject/35450427/",
       "coverUrl": "/api/image/assets/records/music_劳动之余.jpg",
       "createdTime": "2024-10-12",
-      "rating": 8.6,
+      "rating": 8.7,
       "type": "music"
     },
     {
@@ -99,7 +99,7 @@
       "link": "https://music.douban.com/subject/35337043/",
       "coverUrl": "/api/image/assets/records/music_爱是昂贵的.jpg",
       "createdTime": "2024-10-12",
-      "rating": 8.0,
+      "rating": 8.2,
       "type": "music"
     },
     {
@@ -163,7 +163,15 @@
       "link": "https://music.douban.com/subject/37663914/",
       "coverUrl": "/api/image/assets/records/music_在雨后醒来.jpg",
       "createdTime": "2025-10-15",
-      "rating": 8.3,
+      "rating": 8.1,
+      "type": "music"
+    },
+    {
+      "title": "我去2000年",
+      "link": "https://music.douban.com/subject/2305573/",
+      "coverUrl": "/api/image/assets/records/music_我去2000年.jpg",
+      "createdTime": "2025-10-24",
+      "rating": 8.4,
       "type": "music"
     }
   ],
