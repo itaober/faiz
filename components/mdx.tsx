@@ -9,15 +9,15 @@ import { Checkbox, CheckboxLabel, CheckboxRoot } from './checkbox';
 interface ITodoListProps {
   readonly?: boolean;
   items: Array<
-    ICheckboxRootProps & {
-      label: string;
-    }
+    {
+      label: React.ReactNode;
+    } & Omit<ICheckboxRootProps, 'children'>
   >;
 }
 
 const TodoList = ({ readonly = false, items }: ITodoListProps) => {
   return (
-    <div className="flex flex-col gap-1">
+    <div className="flex flex-col gap-0.5">
       {items.map((item, index) => {
         const { label, ...props } = item;
         return (
