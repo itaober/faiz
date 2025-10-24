@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation';
-import { MDXRemote } from 'next-mdx-remote/rsc';
 
+import { MDX } from '@/components/mdx';
 import { getLinesMDX } from '@/lib/data/mdx';
 
 import PostTitle from '../_components/post-title';
@@ -26,7 +26,7 @@ const LinesPage = async () => {
     <div className="max-w-4xl overflow-y-hidden">
       <PostTitle {...data} />
       <article className="prose dark:prose-invert">
-        <MDXRemote source={content} />
+        <MDX source={content} />
       </article>
     </div>
   );
