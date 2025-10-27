@@ -1,6 +1,6 @@
 import dayjs from 'dayjs';
 
-import { getPostList } from '@/lib/data/mdx';
+import { getPostListInfo } from '@/lib/data/data';
 
 import PostItem from './_components/post-item';
 
@@ -11,23 +11,23 @@ export const metadata = {
 };
 
 export default async function PostsPage() {
-  const postList = await getPostList();
+  const postList = await getPostListInfo();
 
-  const groupedPostsByYear = postList.reduce(
+  const groupedPostsByYear = (postList || []).reduce(
     (acc, post) => {
-      if (post?.data.pinned) {
+      if (post.pinned) {
         acc[PINNED_KEY] = [...(acc[PINNED_KEY] || []), post];
         return acc;
       }
 
-      const year = dayjs(post?.data.createdTime).format('YYYY');
+      const year = dayjs(post.createdTime).format('YYYY');
       if (!acc[year]) {
         acc[year] = [];
       }
       acc[year].push(post);
       return acc;
     },
-    {} as Record<string, typeof postList>,
+    {} as Record<string, NonNullable<typeof postList>>,
   );
 
   const sortedPostsByYear = Object.entries(groupedPostsByYear).sort((a, b) => {
@@ -50,7 +50,7 @@ export default async function PostsPage() {
               <h2 className="mb-2 text-2xl font-bold">{groupTitle}</h2>
               <ul className="flex flex-col gap-6 md:gap-4">
                 {posts.map(post => (
-                  <PostItem key={post?.data.title} {...post?.data} />
+                  <PostItem key={post.slug} {...post} />
                 ))}
               </ul>
             </section>

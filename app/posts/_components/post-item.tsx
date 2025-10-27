@@ -2,15 +2,15 @@ import dayjs from 'dayjs';
 import Link from 'next/link';
 
 import { Badge } from '@/components/badge';
-import type { MDXData } from '@/lib/data/mdx';
+import type { PostMeta } from '@/lib/data/data';
 
-const PostItem = (props: MDXData) => {
-  const { title, createdTime, tags } = props;
+const PostItem = (props: PostMeta) => {
+  const { slug, title, createdTime, tags } = props;
 
   return (
     <li>
       <Link
-        href={`/posts/${title}`}
+        href={`/posts/${slug}`}
         className="group flex flex-col items-start gap-1 md:flex-row md:items-center md:gap-6"
       >
         <span className="text-lg opacity-70 transition-opacity group-hover:opacity-100">

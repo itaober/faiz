@@ -44,8 +44,8 @@ export async function GET() {
 
       feed.addItem({
         title,
-        id: `${feedDomain}/posts/${title}`,
-        link: `${feedDomain}/posts/${title}`,
+        id: `${feedDomain}/posts/${post.data.slug}`,
+        link: `${feedDomain}/posts/${post.data.slug}`,
         author: [
           {
             name: metaInfo?.name,

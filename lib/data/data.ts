@@ -54,3 +54,26 @@ export const getRecordsInfo = cache(async (): Promise<Records | null> => {
     return null;
   }
 });
+
+export const PostMetaSchema = z.object({
+  slug: z.string(),
+  title: z.string(),
+  createdTime: z.string(),
+  updatedTime: z.string(),
+  tags: z.array(z.string()).default([]),
+  pinned: z.boolean().optional(),
+});
+export const PostListSchema = z.array(PostMetaSchema);
+
+export type PostMeta = z.infer<typeof PostMetaSchema>;
+export type PostList = z.infer<typeof PostListSchema>;
+
+export const getPostListInfo = cache(async (): Promise<PostList | null> => {
+  try {
+    const postListData = await fetchGitHubJson('data/posts.json');
+    return PostListSchema.parse(postListData);
+  } catch (error) {
+    console.error('Failed to fetch or parse post list data:', error);
+    return null;
+  }
+});

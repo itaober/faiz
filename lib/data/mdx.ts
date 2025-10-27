@@ -8,6 +8,7 @@ import { fetchGitHubDir, fetchGitHubText } from './common';
 export const MDXSchema = z.object({
   content: z.string(),
   data: z.object({
+    slug: z.string(),
     title: z.string(),
     createdTime: z.string(),
     updatedTime: z.string(),
