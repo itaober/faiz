@@ -3,13 +3,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 
 import { Badge } from '@/components/badge';
-import {
-  Preview,
-  PreviewContent,
-  PreviewImage,
-  PreviewPortal,
-  PreviewTrigger,
-} from '@/components/preview';
+import { Preview, PreviewImage, PreviewPortal, PreviewTrigger } from '@/components/preview';
 import type { RecordItem } from '@/lib/data/data';
 import { cn } from '@/lib/utils';
 
@@ -41,23 +35,26 @@ export default function RecordItem({
       {/* Cover */}
       <Preview>
         <PreviewTrigger>
-          <div
-            className={cn('relative aspect-[2/3] w-full', {
+          <Image
+            src={coverUrl}
+            alt={title}
+            width={0}
+            height={0}
+            sizes="100%"
+            className={cn('relative aspect-[2/3] w-full rounded object-cover', {
               'aspect-square': isMusicTab,
             })}
-          >
-            <Image src={coverUrl} alt={title} fill className="rounded object-cover" />
-          </div>
+          />
         </PreviewTrigger>
         <PreviewPortal>
-          <PreviewContent
+          <PreviewImage
+            src={coverUrl}
+            alt={title}
             className={cn({
               'aspect-[2/3]': !isMusicType,
               'aspect-square': isMusicType,
             })}
-          >
-            <PreviewImage src={coverUrl} alt={title} />
-          </PreviewContent>
+          />
         </PreviewPortal>
       </Preview>
       {/* Title */}

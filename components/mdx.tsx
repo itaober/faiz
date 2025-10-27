@@ -1,10 +1,12 @@
 import type { MDXComponents } from 'mdx/types';
+import NextImage from 'next/image';
 import Link from 'next/link';
 import type { MDXRemoteProps } from 'next-mdx-remote/rsc';
 import { MDXRemote } from 'next-mdx-remote/rsc';
 
 import type { ICheckboxRootProps } from './checkbox';
 import { Checkbox, CheckboxLabel, CheckboxRoot } from './checkbox';
+import { Preview, PreviewImage, PreviewPortal, PreviewTrigger } from './preview';
 
 interface ITodoListProps {
   readonly?: boolean;
@@ -31,12 +33,40 @@ const TodoList = ({ readonly = false, items }: ITodoListProps) => {
   );
 };
 
+interface IImageProps {
+  src: string;
+  alt: string;
+}
+
+const Image = ({ src, alt }: IImageProps) => {
+  return (
+    <Preview>
+      <PreviewTrigger>
+        <div className="relative w-full">
+          <NextImage
+            src={src}
+            alt={alt}
+            width={0}
+            height={0}
+            sizes="100%"
+            className="h-auto w-full rounded md:rounded-xl"
+          />
+        </div>
+      </PreviewTrigger>
+      <PreviewPortal>
+        <PreviewImage src={src} alt={alt} />
+      </PreviewPortal>
+    </Preview>
+  );
+};
+
 const components: MDXComponents = {
   Link,
   CheckboxRoot,
   Checkbox,
   CheckboxLabel,
   TodoList,
+  Image,
 };
 
 export const MDX = (props: MDXRemoteProps) => {

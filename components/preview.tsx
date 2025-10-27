@@ -103,15 +103,6 @@ const PreviewPortal = ({ children, className }: IPreviewPortalProps) => {
   );
 };
 
-interface IPreviewContentProps {
-  children: React.ReactNode;
-  className?: string;
-}
-
-const PreviewContent = ({ children, className }: IPreviewContentProps) => {
-  return <div className={cn('relative aspect-square w-full max-w-lg', className)}>{children}</div>;
-};
-
 interface IPreviewImageProps {
   src: string;
   alt: string;
@@ -119,7 +110,17 @@ interface IPreviewImageProps {
 }
 
 const PreviewImage = ({ src, alt, className }: IPreviewImageProps) => {
-  return <Image src={src} alt={alt} fill className={cn('object-contain', className)} priority />;
+  return (
+    <Image
+      src={src}
+      alt={alt}
+      width={0}
+      height={0}
+      sizes="100%"
+      className={cn('h-5/6 w-auto object-contain', className)}
+      priority
+    />
+  );
 };
 
-export { Preview, PreviewContent, PreviewImage, PreviewPortal, PreviewTrigger };
+export { Preview, PreviewImage, PreviewPortal, PreviewTrigger };

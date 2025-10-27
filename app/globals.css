@@ -38,4 +38,7 @@ button {
       }
     }
   }
+  ul {
+    padding-inline-start: 1em;
+  }
 }
