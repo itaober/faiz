@@ -9,20 +9,23 @@ interface IPostPageProps {
   params: Promise<{ slug: string }>;
 }
 
+async function getPost(slug: string) {
+  const post = await getPostMDX(slug);
+  if (!post) {
+    notFound();
+  }
+  return post;
+}
+
 export async function generateMetadata({ params }: IPostPageProps): Promise<Metadata> {
   const { slug } = await params;
-  return { title: { absolute: decodeURIComponent(slug) } };
+  const post = await getPost(slug);
+  return { title: { absolute: post.data.title } };
 }
 
 export default async function PostPage({ params }: IPostPageProps) {
   const { slug } = await params;
-
-  const post = await getPostMDX(decodeURIComponent(slug));
-
-  if (!post) {
-    notFound();
-  }
-
+  const post = await getPost(slug);
   const { content, data } = post;
 
   return (
