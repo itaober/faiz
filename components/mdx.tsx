@@ -36,21 +36,24 @@ const TodoList = ({ readonly = false, items }: ITodoListProps) => {
 interface IImageProps {
   src: string;
   alt: string;
+  caption?: string;
 }
 
-const Image = ({ src, alt }: IImageProps) => {
+const Image = ({ src, alt, caption }: IImageProps) => {
+  const _caption = caption || alt;
   return (
     <Preview>
       <PreviewTrigger>
-        <div className="relative w-full">
+        <div className="relative w-full px-2">
           <NextImage
             src={src}
             alt={alt}
             width={0}
             height={0}
             sizes="100%"
-            className="h-auto w-full rounded md:rounded-xl"
+            className="h-auto w-full rounded-md md:rounded-lg"
           />
+          {_caption && <figcaption>{_caption}</figcaption>}
         </div>
       </PreviewTrigger>
       <PreviewPortal>
