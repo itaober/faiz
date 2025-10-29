@@ -173,6 +173,14 @@
       "createdTime": "2025-10-24",
       "rating": 8.4,
       "type": "music"
+    },
+    {
+      "title": "牛羊下山",
+      "link": "https://music.douban.com/subject/5269027/",
+      "coverUrl": "/api/image/assets/records/music_牛羊下山.jpg",
+      "createdTime": "2025-10-29",
+      "rating": 8.0,
+      "type": "music"
     }
   ],
   "game": [
