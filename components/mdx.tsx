@@ -50,7 +50,7 @@ const Image = ({ src, alt, caption }: IImageProps) => {
             alt={alt}
             width={0}
             height={0}
-            sizes="100%"
+            sizes="100vw"
             className="h-auto w-full rounded-md md:rounded-lg"
           />
           {_caption && <figcaption>{_caption}</figcaption>}

@@ -40,7 +40,7 @@ export default function RecordItem({
             alt={title}
             width={0}
             height={0}
-            sizes="100%"
+            sizes="100vw"
             className={cn('relative aspect-[2/3] w-full rounded object-cover', {
               'aspect-square': isMusicTab,
             })}

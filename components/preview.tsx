@@ -116,7 +116,7 @@ const PreviewImage = ({ src, alt, className }: IPreviewImageProps) => {
       alt={alt}
       width={0}
       height={0}
-      sizes="100%"
+      sizes="100vw"
       className={cn('h-5/6 w-auto object-contain', className)}
       priority
     />
