@@ -49,4 +49,11 @@ button {
     text-align: center;
     font-size: 0.75rem;
   }
+  code {
+    @apply rounded bg-gray-100 px-1 py-0.5 font-medium dark:bg-gray-800;
+    &::before,
+    &::after {
+      content: none;
+    }
+  }
 }
