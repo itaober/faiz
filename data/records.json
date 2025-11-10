@@ -181,6 +181,14 @@
       "createdTime": "2025-10-29",
       "rating": 8.0,
       "type": "music"
+    },
+    {
+      "title": "木马",
+      "link": "https://music.douban.com/subject/1406539/",
+      "coverUrl": "/api/image/assets/records/music_木马.jpg",
+      "createdTime": "2025-11-04",
+      "rating": 8.4,
+      "type": "music"
     }
   ],
   "game": [
