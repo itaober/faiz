@@ -1,0 +1,25 @@
+[
+  {
+    "id": "20251125_090000",
+    "content": "早上试了下新的 Memos 编辑器，还挺顺手的。\n\n- 支持 **Markdown**\n- 支持多图上传（自动转成 webp）\n\n接下来可以考虑：\n1. 做一个简单的搜索\n2. 支持按标签筛选",
+    "images": [],
+    "createdAt": "2025-11-25T01:00:00.000Z",
+    "updatedAt": "2025-11-25T01:10:00.000Z"
+  },
+  {
+    "id": "20251124_183000",
+    "content": "今天在想一个问题：\n\n> 写博客和写 memos 的边界到底在哪？\n\n现在的想法是：\n- Posts 更偏「结构化」「完整观点」\n- Memos 就是「随手记」，哪怕只有一两行也没关系",
+    "images": ["/api/image/assets/posts/weekly_04_建筑.png"],
+    "createdAt": "2025-11-24T10:30:00.000Z"
+  },
+  {
+    "id": "20251123_120000",
+    "content": "试了一下手机端编辑体验：\n\n- 文本输入还可以，再调一点行高可能会更舒服\n- 图片上传这块后面可以加个上传进度条\n\n先这样用一阵，看真实使用中的痛点再调。",
+    "images": [
+      "/api/image/assets/posts/weekly_04_摩天轮.png",
+      "/api/image/assets/posts/weekly_04_鸭子船.png",
+      "/api/image/assets/posts/weekly_04_柿子树.png"
+    ],
+    "createdAt": "2025-11-23T04:00:00.000Z"
+  }
+]
