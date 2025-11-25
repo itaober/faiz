@@ -189,6 +189,13 @@
       "createdTime": "2025-11-04",
       "rating": 8.4,
       "type": "music"
+    },
+    {
+      "title": "The Dark Side of the Moon",
+      "link": "https://music.douban.com/subject/1395685/",
+      "coverUrl": "/api/image/assets/records/music_the_dark_side_of_the_moon.jpg",
+      "createdTime": "2025-11-25",
+      "type": "music"
     }
   ],
   "game": [
