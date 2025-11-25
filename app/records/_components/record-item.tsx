@@ -63,8 +63,8 @@ export default function RecordItem({
       </Link>
       {/* Other info */}
       <div className="flex items-center gap-1 text-sm opacity-70">
-        <span>{rating.toFixed(1)}</span>
-        <span>·</span>
+        {rating && <span>{rating.toFixed(1)}</span>}
+        {rating && <span>·</span>}
         <span>{dayjs(createdTime).format('MMM DD')}</span>
         {typeLabel && <span>·</span>}
         {typeLabel && <Badge variant="outline">{typeLabel}</Badge>}
