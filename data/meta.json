@@ -1,7 +1,7 @@
 {
   "name": "Taober",
   "bio": "Hey, I am Taober.",
-  "avatar": "/api/image/assets/avatar.jpg",
+  "avatar": "/api/image/assets/avatar.webp",
   "site": "https://www.taober.blog",
   "social": {
     "github": "https://github.com/itaober"
