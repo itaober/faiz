@@ -87,6 +87,14 @@
   ],
   "music": [
     {
+      "title": "出人头地 2025 Dreams Come True Mixtape",
+      "link": "https://music.douban.com/subject/37239531/",
+      "coverUrl": "/api/image/assets/records/music_出人头地.webp",
+      "createdTime": "2025-12-30",
+      "type": "music",
+      "rating": 7
+    },
+    {
       "title": "Magic, Alive!",
       "link": "https://music.douban.com/subject/37250324/",
       "coverUrl": "/api/image/assets/records/music_magic_alive.webp",
