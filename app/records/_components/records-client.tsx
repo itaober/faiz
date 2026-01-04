@@ -50,7 +50,7 @@ export function RecordsClient({ records }: IRecordsClientProps) {
   };
 
   return (
-    <div className="max-w-4xl overflow-y-hidden">
+    <div>
       <PostTitle title="Records" />
       <nav>
         <ul className="flex items-center gap-6 overflow-x-auto">

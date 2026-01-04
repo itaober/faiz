@@ -41,7 +41,7 @@ export default async function PostsPage() {
   });
 
   return (
-    <div className="max-w-4xl overflow-y-hidden">
+    <div>
       <h1 className="mb-8 text-4xl font-extrabold">Posts</h1>
       <article className="space-y-8">
         {sortedPostsByYear.map(([groupTitle, posts]) => {

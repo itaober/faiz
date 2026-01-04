@@ -29,7 +29,7 @@ export default async function PostPage({ params }: IPostPageProps) {
   const { content, data } = post;
 
   return (
-    <article className="max-w-4xl overflow-y-hidden">
+    <article>
       <PostTitle {...data} />
       <article className="prose dark:prose-invert">
         <MDX source={content} />

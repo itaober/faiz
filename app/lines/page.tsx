@@ -23,7 +23,7 @@ const LinesPage = async () => {
   const { content, data } = linesMDX;
 
   return (
-    <div className="max-w-4xl overflow-y-hidden">
+    <div>
       <PostTitle {...data} />
       <article className="prose dark:prose-invert">
         <MDX source={content} />

@@ -44,14 +44,14 @@ const Image = ({ src, alt, caption }: IImageProps) => {
   return (
     <Preview>
       <PreviewTrigger>
-        <div className="relative w-full px-2">
+        <div className="relative mb-4 flex w-full flex-col items-center px-2">
           <NextImage
             src={src}
             alt={alt}
             width={0}
             height={0}
             sizes="100vw"
-            className="h-auto w-full rounded-md md:rounded-lg"
+            className="h-auto w-full max-w-xl rounded-md md:rounded-lg"
           />
           {_caption && <figcaption>{_caption}</figcaption>}
         </div>

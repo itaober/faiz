@@ -30,6 +30,7 @@ button {
 }
 
 @utility prose {
+  max-width: none !important;
   blockquote {
     p {
       &:first-of-type::before,

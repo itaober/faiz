@@ -23,7 +23,7 @@ export default async function AboutPage() {
   const { content, data } = aboutMDX;
 
   return (
-    <div className="max-w-4xl overflow-y-hidden">
+    <div className="overflow-y-hidden">
       <PostTitle title={data.title} />
       <article className="prose dark:prose-invert">
         <MDX source={content} />
