@@ -87,6 +87,14 @@
   ],
   "music": [
     {
+      "title": "过客",
+      "link": "https://music.douban.com/subject/37925161/",
+      "coverUrl": "/api/image/assets/records/music_过客.webp",
+      "createdTime": "2026-01-05",
+      "type": "music",
+      "rating": 6.4
+    },
+    {
       "title": "出人头地 2025 Dreams Come True Mixtape",
       "link": "https://music.douban.com/subject/37239531/",
       "coverUrl": "/api/image/assets/records/music_出人头地.webp",
