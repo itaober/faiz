@@ -43,11 +43,8 @@
   {
     "id": "20251123_120000",
     "content": "试了一下手机端编辑体验：\n\n- 文本输入还可以，再调一点行高可能会更舒服\n- 图片上传这块后面可以加个上传进度条\n\n先这样用一阵，看真实使用中的痛点再调。",
-    "images": [
-      "/api/image/assets/posts/weekly_04_摩天轮.png",
-      "/api/image/assets/posts/weekly_04_鸭子船.png",
-      "/api/image/assets/posts/weekly_04_柿子树.png"
-    ],
-    "createdAt": "2025-11-23T04:00:00.000Z"
+    "images": [],
+    "createdAt": "2025-11-23T04:00:00.000Z",
+    "updatedAt": "2026-01-05T10:52:40.935Z"
   }
 ]
