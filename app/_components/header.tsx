@@ -15,9 +15,9 @@ const Header = async () => {
     <Link key="lines" href="/lines">
       Lines
     </Link>,
-    // <Link key="memos" href="/memos">
-    //   Memos
-    // </Link>,
+    <Link key="memos" href="/memos">
+      Memos
+    </Link>,
     <Link key="posts" href="/posts">
       Posts
     </Link>,
