@@ -21,6 +21,14 @@
   ],
   "tv": [
     {
+      "title": "唐诡奇谭",
+      "link": "https://movie.douban.com/subject/36700715/",
+      "coverUrl": "/api/image/assets/records/tv_唐诡奇谭.webp",
+      "createdTime": "2026-01-03",
+      "rating": 7.6,
+      "type": "tv"
+    },
+    {
       "title": "唐朝诡事录之长安",
       "link": "https://movie.douban.com/subject/36318037/",
       "coverUrl": "/api/image/assets/records/tv_唐朝诡事录之长安.webp",
