@@ -15,6 +15,9 @@ const Header = async () => {
     <Link key="lines" href="/lines">
       Lines
     </Link>,
+    // <Link key="memos" href="/memos">
+    //   Memos
+    // </Link>,
     <Link key="posts" href="/posts">
       Posts
     </Link>,
@@ -28,7 +31,7 @@ const Header = async () => {
   ];
 
   return (
-    <header className="bg-background/60 sticky top-0 z-50 w-full backdrop-blur">
+    <header className="bg-background/60 sticky top-0 z-10 w-full backdrop-blur">
       <div className="mx-auto flex max-w-4xl items-center justify-between px-4 py-3 md:px-6 md:py-4">
         <Link href="/">
           <Image

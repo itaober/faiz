@@ -3,6 +3,9 @@ import z from 'zod';
 
 import { fetchGitHubJson } from './common';
 
+const META_PATH = 'data/meta.json';
+const RECORDS_PATH = 'data/records.json';
+
 export const MetaSchema = z.object({
   name: z.string(),
   bio: z.string().optional(),
@@ -17,7 +20,7 @@ export const MetaSchema = z.object({
 
 export const getMetaInfo = cache(async (): Promise<z.infer<typeof MetaSchema> | null> => {
   try {
-    const authorData = await fetchGitHubJson('data/meta.json');
+    const authorData = await fetchGitHubJson(META_PATH);
     return MetaSchema.parse(authorData);
   } catch (error) {
     console.error('Failed to fetch or parse meta data:', error);
@@ -47,7 +50,7 @@ export type Records = z.infer<typeof RecordsSchema>;
 
 export const getRecordsInfo = cache(async (): Promise<Records | null> => {
   try {
-    const recordsData = await fetchGitHubJson('data/records.json');
+    const recordsData = await fetchGitHubJson(RECORDS_PATH);
     return RecordsSchema.parse(recordsData);
   } catch (error) {
     console.error('Failed to fetch or parse records data:', error);

@@ -49,6 +49,26 @@ export const getLinesMDX = cache(async () => {
   }
 });
 
+export const getMemosList = cache(async () => {
+  try {
+    const files = await fetchGitHubDir('memos');
+    const memos = await Promise.all(
+      files.map(async path => {
+        const raw = await fetchGitHubText(path);
+        const parsed = parseMDX(raw);
+        return parsed ?? null;
+      }),
+    );
+
+    return memos
+      .filter(Boolean)
+      .sort((a, b) => dayjs(b?.data.createdTime).diff(dayjs(a?.data.createdTime))) as MDXPost[];
+  } catch (error) {
+    console.error('Failed to fetch memos list:', error);
+    return [];
+  }
+});
+
 export const getPostList = cache(async () => {
   try {
     const files = await fetchGitHubDir('posts');
