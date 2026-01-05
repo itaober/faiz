@@ -16,7 +16,7 @@ export default async function MemosPage() {
       <div>
         <MemosTitle />
         <div className="mt-6">
-          <article className="prose prose-sm dark:prose-invert md:prose-base space-y-4 md:space-y-6">
+          <article className="prose dark:prose-invert space-y-4 md:space-y-6">
             {memos.map(memo => (
               <MemoCard key={memo.id} memo={memo} />
             ))}

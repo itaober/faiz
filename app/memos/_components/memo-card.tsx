@@ -21,35 +21,38 @@ const MemoCardImages = ({ images }: { images: string[] }) => {
         'grid grid-cols-3 gap-2 md:gap-4': count > 2,
       })}
     >
-      {images.map(url => (
-        <Preview key={url}>
-          <PreviewTrigger className={cn('w-full', { 'w-fit': count === 1 })}>
-            <div
-              className={cn({
-                'bg-muted/30 w-fit max-w-full cursor-pointer overflow-hidden rounded-md':
-                  count === 1,
-                'bg-muted/30 aspect-square w-full cursor-pointer overflow-hidden rounded-md':
-                  count > 1,
-              })}
-            >
-              <Image
-                src={`/api/image/${url}`}
-                alt=""
-                width={0}
-                height={0}
-                sizes="100vw"
+      {images.map(url => {
+        const previewUrl = `/api/image/${url}`;
+        return (
+          <Preview key={url}>
+            <PreviewTrigger className={cn('w-full', { 'w-fit': count === 1 })}>
+              <div
                 className={cn({
-                  'h-auto w-auto max-w-full rounded': count === 1,
-                  'relative aspect-square w-full rounded object-cover': count > 1,
+                  'bg-muted/30 w-fit max-w-full cursor-pointer overflow-hidden rounded-md':
+                    count === 1,
+                  'bg-muted/30 aspect-square w-full cursor-pointer overflow-hidden rounded-md':
+                    count > 1,
                 })}
-              />
-            </div>
-          </PreviewTrigger>
-          <PreviewPortal>
-            <PreviewImage src={url} alt="Memo preview" />
-          </PreviewPortal>
-        </Preview>
-      ))}
+              >
+                <Image
+                  src={previewUrl}
+                  alt=""
+                  width={0}
+                  height={0}
+                  sizes="100vw"
+                  className={cn({
+                    'h-auto w-auto max-w-full rounded': count === 1,
+                    'relative aspect-square w-full rounded object-cover': count > 1,
+                  })}
+                />
+              </div>
+            </PreviewTrigger>
+            <PreviewPortal>
+              <PreviewImage src={previewUrl} alt="Memo preview" />
+            </PreviewPortal>
+          </Preview>
+        );
+      })}
     </div>
   );
 };
@@ -59,10 +62,10 @@ const MemoCard = ({ memo }: IMemoCardProps) => {
 
   return (
     <div>
-      <header className="flex items-center justify-between gap-2 opacity-90">
+      <header className="flex items-center justify-between gap-2 opacity-70">
         <div className="flex items-center gap-2 md:gap-4">
           <div className="size-3 rounded-full border border-neutral-300 dark:border-neutral-600" />
-          <time dateTime={createdTime} className="text-md font-sans font-medium">
+          <time dateTime={createdTime} className="font-sans text-sm font-medium">
             {createdTime}
           </time>
         </div>
