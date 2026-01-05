@@ -1,18 +1,27 @@
+import dayjs from 'dayjs';
+import timezone from 'dayjs/plugin/timezone';
+import utc from 'dayjs/plugin/utc';
 import { cache } from 'react';
 import { z } from 'zod';
 
 import { fetchGitHubJson, fetchGitHubText, generateId, writeGitHubJson } from '@/lib/data/common';
-// ============================================================
-// Composite functions (with image cleanup)
-// ============================================================
 import { deleteImages } from '@/lib/data/images';
+
+// Setup dayjs timezone
+dayjs.extend(utc);
+dayjs.extend(timezone);
+
+const TIMEZONE = 'Asia/Shanghai';
+const TIME_FORMAT = 'YYYY-MM-DD HH:mm:ss';
+
+const formatTime = () => dayjs().tz(TIMEZONE).format(TIME_FORMAT);
 
 export const MemoSchema = z.object({
   id: z.string(),
   content: z.string(),
   images: z.array(z.string()).default([]),
-  createdAt: z.string(),
-  updatedAt: z.string().optional(),
+  createdTime: z.string(),
+  updatedTime: z.string().optional(),
 });
 
 export const MemoListSchema = z.array(MemoSchema);
@@ -26,8 +35,6 @@ export const getMemos = cache(async (token?: string): Promise<MemoList> => {
   try {
     const raw = await fetchGitHubJson<unknown>(MEMOS_PATH, undefined, token).catch(() => []);
     const list = MemoListSchema.parse(raw ?? []);
-
-    // 由于新 memo 总是插入到头部，不需要再次排序
     return list;
   } catch (error) {
     console.error('Failed to fetch memos list:', error);
@@ -42,8 +49,6 @@ interface ICreateMemoInput {
 }
 
 export const prependMemo = async (input: ICreateMemoInput): Promise<Memo> => {
-  // 获取当前最新的 memos.json 内容
-  // 使用 fetchGitHubText 而不是 fetchGitHubJson，确保与写入时使用相同的 API
   const rawText = await fetchGitHubText(MEMOS_PATH, undefined, input.token).catch(() => '[]');
   const raw = JSON.parse(rawText);
   const list = MemoListSchema.parse(raw ?? []);
@@ -54,19 +59,16 @@ export const prependMemo = async (input: ICreateMemoInput): Promise<Memo> => {
     id,
     content: input.content,
     images: input.images ?? [],
-    createdAt: new Date().toISOString(),
+    createdTime: formatTime(),
   };
 
-  // 将新增的内容插入到头部
   const nextList: MemoList = [memo, ...list];
 
-  // 调用 GitHub API 修改整个 memos.json 文件
   await writeGitHubJson(MEMOS_PATH, nextList, 'docs: update memos.json', input.token);
 
   return memo;
 };
 
-// 更新 memo
 interface IUpdateMemoInput {
   id: string;
   content: string;
@@ -76,12 +78,10 @@ interface IUpdateMemoInput {
 
 interface IUpdateMemoResult {
   memo: Memo;
-  /** 被移除的图片路径（用于清理） */
   removedImages: string[];
 }
 
 export const updateMemo = async (input: IUpdateMemoInput): Promise<IUpdateMemoResult> => {
-  // 获取当前 memos 列表
   const raw = await fetchGitHubJson<unknown>(MEMOS_PATH, undefined, input.token).catch(() => []);
   const list = MemoListSchema.parse(raw ?? []);
 
@@ -99,7 +99,7 @@ export const updateMemo = async (input: IUpdateMemoInput): Promise<IUpdateMemoRe
     ...oldMemo,
     content: input.content,
     images: newImages,
-    updatedAt: new Date().toISOString(),
+    updatedTime: formatTime(),
   };
 
   const updatedList = [...list];

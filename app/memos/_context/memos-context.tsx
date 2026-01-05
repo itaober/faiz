@@ -24,31 +24,27 @@ interface IMemosProviderProps {
   children: React.ReactNode;
 }
 
+const STORAGE_KEY = 'FAIZ_MEMOS_IS_EDIT';
+
 export function MemosProvider({ children }: IMemosProviderProps) {
   const { token, saveToken } = useGitHubToken();
   const [isEdit, setIsEdit] = useState(false);
 
-  // Read URL param after mount (avoid hydration mismatch)
+  // Read from localStorage after mount (avoid hydration mismatch)
   useEffect(() => {
-    const params = new URL(window.location.href).searchParams;
-    if (params.get('edit') === 'y') {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored === 'true') {
       setIsEdit(true);
     }
   }, []);
 
   const toggleEdit = useCallback(() => {
-    const next = !isEdit;
-    setIsEdit(next);
-
-    // Shallow URL update without page reload
-    const url = new URL(window.location.href);
-    if (next) {
-      url.searchParams.set('edit', 'y');
-    } else {
-      url.searchParams.delete('edit');
-    }
-    window.history.replaceState({}, '', url.toString());
-  }, [isEdit]);
+    setIsEdit(prev => {
+      const next = !prev;
+      localStorage.setItem(STORAGE_KEY, String(next));
+      return next;
+    });
+  }, []);
 
   return (
     <MemosContext.Provider value={{ isEdit, toggleEdit, token, saveToken }}>

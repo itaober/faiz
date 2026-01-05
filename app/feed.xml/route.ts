@@ -64,26 +64,42 @@ export async function GET() {
     });
   }
 
-  // Add memos grouped by date (single pass, keep latest per day)
+  // Add memos: yesterday and before, grouped by date, merge all content per day
   if (memoList && memoList.length > 0) {
-    const latestByDate = new Map<string, (typeof memoList)[0]>();
+    const today = dayjs().format('YYYY-MM-DD');
 
+    // Group memos by date (exclude today)
+    const memosByDate = new Map<string, typeof memoList>();
     for (const memo of memoList) {
-      const dateStr = dayjs(memo.createdAt).format('YYYY-MM-DD');
-      const isExist = latestByDate.get(dateStr);
-      if (!isExist || dayjs(memo.createdAt).isAfter(dayjs(isExist.createdAt))) {
-        latestByDate.set(dateStr, memo);
+      const dateStr = dayjs(memo.createdTime).format('YYYY-MM-DD');
+      if (dateStr >= today) continue; // Skip today's memos
+
+      if (!memosByDate.has(dateStr)) {
+        memosByDate.set(dateStr, []);
       }
+      memosByDate.get(dateStr)!.push(memo);
     }
 
-    for (const [dateStr, memo] of latestByDate) {
+    // Create feed item for each date
+    for (const [dateStr, memos] of memosByDate) {
+      // Sort by time ascending and merge content
+      const sortedMemos = memos.sort((a, b) => dayjs(a.createdTime).diff(dayjs(b.createdTime)));
+
+      const mergedContent = await Promise.all(
+        sortedMemos.map(async memo => {
+          const time = dayjs(memo.createdTime).format('HH:mm');
+          const htmlContent = await marked(memo.content);
+          return `<p><strong>${time}</strong></p>${htmlContent}`;
+        }),
+      );
+
       feedItems.push({
         title: `Memos #${dateStr}`,
-        id: `${feedDomain}/memos`,
+        id: `${feedDomain}/memos#${dateStr}`,
         link: `${feedDomain}/memos`,
         date: dayjs(dateStr).toDate(),
         category: [{ name: 'memo' }],
-        content: memo.content,
+        content: mergedContent.join('<hr/>'),
       });
     }
   }

@@ -1,4 +1,3 @@
-import dayjs from 'dayjs';
 import Image from 'next/image';
 
 import { MDX } from '@/components/mdx';
@@ -56,16 +55,15 @@ const MemoCardImages = ({ images }: { images: string[] }) => {
 };
 
 const MemoCard = ({ memo }: IMemoCardProps) => {
-  const { content, images = [], createdAt } = memo;
-  const displayTime = dayjs(createdAt).format('YYYY-MM-DD HH:mm:ss');
+  const { content, images = [], createdTime } = memo;
 
   return (
     <div>
       <header className="flex items-center justify-between gap-2 opacity-90">
         <div className="flex items-center gap-2 md:gap-4">
           <div className="size-3 rounded-full border border-neutral-300 dark:border-neutral-600" />
-          <time dateTime={createdAt} className="text-md font-sans font-medium">
-            {displayTime}
+          <time dateTime={createdTime} className="text-md font-sans font-medium">
+            {createdTime}
           </time>
         </div>
         <MemoCardActions memo={memo} />

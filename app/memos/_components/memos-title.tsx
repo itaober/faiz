@@ -13,7 +13,7 @@ export default function MemosTitle() {
   const [isEditorOpen, setIsEditorOpen] = useState(false);
 
   const handleClick = useConsecutiveClicks({
-    threshold: 10,
+    threshold: 5,
     onTrigger: toggleEdit,
   });
 
