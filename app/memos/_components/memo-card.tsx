@@ -16,7 +16,7 @@ const MemoCardImages = ({ images }: { images: string[] }) => {
 
   return (
     <div
-      className={cn('not-prose mt-3', {
+      className={cn('not-prose pb-4', {
         'grid grid-cols-2 gap-2 md:gap-4': count === 2,
         'grid grid-cols-3 gap-2 md:gap-4': count > 2,
       })}
@@ -62,10 +62,10 @@ const MemoCard = ({ memo }: IMemoCardProps) => {
 
   return (
     <div>
-      <header className="flex items-center justify-between gap-2 opacity-70">
+      <header className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 md:gap-4">
           <div className="size-3 rounded-full border border-neutral-300 dark:border-neutral-600" />
-          <time dateTime={createdTime} className="font-sans text-sm font-medium">
+          <time dateTime={createdTime} className="font-sans text-sm font-medium opacity-50">
             {createdTime}
           </time>
         </div>

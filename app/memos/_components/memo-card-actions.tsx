@@ -30,7 +30,7 @@ export default function MemoCardActions({ memo }: MemoCardActionsProps) {
         className="hover:bg-muted size-6 rounded transition-colors"
         aria-label="More actions"
       >
-        <MoreHorizontal className="size-5" />
+        <MoreHorizontal className="size-5 opacity-70 hover:opacity-100" />
       </button>
 
       <MemoActionsDrawer
