@@ -30,7 +30,7 @@ export async function uploadImageAction(input: UploadImageInput): Promise<Upload
     }
 
     // Generate filename: {memoId}_{4-char random}.webp
-    const filename = `${input.memoId}_${generateShortRandom()}`;
+    const filename = `${input.memoId}_${generateShortRandom()}.webp`;
     const storagePath = getImageStoragePath(filename, MEMOS_IMAGE_DIR);
 
     const result = await uploadImage({
