@@ -97,7 +97,7 @@ export async function GET() {
         title: `Memos #${dateStr}`,
         id: `${feedDomain}/memos#${dateStr}`,
         link: `${feedDomain}/memos`,
-        date: dayjs(dateStr).toDate(),
+        date: dayjs(dateStr).add(1, 'day').startOf('day').toDate(),
         category: [{ name: 'memo' }],
         content: mergedContent.join('<hr/>'),
       });
