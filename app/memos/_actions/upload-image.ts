@@ -3,14 +3,17 @@
 import { revalidatePath } from 'next/cache';
 
 import { uploadImage } from '@/lib/data/images';
-import { generateImageFilename, getImageStoragePath } from '@/lib/utils/image';
+import { getImageStoragePath } from '@/lib/utils/image';
 
 const MEMOS_IMAGE_DIR = 'assets/memos';
+
+/** Generate 4-character random string */
+const generateShortRandom = () => Math.random().toString(36).slice(2, 6);
 
 interface UploadImageInput {
   imageBase64: string;
   mimeType: string;
-  id?: string;
+  memoId: string;
   token: string;
 }
 
@@ -26,8 +29,8 @@ export async function uploadImageAction(input: UploadImageInput): Promise<Upload
       return { success: false, error: 'GitHub token is required' };
     }
 
-    const filename = input.id || generateImageFilename('memo');
-
+    // Generate filename: {memoId}_{4-char random}.webp
+    const filename = `${input.memoId}_${generateShortRandom()}`;
     const storagePath = getImageStoragePath(filename, MEMOS_IMAGE_DIR);
 
     const result = await uploadImage({
@@ -64,15 +67,17 @@ const BATCH_SIZE = 3;
 
 export async function uploadImagesAction(
   images: Array<{ imageBase64: string; mimeType: string }>,
+  memoId: string,
   token: string,
-  id?: string,
 ): Promise<{ success: boolean; paths: string[]; errors: string[] }> {
   const paths: string[] = [];
   const errors: string[] = [];
 
   for (let i = 0; i < images.length; i += BATCH_SIZE) {
     const batch = images.slice(i, i + BATCH_SIZE);
-    const results = await Promise.all(batch.map(img => uploadImageAction({ ...img, token, id })));
+    const results = await Promise.all(
+      batch.map(img => uploadImageAction({ ...img, memoId, token })),
+    );
 
     for (const result of results) {
       if (result.success && result.path) {

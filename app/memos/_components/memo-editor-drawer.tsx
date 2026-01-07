@@ -10,6 +10,7 @@ import { createMemoAction } from '@/app/memos/_actions/create-memo';
 import { updateMemoAction } from '@/app/memos/_actions/update-memo';
 import { useImageUpload } from '@/hooks/use-image-upload';
 import { MAX_IMAGE_SIZE, SUPPORTED_IMAGE_TYPES } from '@/lib/constants/image';
+import { generateId } from '@/lib/data/common';
 import type { Memo } from '@/lib/data/memos';
 
 import { useMemosContext } from '../_context/memos-context';
@@ -42,7 +43,6 @@ export default function MemosEditorDrawer({ open, onOpenChange, memo }: MemosEdi
     setInitialImages,
   } = useImageUpload({
     token: token || '',
-    id: memo?.id,
     maxCount: 9,
   });
 
@@ -109,7 +109,10 @@ export default function MemosEditorDrawer({ open, onOpenChange, memo }: MemosEdi
     setIsSubmitting(true);
 
     const submitMemo = async () => {
-      const uploadResult = await uploadAll();
+      // For new memo: generate memoId upfront; for edit: use existing memo.id
+      const memoId = isEditMode && memo ? memo.id : generateId('memo');
+
+      const uploadResult = await uploadAll(memoId);
       if (!uploadResult.success && uploadResult.errors.length > 0) {
         throw new Error(uploadResult.errors[0]);
       }
@@ -124,7 +127,12 @@ export default function MemosEditorDrawer({ open, onOpenChange, memo }: MemosEdi
               images: imagePaths,
               token,
             })
-          : await createMemoAction({ content: content.trim(), images: imagePaths, token });
+          : await createMemoAction({
+              id: memoId,
+              content: content.trim(),
+              images: imagePaths,
+              token,
+            });
 
       if (!result.success) {
         throw new Error(result.error || 'Operation failed');

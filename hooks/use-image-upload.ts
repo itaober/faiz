@@ -16,7 +16,6 @@ interface PendingImage {
 interface UseImageUploadOptions {
   maxCount?: number;
   token: string;
-  id?: string;
 }
 
 interface UseImageUploadReturn {
@@ -31,7 +30,7 @@ interface UseImageUploadReturn {
   /** 移除图片 */
   removeImage: (id: string) => void;
   /** 上传所有待上传的图片 */
-  uploadAll: () => Promise<{ success: boolean; paths: string[]; errors: string[] }>;
+  uploadAll: (memoId: string) => Promise<{ success: boolean; paths: string[]; errors: string[] }>;
   /** 清空所有图片 */
   clear: () => void;
   /** 设置初始图片（编辑模式） */
@@ -41,7 +40,7 @@ interface UseImageUploadReturn {
 const generateId = () => `img_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 
 export function useImageUpload(options: UseImageUploadOptions): UseImageUploadReturn {
-  const { maxCount = 9, token, id } = options;
+  const { maxCount = 9, token } = options;
 
   const [images, setImages] = useState<PendingImage[]>([]);
   const [isUploading, setIsUploading] = useState(false);
@@ -77,92 +76,95 @@ export function useImageUpload(options: UseImageUploadOptions): UseImageUploadRe
     });
   }, []);
 
-  const uploadAll = useCallback(async () => {
-    return new Promise<{ success: boolean; paths: string[]; errors: string[] }>(resolve => {
-      setImages(currentImages => {
-        const pendingImages = currentImages.filter(img => img.status === 'pending');
+  const uploadAll = useCallback(
+    async (memoId: string) => {
+      return new Promise<{ success: boolean; paths: string[]; errors: string[] }>(resolve => {
+        setImages(currentImages => {
+          const pendingImages = currentImages.filter(img => img.status === 'pending');
 
-        if (pendingImages.length === 0) {
-          const successPaths = currentImages
-            .filter(img => img.status === 'success' && img.path)
-            .map(img => img.path!);
-          resolve({ success: true, paths: successPaths, errors: [] });
-          return currentImages;
-        }
+          if (pendingImages.length === 0) {
+            const successPaths = currentImages
+              .filter(img => img.status === 'success' && img.path)
+              .map(img => img.path!);
+            resolve({ success: true, paths: successPaths, errors: [] });
+            return currentImages;
+          }
 
-        (async () => {
-          setIsUploading(true);
+          (async () => {
+            setIsUploading(true);
 
-          setImages(prev =>
-            prev.map(img =>
-              img.status === 'pending' ? { ...img, status: 'uploading' as const } : img,
-            ),
-          );
-
-          try {
-            const fileDataPromises = pendingImages.map(async img => {
-              const buffer = await img.file.arrayBuffer();
-              const base64 = Buffer.from(buffer).toString('base64');
-              return {
-                id: img.id,
-                imageBase64: base64,
-                mimeType: img.file.type,
-              };
-            });
-
-            const fileData = await Promise.all(fileDataPromises);
-
-            // 调用上传 Action
-            const result = await uploadImagesAction(
-              fileData.map(f => ({ imageBase64: f.imageBase64, mimeType: f.mimeType })),
-              token,
-              id,
+            setImages(prev =>
+              prev.map(img =>
+                img.status === 'pending' ? { ...img, status: 'uploading' as const } : img,
+              ),
             );
 
-            // 更新图片状态并收集成功路径
-            let allSuccessPaths: string[] = [];
-            setImages(prev => {
-              const updatedImages = [...prev];
-              let pathIndex = 0;
-              let errorIndex = 0;
+            try {
+              const fileDataPromises = pendingImages.map(async img => {
+                const buffer = await img.file.arrayBuffer();
+                const base64 = Buffer.from(buffer).toString('base64');
+                return {
+                  id: img.id,
+                  imageBase64: base64,
+                  mimeType: img.file.type,
+                };
+              });
 
-              for (const img of updatedImages) {
-                if (img.status === 'uploading') {
-                  if (pathIndex < result.paths.length) {
-                    img.status = 'success';
-                    img.path = result.paths[pathIndex];
-                    pathIndex++;
-                  } else if (errorIndex < result.errors.length) {
-                    img.status = 'error';
-                    img.error = result.errors[errorIndex];
-                    errorIndex++;
+              const fileData = await Promise.all(fileDataPromises);
+
+              // 调用上传 Action
+              const result = await uploadImagesAction(
+                fileData.map(f => ({ imageBase64: f.imageBase64, mimeType: f.mimeType })),
+                memoId,
+                token,
+              );
+
+              // 更新图片状态并收集成功路径
+              let allSuccessPaths: string[] = [];
+              setImages(prev => {
+                const updatedImages = [...prev];
+                let pathIndex = 0;
+                let errorIndex = 0;
+
+                for (const img of updatedImages) {
+                  if (img.status === 'uploading') {
+                    if (pathIndex < result.paths.length) {
+                      img.status = 'success';
+                      img.path = result.paths[pathIndex];
+                      pathIndex++;
+                    } else if (errorIndex < result.errors.length) {
+                      img.status = 'error';
+                      img.error = result.errors[errorIndex];
+                      errorIndex++;
+                    }
                   }
                 }
-              }
 
-              allSuccessPaths = updatedImages
-                .filter(img => img.status === 'success' && img.path)
-                .map(img => img.path!);
+                allSuccessPaths = updatedImages
+                  .filter(img => img.status === 'success' && img.path)
+                  .map(img => img.path!);
 
-              return updatedImages;
-            });
+                return updatedImages;
+              });
 
-            resolve({
-              success: result.errors.length === 0,
-              paths: allSuccessPaths.length > 0 ? allSuccessPaths : result.paths,
-              errors: result.errors,
-            });
-          } catch (error) {
-            resolve({ success: false, paths: [], errors: [String(error)] });
-          } finally {
-            setIsUploading(false);
-          }
-        })();
+              resolve({
+                success: result.errors.length === 0,
+                paths: allSuccessPaths.length > 0 ? allSuccessPaths : result.paths,
+                errors: result.errors,
+              });
+            } catch (error) {
+              resolve({ success: false, paths: [], errors: [String(error)] });
+            } finally {
+              setIsUploading(false);
+            }
+          })();
 
-        return currentImages; // 先返回当前状态，后面异步更新
+          return currentImages; // 先返回当前状态，后面异步更新
+        });
       });
-    });
-  }, [token, id]);
+    },
+    [token],
+  );
 
   // 清空所有图片
   const clear = useCallback(() => {

@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache';
 import { prependMemo } from '@/lib/data/memos';
 
 interface CreateMemoInput {
+  id: string;
   content: string;
   images?: string[];
   token: string;
@@ -32,6 +33,7 @@ export async function createMemoAction(input: CreateMemoInput) {
     }
 
     const memo = await prependMemo({
+      id: input.id,
       content: input.content?.trim() || '',
       images: input.images,
       token: input.token,

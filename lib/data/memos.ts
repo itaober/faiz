@@ -1,20 +1,9 @@
-import dayjs from 'dayjs';
-import timezone from 'dayjs/plugin/timezone';
-import utc from 'dayjs/plugin/utc';
 import { cache } from 'react';
 import { z } from 'zod';
 
-import { fetchGitHubJson, fetchGitHubText, generateId, writeGitHubJson } from '@/lib/data/common';
+import { fetchGitHubJson, fetchGitHubText, writeGitHubJson } from '@/lib/data/common';
 import { deleteImages } from '@/lib/data/images';
-
-// Setup dayjs timezone
-dayjs.extend(utc);
-dayjs.extend(timezone);
-
-const TIMEZONE = 'Asia/Shanghai';
-const TIME_FORMAT = 'YYYY-MM-DD HH:mm:ss';
-
-const formatTime = () => dayjs().tz(TIMEZONE).format(TIME_FORMAT);
+import { formatTime } from '@/lib/dayjs';
 
 export const MemoSchema = z.object({
   id: z.string(),
@@ -43,6 +32,7 @@ export const getMemos = cache(async (token?: string): Promise<MemoList> => {
 });
 
 interface ICreateMemoInput {
+  id: string;
   content: string;
   images?: string[];
   token?: string;
@@ -53,10 +43,8 @@ export const prependMemo = async (input: ICreateMemoInput): Promise<Memo> => {
   const raw = JSON.parse(rawText);
   const list = MemoListSchema.parse(raw ?? []);
 
-  const id = generateId('memo');
-
   const memo: Memo = {
-    id,
+    id: input.id,
     content: input.content,
     images: input.images ?? [],
     createdTime: formatTime(),

@@ -1,4 +1,4 @@
-import dayjs from 'dayjs';
+import { formatTimeForId } from '@/lib/dayjs';
 
 /** GitHub Token from environment variables */
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
@@ -14,8 +14,7 @@ const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
  * @returns Unique identifier in format `[prefix_]YYYYMMDDHHmmss_xxxxxxxx`
  */
 export const generateId = (prefix?: string): string => {
-  const now = new Date();
-  const base = dayjs(now).format('YYYYMMDDHHmmss');
+  const base = formatTimeForId();
   /** 8-character short hash containing [0-9a-z] */
   const rand = Math.random().toString(36).slice(2, 10);
   const id = `${base}_${rand}`;
