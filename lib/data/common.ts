@@ -7,16 +7,16 @@ const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
  * Generates a unique ID
  *
  * @example
- *   generateId('memo'); // => 'memo_20231211120000_a1b2c3d4'
- *   generateId(); // => '20231211120000_a1b2c3d4'
+ *   generateId('memo'); // => 'memo_20231211120000_a1b2c3'
+ *   generateId(); // => '20231211120000_a1b2c3'
  *
  * @param prefix - Optional ID prefix
- * @returns Unique identifier in format `[prefix_]YYYYMMDDHHmmss_xxxxxxxx`
+ * @returns Unique identifier in format `[prefix_]YYYYMMDDHHmmss_xxxxxx`
  */
 export const generateId = (prefix?: string): string => {
   const base = formatTimeForId();
-  /** 8-character short hash containing [0-9a-z] */
-  const rand = Math.random().toString(36).slice(2, 10);
+  /** 6-character short hash containing [0-9a-z] */
+  const rand = Math.random().toString(36).slice(2, 8);
   const id = `${base}_${rand}`;
   return prefix ? `${prefix}_${id}` : id;
 };
