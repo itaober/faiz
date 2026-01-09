@@ -1,5 +1,11 @@
 [
   {
+    "id": "memo_20260109222758_fpx9xe",
+    "content": "下班的时候，彪哥说有 HC，让我冲一下 T5，有些紧张，也充满期待。\n\n得准备准备了，又是一个改变的节点。",
+    "images": [],
+    "createdTime": "2026-01-09 22:28:01"
+  },
+  {
     "id": "memo_20260109175146_euh11m",
     "content": "捣鼓了下 OpenCode + Oh My OpenCode 配置，配好后写了个 Demo，效果不错，就是太烧 token。\n\n感受下来，这种多 agent 协作的模式比 Spec Kit 的规范模式好用的多，不得不感慨 AI 发展是真的迅猛。\n\n期待不久后这种模式能被各家的 AI 工具内置。",
     "images": [],
