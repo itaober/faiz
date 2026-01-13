@@ -63,8 +63,6 @@ export async function uploadImageAction(input: UploadImageInput): Promise<Upload
   }
 }
 
-const BATCH_SIZE = 3;
-
 export async function uploadImagesAction(
   images: Array<{ imageBase64: string; mimeType: string }>,
   memoId: string,
@@ -73,18 +71,13 @@ export async function uploadImagesAction(
   const paths: string[] = [];
   const errors: string[] = [];
 
-  for (let i = 0; i < images.length; i += BATCH_SIZE) {
-    const batch = images.slice(i, i + BATCH_SIZE);
-    const results = await Promise.all(
-      batch.map(img => uploadImageAction({ ...img, memoId, token })),
-    );
-
-    for (const result of results) {
-      if (result.success && result.path) {
-        paths.push(result.path);
-      } else if (result.error) {
-        errors.push(result.error);
-      }
+  // Sequential upload to avoid GitHub API conflicts
+  for (const img of images) {
+    const result = await uploadImageAction({ ...img, memoId, token });
+    if (result.success && result.path) {
+      paths.push(result.path);
+    } else if (result.error) {
+      errors.push(result.error);
     }
   }
 
