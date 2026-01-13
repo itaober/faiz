@@ -46,18 +46,16 @@ export async function uploadImage(input: UploadImageInput): Promise<UploadImageR
   return { path: input.storagePath };
 }
 
-/** Delete images from GitHub storage (silent failure) */
+/** Delete images from GitHub storage (sequential, silent failure) */
 export async function deleteImages(paths: string[], token: string): Promise<void> {
   if (!paths.length) return;
 
-  const results = await Promise.allSettled(
-    paths.map(path => deleteGitHubFile(path, `docs: delete image ${path}`, token)),
-  );
-
-  for (let i = 0; i < results.length; i++) {
-    const result = results[i];
-    if (result.status === 'rejected') {
-      console.warn(`Failed to delete image ${paths[i]}:`, result.reason);
+  // Sequential deletion to avoid GitHub API conflicts
+  for (const path of paths) {
+    try {
+      await deleteGitHubFile(path, `docs: delete image ${path}`, token);
+    } catch (error) {
+      console.warn(`Failed to delete image ${path}:`, error);
     }
   }
 }
