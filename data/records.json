@@ -95,6 +95,14 @@
   ],
   "music": [
     {
+      "title": "人人都爱嘻哈乐",
+      "link": "https://music.douban.com/subject/37518523/",
+      "coverUrl": "/api/image/assets/records/music_人人都爱嘻哈乐.webp",
+      "createdTime": "2026-01-13",
+      "type": "music",
+      "rating": 8.0
+    },
+    {
       "title": "收敛水",
       "link": "https://music.douban.com/subject/3728043/",
       "coverUrl": "/api/image/assets/records/music_收敛水.webp",
