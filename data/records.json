@@ -21,6 +21,14 @@
   ],
   "tv": [
     {
+      "title": "潜伏",
+      "link": "https://movie.douban.com/subject/3314870/",
+      "coverUrl": "/api/image/assets/records/tv_潜伏.webp",
+      "createdTime": "2026-01-17",
+      "rating": 9.2,
+      "type": "tv"
+    },
+    {
       "title": "唐诡奇谭",
       "link": "https://movie.douban.com/subject/36700715/",
       "coverUrl": "/api/image/assets/records/tv_唐诡奇谭.webp",
