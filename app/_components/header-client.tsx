@@ -7,6 +7,7 @@ import { usePathname } from 'next/navigation';
 import type { ReactNode } from 'react';
 
 import { ANIMATION } from '@/lib/constants/animation';
+import { cn } from '@/lib/utils';
 
 const getHref = (key: string): string => {
   switch (key) {
@@ -65,7 +66,7 @@ export default function HeaderClient({ avatar, navNodes }: IHeaderClientProps) {
           </motion.div>
         </Link>
         <nav aria-label="Primary navigation">
-          <ul className="group flex items-center gap-4 md:gap-6">
+          <ul className="group flex items-center gap-3 md:gap-6">
             {navNodes.map((el, index) => {
               const active = isActive(el.key);
               return (
@@ -84,6 +85,9 @@ export default function HeaderClient({ avatar, navNodes }: IHeaderClientProps) {
                     y: -ANIMATION.distance.minimal,
                     transition: { duration: ANIMATION.duration.fast },
                   }}
+                  className={cn({
+                    'hidden md:inline-flex': el.hiddenOnMobile,
+                  })}
                 >
                   {el.node}
                 </motion.li>
