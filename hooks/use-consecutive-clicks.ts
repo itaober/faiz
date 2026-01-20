@@ -1,6 +1,6 @@
 import { useCallback, useRef } from 'react';
 
-interface UseConsecutiveClicksOptions {
+interface IUseConsecutiveClicksOptions {
   threshold?: number;
   timeout?: number;
   onTrigger: () => void;
@@ -10,7 +10,7 @@ export function useConsecutiveClicks({
   threshold = 10,
   timeout = 300,
   onTrigger,
-}: UseConsecutiveClicksOptions) {
+}: IUseConsecutiveClicksOptions) {
   const countRef = useRef(0);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 

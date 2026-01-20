@@ -1,5 +1,7 @@
 import { formatTimeForId } from '@/lib/dayjs';
 
+import { fetchWithRetry } from './fetch-with-retry';
+
 /** GitHub Token from environment variables */
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
 
@@ -68,20 +70,22 @@ export const fetchGitHubApi = async (path: string, init?: RequestInit, token?: s
   const url = getGitHubApiUrl(path);
   const authToken = getGitHubToken(token);
 
+  const requestInit: RequestInit = {
+    ...init,
+    next: {
+      revalidate: 5 * 60,
+      ...init?.next,
+    },
+    headers: {
+      Accept: 'application/vnd.github.v3.raw',
+      'User-Agent': 'faiz-blog',
+      ...init?.headers,
+      ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+    },
+  };
+
   try {
-    const res = await fetch(url, {
-      ...init,
-      next: {
-        revalidate: 5 * 60,
-        ...init?.next,
-      },
-      headers: {
-        Accept: 'application/vnd.github.v3.raw',
-        'User-Agent': 'faiz-blog',
-        ...init?.headers,
-        ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
-      },
-    });
+    const res = await fetchWithRetry(url, requestInit);
 
     if (!res.ok) {
       throw new Error(`GitHub API error: ${res.status} ${res.statusText}`);
@@ -208,13 +212,18 @@ const fetchGitHubContentsMeta = async (
   const url = getGitHubApiUrl(path);
 
   try {
-    const res = await fetch(url, {
-      headers: {
-        Accept: 'application/vnd.github.v3+json',
-        'User-Agent': 'faiz-blog',
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    const res = await fetchWithRetry(
+      url,
+      {
+        cache: 'no-store', // Always get fresh SHA for mutations to prevent 409 conflicts
+        headers: {
+          Accept: 'application/vnd.github.v3+json',
+          'User-Agent': 'faiz-blog',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
       },
-    });
+      { retries: 2 },
+    );
 
     if (!res.ok) {
       if (res.status === 404) {
@@ -271,16 +280,20 @@ export const putGitHubFile = async (
     branch: GIT_HUB_API_OPTIONS.branch,
   };
 
-  const res = await fetch(url, {
-    method: 'PUT',
-    headers: {
-      Accept: 'application/vnd.github.v3+json',
-      'Content-Type': 'application/json',
-      'User-Agent': 'faiz-blog',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  const res = await fetchWithRetry(
+    url,
+    {
+      method: 'PUT',
+      headers: {
+        Accept: 'application/vnd.github.v3+json',
+        'Content-Type': 'application/json',
+        'User-Agent': 'faiz-blog',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify(body),
     },
-    body: JSON.stringify(body),
-  });
+    { retries: 2 },
+  );
 
   if (!res.ok) {
     const errorText = await res.text();
@@ -346,16 +359,20 @@ export const deleteGitHubFile = async (
     branch: GIT_HUB_API_OPTIONS.branch,
   };
 
-  const res = await fetch(url, {
-    method: 'DELETE',
-    headers: {
-      Accept: 'application/vnd.github.v3+json',
-      'Content-Type': 'application/json',
-      'User-Agent': 'faiz-blog',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  const res = await fetchWithRetry(
+    url,
+    {
+      method: 'DELETE',
+      headers: {
+        Accept: 'application/vnd.github.v3+json',
+        'Content-Type': 'application/json',
+        'User-Agent': 'faiz-blog',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify(body),
     },
-    body: JSON.stringify(body),
-  });
+    { retries: 2 },
+  );
 
   if (!res.ok) {
     // 404 表示文件已不存在

@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation';
 
 import { MDX } from '@/components/mdx';
+import MotionWrapper from '@/components/motion-wrapper';
 import { getAboutMDX } from '@/lib/data/mdx';
 
 import PostTitle from '../_components/post-title';
@@ -23,11 +24,11 @@ export default async function AboutPage() {
   const { content, data } = aboutMDX;
 
   return (
-    <div className="overflow-y-hidden">
+    <MotionWrapper className="overflow-y-hidden">
       <PostTitle title={data.title} />
       <article className="prose dark:prose-invert">
         <MDX source={content} />
       </article>
-    </div>
+    </MotionWrapper>
   );
 }

@@ -1,14 +1,14 @@
 import { deleteGitHubFile, putGitHubFile } from '@/lib/data/common';
 import { compressImageToWebP, isSupportedImageType, MAX_IMAGE_SIZE } from '@/lib/utils/image';
 
-interface UploadImageInput {
+interface IUploadImageInput {
   imageBase64: string;
   mimeType: string;
   storagePath: string;
   token: string;
 }
 
-interface UploadImageResult {
+interface IUploadImageResult {
   path: string;
 }
 
@@ -19,7 +19,7 @@ interface UploadImageResult {
  * 2. Compress to WebP
  * 3. Upload to GitHub
  */
-export async function uploadImage(input: UploadImageInput): Promise<UploadImageResult> {
+export async function uploadImage(input: IUploadImageInput): Promise<IUploadImageResult> {
   if (!isSupportedImageType(input.mimeType)) {
     throw new Error(
       `Unsupported image type: ${input.mimeType}. Supported: JPEG, PNG, GIF, WebP, HEIC, HEIF`,

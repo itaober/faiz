@@ -1,9 +1,11 @@
 import dayjs from 'dayjs';
+import { motion } from 'motion/react';
 import Image from 'next/image';
 import Link from 'next/link';
 
 import { Badge } from '@/components/badge';
 import { Preview, PreviewImage, PreviewPortal, PreviewTrigger } from '@/components/preview';
+import { ANIMATION } from '@/lib/constants/animation';
 import type { RecordItem } from '@/lib/data/data';
 import { cn } from '@/lib/utils';
 
@@ -28,23 +30,34 @@ export default function RecordItem({
   const isMusicType = type === 'music';
 
   return (
-    <div
+    <motion.div
       key={title}
-      className="flex flex-col gap-1 rounded-md border border-transparent p-1.5 transition-all duration-200 hover:border-neutral-200 hover:bg-neutral-50 dark:hover:border-neutral-800 dark:hover:bg-neutral-900"
+      className="flex flex-col gap-1 rounded-md border border-transparent p-1.5 transition-colors duration-200 hover:bg-neutral-50 dark:hover:bg-neutral-900"
+      variants={{
+        hidden: { opacity: 0, y: ANIMATION.distance.small },
+        visible: { opacity: 1, y: 0 },
+      }}
+      transition={{ duration: ANIMATION.duration.normal }}
+      whileHover={{
+        y: -ANIMATION.distance.minimal,
+        transition: { duration: ANIMATION.duration.fast },
+      }}
     >
       {/* Cover */}
       <Preview>
         <PreviewTrigger>
-          <Image
-            src={coverUrl}
-            alt={title}
-            width={0}
-            height={0}
-            sizes="100vw"
-            className={cn('relative aspect-[2/3] w-full rounded object-cover', {
-              'aspect-square': isMusicTab,
-            })}
-          />
+          <div className="overflow-hidden rounded-md">
+            <Image
+              src={coverUrl}
+              alt={title}
+              width={0}
+              height={0}
+              sizes="100vw"
+              className={cn('relative aspect-[2/3] w-full rounded object-cover', {
+                'aspect-square': isMusicTab,
+              })}
+            />
+          </div>
         </PreviewTrigger>
         <PreviewPortal>
           <PreviewImage
@@ -69,6 +82,6 @@ export default function RecordItem({
         {typeLabel && <span>·</span>}
         {typeLabel && <Badge variant="outline">{typeLabel}</Badge>}
       </div>
-    </div>
+    </motion.div>
   );
 }

@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 
 import PostTitle from '@/app/_components/post-title';
 import { MDX } from '@/components/mdx';
+import MotionWrapper from '@/components/motion-wrapper';
 import { getPostMDX } from '@/lib/data/mdx';
 
 interface IPostPageProps {
@@ -29,11 +30,11 @@ export default async function PostPage({ params }: IPostPageProps) {
   const { content, data } = post;
 
   return (
-    <article>
+    <MotionWrapper>
       <PostTitle {...data} />
       <article className="prose dark:prose-invert">
         <MDX source={content} />
       </article>
-    </article>
+    </MotionWrapper>
   );
 }

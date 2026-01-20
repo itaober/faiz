@@ -1,5 +1,8 @@
 import MemoCard from '@/app/memos/_components/memo-card';
+import MemoItemWrapper from '@/app/memos/_components/memo-item-wrapper';
+import MemoList from '@/app/memos/_components/memo-list';
 import MemosTitle from '@/app/memos/_components/memos-title';
+import MotionWrapper from '@/components/motion-wrapper';
 import { getMemos } from '@/lib/data/memos';
 
 import { MemosProvider } from './_context/memos-context';
@@ -13,16 +16,18 @@ export default async function MemosPage() {
 
   return (
     <MemosProvider>
-      <div>
+      <MotionWrapper>
         <MemosTitle />
         <div className="mt-6">
-          <article className="prose dark:prose-invert">
+          <MemoList>
             {memos.map(memo => (
-              <MemoCard key={memo.id} memo={memo} />
+              <MemoItemWrapper key={memo.id}>
+                <MemoCard memo={memo} />
+              </MemoItemWrapper>
             ))}
-          </article>
+          </MemoList>
         </div>
-      </div>
+      </MotionWrapper>
     </MemosProvider>
   );
 }

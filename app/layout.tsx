@@ -8,6 +8,7 @@ import { ThemeProvider } from 'next-themes';
 import { Toaster } from 'sonner';
 
 import { ServiceWorkerRegistration } from '@/components/service-worker-registration';
+import { SnowEffect } from '@/components/snow-effect';
 import { ThemeScript, ThemeSync } from '@/components/theme-script';
 import { getMetaInfo } from '@/lib/data/data';
 
@@ -69,6 +70,7 @@ export default function RootLayout({
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           <ThemeSync />
+          <SnowEffect density="normal" />
           <Header />
           <main className="mx-auto max-w-3xl px-6 py-12">{children}</main>
         </ThemeProvider>

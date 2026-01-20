@@ -5,13 +5,13 @@ import sharp from 'sharp';
 
 export { isSupportedImageType, MAX_IMAGE_SIZE, SUPPORTED_IMAGE_TYPES } from '@/lib/constants/image';
 
-export interface CompressOptions {
+export interface ICompressOptions {
   maxWidth?: number;
   maxHeight?: number;
   quality?: number;
 }
 
-const DEFAULT_OPTIONS: Required<CompressOptions> = {
+const DEFAULT_OPTIONS: Required<ICompressOptions> = {
   maxWidth: 1920,
   maxHeight: 1920,
   quality: 80,
@@ -19,7 +19,7 @@ const DEFAULT_OPTIONS: Required<CompressOptions> = {
 
 export async function compressImageToWebP(
   buffer: Buffer,
-  options?: CompressOptions,
+  options?: ICompressOptions,
 ): Promise<Buffer> {
   const { maxWidth, maxHeight, quality } = { ...DEFAULT_OPTIONS, ...options };
 

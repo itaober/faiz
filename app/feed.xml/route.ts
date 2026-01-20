@@ -6,7 +6,7 @@ import { getMetaInfo } from '@/lib/data/data';
 import { getPostList } from '@/lib/data/mdx';
 import { getMemos } from '@/lib/data/memos';
 
-interface FeedItem {
+interface IFeedItem {
   title: string;
   id: string;
   link: string;
@@ -47,7 +47,7 @@ export async function GET() {
     },
   });
 
-  const feedItems: FeedItem[] = [];
+  const feedItems: IFeedItem[] = [];
 
   // Add posts
   for (const post of postList) {

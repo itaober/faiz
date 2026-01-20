@@ -1,8 +1,9 @@
 import dayjs from 'dayjs';
 
+import MotionWrapper from '@/components/motion-wrapper';
 import { getPostListInfo } from '@/lib/data/data';
 
-import PostItem from './_components/post-item';
+import PostsList from './_components/posts-list';
 
 const PINNED_KEY = 'Pinned';
 
@@ -41,22 +42,9 @@ export default async function PostsPage() {
   });
 
   return (
-    <div>
+    <MotionWrapper>
       <h1 className="mb-8 text-4xl font-extrabold">Posts</h1>
-      <article className="space-y-8">
-        {sortedPostsByYear.map(([groupTitle, posts]) => {
-          return (
-            <section key={groupTitle}>
-              <h2 className="mb-2 text-2xl font-bold">{groupTitle}</h2>
-              <ul className="flex flex-col gap-6 md:gap-4">
-                {posts.map(post => (
-                  <PostItem key={post.slug} {...post} />
-                ))}
-              </ul>
-            </section>
-          );
-        })}
-      </article>
-    </div>
+      <PostsList sortedPostsByYear={sortedPostsByYear} />
+    </MotionWrapper>
   );
 }

@@ -4,7 +4,7 @@ import { useCallback, useState } from 'react';
 
 import { uploadImagesAction } from '@/app/memos/_actions/upload-image';
 
-interface PendingImage {
+interface IPendingImage {
   id: string;
   file: File;
   preview: string;
@@ -13,36 +13,28 @@ interface PendingImage {
   error?: string;
 }
 
-interface UseImageUploadOptions {
+interface IUseImageUploadOptions {
   maxCount?: number;
   token: string;
 }
 
-interface UseImageUploadReturn {
-  /** 待上传的图片列表 */
-  images: PendingImage[];
-  /** 已上传成功的图片路径 */
+interface IUseImageUploadReturn {
+  images: IPendingImage[];
   uploadedPaths: string[];
-  /** 是否正在上传 */
   isUploading: boolean;
-  /** 添加图片 */
   addImages: (files: FileList | File[]) => void;
-  /** 移除图片 */
   removeImage: (id: string) => void;
-  /** 上传所有待上传的图片 */
   uploadAll: (memoId: string) => Promise<{ success: boolean; paths: string[]; errors: string[] }>;
-  /** 清空所有图片 */
   clear: () => void;
-  /** 设置初始图片（编辑模式） */
   setInitialImages: (paths: string[]) => void;
 }
 
 const generateId = () => `img_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 
-export function useImageUpload(options: UseImageUploadOptions): UseImageUploadReturn {
+export function useImageUpload(options: IUseImageUploadOptions): IUseImageUploadReturn {
   const { maxCount = 9, token } = options;
 
-  const [images, setImages] = useState<PendingImage[]>([]);
+  const [images, setImages] = useState<IPendingImage[]>([]);
   const [isUploading, setIsUploading] = useState(false);
 
   const addImages = useCallback(
@@ -54,7 +46,7 @@ export function useImageUpload(options: UseImageUploadOptions): UseImageUploadRe
         return;
       }
 
-      const newImages: PendingImage[] = fileArray.slice(0, remainingSlots).map(file => ({
+      const newImages: IPendingImage[] = fileArray.slice(0, remainingSlots).map(file => ({
         id: generateId(),
         file,
         preview: URL.createObjectURL(file),
@@ -119,6 +111,20 @@ export function useImageUpload(options: UseImageUploadOptions): UseImageUploadRe
                 token,
               );
 
+              if (!result.success) {
+                setImages(prev =>
+                  prev.map(img =>
+                    img.status === 'uploading'
+                      ? { ...img, status: 'error', error: result.error }
+                      : img,
+                  ),
+                );
+                resolve({ success: false, paths: [], errors: [result.error] });
+                return;
+              }
+
+              const { paths: uploadedPaths, errors: uploadErrors } = result.data!;
+
               // 更新图片状态并收集成功路径
               let allSuccessPaths: string[] = [];
               setImages(prev => {
@@ -128,13 +134,13 @@ export function useImageUpload(options: UseImageUploadOptions): UseImageUploadRe
 
                 for (const img of updatedImages) {
                   if (img.status === 'uploading') {
-                    if (pathIndex < result.paths.length) {
+                    if (pathIndex < uploadedPaths.length) {
                       img.status = 'success';
-                      img.path = result.paths[pathIndex];
+                      img.path = uploadedPaths[pathIndex];
                       pathIndex++;
-                    } else if (errorIndex < result.errors.length) {
+                    } else if (errorIndex < uploadErrors.length) {
                       img.status = 'error';
-                      img.error = result.errors[errorIndex];
+                      img.error = uploadErrors[errorIndex];
                       errorIndex++;
                     }
                   }
@@ -148,9 +154,9 @@ export function useImageUpload(options: UseImageUploadOptions): UseImageUploadRe
               });
 
               resolve({
-                success: result.errors.length === 0,
-                paths: allSuccessPaths.length > 0 ? allSuccessPaths : result.paths,
-                errors: result.errors,
+                success: uploadErrors.length === 0,
+                paths: allSuccessPaths.length > 0 ? allSuccessPaths : uploadedPaths,
+                errors: uploadErrors,
               });
             } catch (error) {
               resolve({ success: false, paths: [], errors: [String(error)] });
@@ -182,7 +188,7 @@ export function useImageUpload(options: UseImageUploadOptions): UseImageUploadRe
 
   // 设置初始图片（编辑模式）
   const setInitialImages = useCallback((paths: string[]) => {
-    const initialImages: PendingImage[] = paths.map(path => ({
+    const initialImages: IPendingImage[] = paths.map(path => ({
       id: generateId(),
       file: new File([], path.split('/').pop() || 'image'),
       preview: path,

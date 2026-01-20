@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation';
 
 import { MDX } from '@/components/mdx';
+import MotionWrapper from '@/components/motion-wrapper';
 import { getLinesMDX } from '@/lib/data/mdx';
 
 import PostTitle from '../_components/post-title';
@@ -23,12 +24,12 @@ const LinesPage = async () => {
   const { content, data } = linesMDX;
 
   return (
-    <div>
+    <MotionWrapper>
       <PostTitle {...data} />
       <article className="prose dark:prose-invert">
         <MDX source={content} />
       </article>
-    </div>
+    </MotionWrapper>
   );
 };
 

@@ -1,6 +1,7 @@
 'use client';
 
 import { ImagePlus, Send, Settings, XIcon } from 'lucide-react';
+import { motion } from 'motion/react';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
@@ -9,6 +10,7 @@ import { Drawer } from 'vaul';
 import { createMemoAction } from '@/app/memos/_actions/create-memo';
 import { updateMemoAction } from '@/app/memos/_actions/update-memo';
 import { useImageUpload } from '@/hooks/use-image-upload';
+import { ANIMATION } from '@/lib/constants/animation';
 import { MAX_IMAGE_SIZE, SUPPORTED_IMAGE_TYPES } from '@/lib/constants/image';
 import { generateId } from '@/lib/data/common';
 import type { Memo } from '@/lib/data/memos';
@@ -163,73 +165,88 @@ export default function MemosEditorDrawer({ open, onOpenChange, memo }: MemosEdi
         <Drawer.Portal>
           <Drawer.Overlay className="bg-foreground/40 fixed inset-0 z-20" />
           <Drawer.Content className="bg-background md:border-r-none fixed top-0 right-0 bottom-0 z-20 flex w-[100vw] max-w-xl flex-col outline-none md:rounded-l-xl md:border md:border-gray-200 md:dark:border-gray-800">
-            {/* Header  */}
-            <div className="flex items-center justify-between p-4">
-              <button
-                type="button"
-                onClick={() => onOpenChange(false)}
-                className="hover:bg-muted opacity-70 transition-colors hover:opacity-100"
-              >
-                <XIcon className="size-6" />
-              </button>
-              <div className="flex items-center gap-2">
-                <button
+            <motion.div
+              initial={{ opacity: 0, x: ANIMATION.distance.normal }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{
+                delay: 0.05,
+                duration: ANIMATION.duration.normal,
+                ease: ANIMATION.ease.out,
+              }}
+              className="flex h-full flex-col"
+            >
+              {/* Header  */}
+              <div className="flex items-center justify-between p-4">
+                <motion.button
                   type="button"
-                  onClick={() => setIsSettingsOpen(true)}
+                  onClick={() => onOpenChange(false)}
                   className="hover:bg-muted opacity-70 transition-colors hover:opacity-100"
-                  aria-label="Settings"
+                  whileTap={{ scale: 0.95 }}
                 >
-                  <Settings className="size-6" />
-                </button>
-                <button
-                  type="button"
-                  onClick={handleImageUpload}
-                  className="hover:bg-muted opacity-70 transition-colors hover:opacity-100"
-                  aria-label="Upload image"
-                  disabled={images.length >= 9}
-                >
-                  <ImagePlus className="size-6" />
-                </button>
-                <button
-                  type="button"
-                  onClick={handleSubmit}
-                  disabled={isDisabled}
-                  className="hover:bg-muted opacity-70 transition-colors hover:opacity-100 disabled:cursor-not-allowed disabled:opacity-30"
-                  aria-label={isEditMode ? 'Update' : 'Publish'}
-                >
-                  <Send className="size-6" />
-                </button>
+                  <XIcon className="size-6" />
+                </motion.button>
+                <div className="flex items-center gap-2">
+                  <motion.button
+                    type="button"
+                    onClick={() => setIsSettingsOpen(true)}
+                    className="hover:bg-muted opacity-70 transition-colors hover:opacity-100"
+                    aria-label="Settings"
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    <Settings className="size-6" />
+                  </motion.button>
+                  <motion.button
+                    type="button"
+                    onClick={handleImageUpload}
+                    className="hover:bg-muted opacity-70 transition-colors hover:opacity-100"
+                    aria-label="Upload image"
+                    disabled={images.length >= 9}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    <ImagePlus className="size-6" />
+                  </motion.button>
+                  <motion.button
+                    type="button"
+                    onClick={handleSubmit}
+                    disabled={isDisabled}
+                    className="hover:bg-muted opacity-70 transition-colors hover:opacity-100 disabled:cursor-not-allowed disabled:opacity-30"
+                    aria-label={isEditMode ? 'Update' : 'Publish'}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    <Send className="size-6" />
+                  </motion.button>
+                </div>
               </div>
-            </div>
 
-            {/* Hidden title for accessibility */}
-            <Drawer.Title className="sr-only">{isEditMode ? 'Edit Memo' : 'New Memo'}</Drawer.Title>
+              {/* Hidden title for accessibility */}
+              <Drawer.Title className="sr-only">
+                {isEditMode ? 'Edit Memo' : 'New Memo'}
+              </Drawer.Title>
 
-            {/* Editor area */}
-            <div className="flex flex-1 flex-col gap-4 overflow-auto px-4 pb-4">
-              {/* 文本输入 */}
-              <textarea
-                value={content}
-                onChange={e => setContent(e.target.value)}
-                placeholder="Write something..."
-                className="placeholder:text-foreground/40 min-h-32 flex-1 resize-none bg-transparent text-base leading-relaxed outline-none"
+              {/* Editor area */}
+              <div className="flex flex-1 flex-col gap-4 overflow-auto px-4 pb-4">
+                <textarea
+                  value={content}
+                  onChange={e => setContent(e.target.value)}
+                  placeholder="Write something..."
+                  className="placeholder:text-foreground/40 min-h-32 flex-1 resize-none bg-transparent text-base leading-relaxed outline-none"
+                />
+
+                {images.length > 0 && (
+                  <ImagePreviewGrid images={images} onRemove={removeImage} className="mt-auto" />
+                )}
+              </div>
+
+              {/* Hidden file input */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept={SUPPORTED_IMAGE_TYPES.join(',')}
+                multiple
+                onChange={handleFileSelect}
+                className="hidden"
               />
-
-              {/* 图片预览 */}
-              {images.length > 0 && (
-                <ImagePreviewGrid images={images} onRemove={removeImage} className="mt-auto" />
-              )}
-            </div>
-
-            {/* Hidden file input */}
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept={SUPPORTED_IMAGE_TYPES.join(',')}
-              multiple
-              onChange={handleFileSelect}
-              className="hidden"
-            />
+            </motion.div>
           </Drawer.Content>
         </Drawer.Portal>
       </Drawer.Root>
