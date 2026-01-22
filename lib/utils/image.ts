@@ -1,67 +1,38 @@
-// Server-side only image utilities (requires sharp)
+/** Image utilities Uses browser-image-compression for lightweight image compression */
 
-import dayjs from 'dayjs';
-import sharp from 'sharp';
+import imageCompression from 'browser-image-compression';
 
 export { isSupportedImageType, MAX_IMAGE_SIZE, SUPPORTED_IMAGE_TYPES } from '@/lib/constants/image';
 
-export interface ICompressOptions {
-  maxWidth?: number;
-  maxHeight?: number;
-  quality?: number;
+// Target size: 4.5MB / 1.33 (base64 overhead) ≈ 3.38MB
+const MAX_UPLOAD_SIZE_MB = 3.38;
+const DEFAULT_MAX_DIMENSION = 1920;
+
+export interface CompressOptions {
+  maxSizeMB?: number;
+  maxWidthOrHeight?: number;
 }
 
-const DEFAULT_OPTIONS: Required<ICompressOptions> = {
-  maxWidth: 1920,
-  maxHeight: 1920,
-  quality: 80,
-};
+/**
+ * Compress image on client-side and convert to WebP Automatically adjusts quality to meet target
+ * size
+ */
+export async function compressImage(file: File, options: CompressOptions = {}): Promise<File> {
+  const { maxSizeMB = MAX_UPLOAD_SIZE_MB, maxWidthOrHeight = DEFAULT_MAX_DIMENSION } = options;
 
-export async function compressImageToWebP(
-  buffer: Buffer,
-  options?: ICompressOptions,
-): Promise<Buffer> {
-  const { maxWidth, maxHeight, quality } = { ...DEFAULT_OPTIONS, ...options };
+  const compressedFile = await imageCompression(file, {
+    maxSizeMB,
+    maxWidthOrHeight,
+    useWebWorker: true,
+    fileType: 'image/webp',
+  });
 
-  try {
-    const image = sharp(buffer);
-    const metadata = await image.metadata();
-
-    let resizeOptions: sharp.ResizeOptions | undefined;
-    if (metadata.width && metadata.height) {
-      if (metadata.width > maxWidth || metadata.height > maxHeight) {
-        resizeOptions = {
-          width: maxWidth,
-          height: maxHeight,
-          fit: 'inside',
-          withoutEnlargement: true,
-        };
-      }
-    }
-
-    let pipeline = image;
-    if (resizeOptions) {
-      pipeline = pipeline.resize(resizeOptions);
-    }
-
-    return await pipeline.webp({ quality }).toBuffer();
-  } catch (error) {
-    if (error instanceof Error) {
-      if (error.message.includes('heif')) {
-        throw new Error('HEIC/HEIF processing failed, ensure libheif is installed');
-      }
-      throw new Error(`Image processing failed: ${error.message}`);
-    }
-    throw new Error('Image processing failed: unknown error');
-  }
+  // Ensure .webp extension
+  const newName = file.name.replace(/\.[^.]+$/, '.webp');
+  return new File([compressedFile], newName, { type: 'image/webp' });
 }
 
-export function generateImageFilename(prefix: string = 'image'): string {
-  const timestamp = dayjs().format('YYYYMMDDHHmmss');
-  const random = Math.random().toString(36).slice(2, 10);
-  return `${prefix}_${timestamp}_${random}.webp`;
-}
-
+/** Generate storage path for image file */
 export function getImageStoragePath(filename: string, dir = '/assets/images'): string {
   return `${dir}/${filename}`;
 }

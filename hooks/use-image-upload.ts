@@ -3,6 +3,7 @@
 import { useCallback, useState } from 'react';
 
 import { uploadImagesAction } from '@/app/memos/_actions/upload-image';
+import { compressImage } from '@/lib/utils/image';
 
 interface IPendingImage {
   id: string;
@@ -22,7 +23,7 @@ interface IUseImageUploadReturn {
   images: IPendingImage[];
   uploadedPaths: string[];
   isUploading: boolean;
-  addImages: (files: FileList | File[]) => void;
+  addImages: (files: FileList | File[]) => Promise<void>;
   removeImage: (id: string) => void;
   uploadAll: (memoId: string) => Promise<{ success: boolean; paths: string[]; errors: string[] }>;
   clear: () => void;
@@ -31,6 +32,11 @@ interface IUseImageUploadReturn {
 
 const generateId = () => `img_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 
+/** Process a single file: compress and convert to WebP */
+async function processFile(file: File): Promise<File> {
+  return compressImage(file);
+}
+
 export function useImageUpload(options: IUseImageUploadOptions): IUseImageUploadReturn {
   const { maxCount = 9, token } = options;
 
@@ -38,7 +44,7 @@ export function useImageUpload(options: IUseImageUploadOptions): IUseImageUpload
   const [isUploading, setIsUploading] = useState(false);
 
   const addImages = useCallback(
-    (files: FileList | File[]) => {
+    async (files: FileList | File[]) => {
       const fileArray = Array.from(files);
       const remainingSlots = maxCount - images.length;
 
@@ -46,12 +52,30 @@ export function useImageUpload(options: IUseImageUploadOptions): IUseImageUpload
         return;
       }
 
-      const newImages: IPendingImage[] = fileArray.slice(0, remainingSlots).map(file => ({
-        id: generateId(),
-        file,
-        preview: URL.createObjectURL(file),
-        status: 'pending' as const,
-      }));
+      const filesToProcess = fileArray.slice(0, remainingSlots);
+      const results = await Promise.allSettled(filesToProcess.map(processFile));
+
+      const newImages: IPendingImage[] = results.map((result, index) => {
+        if (result.status === 'fulfilled') {
+          const file = result.value;
+          return {
+            id: generateId(),
+            file,
+            preview: URL.createObjectURL(file),
+            status: 'pending' as const,
+          };
+        } else {
+          // Conversion failed, use original file and mark as error
+          const file = filesToProcess[index];
+          return {
+            id: generateId(),
+            file,
+            preview: URL.createObjectURL(file),
+            status: 'error' as const,
+            error: result.reason?.message || 'HEIC conversion failed',
+          };
+        }
+      });
 
       setImages(prev => [...prev, ...newImages]);
     },
@@ -98,7 +122,7 @@ export function useImageUpload(options: IUseImageUploadOptions): IUseImageUpload
                 return {
                   id: img.id,
                   imageBase64: base64,
-                  mimeType: img.file.type,
+                  mimeType: 'image/webp',
                 };
               });
 

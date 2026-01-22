@@ -1,5 +1,5 @@
+import { isSupportedImageType, MAX_IMAGE_SIZE } from '@/lib/constants/image';
 import { deleteGitHubFile, putGitHubFile } from '@/lib/data/common';
-import { compressImageToWebP, isSupportedImageType, MAX_IMAGE_SIZE } from '@/lib/utils/image';
 
 interface IUploadImageInput {
   imageBase64: string;
@@ -12,18 +12,10 @@ interface IUploadImageResult {
   path: string;
 }
 
-/**
- * Upload image to GitHub storage
- *
- * 1. Validate type and size
- * 2. Compress to WebP
- * 3. Upload to GitHub
- */
+/** Upload image to GitHub storage Image is already compressed to WebP on client-side */
 export async function uploadImage(input: IUploadImageInput): Promise<IUploadImageResult> {
   if (!isSupportedImageType(input.mimeType)) {
-    throw new Error(
-      `Unsupported image type: ${input.mimeType}. Supported: JPEG, PNG, GIF, WebP, HEIC, HEIF`,
-    );
+    throw new Error(`Unsupported image type: ${input.mimeType}. Supported: JPEG, PNG, GIF, WebP`);
   }
 
   const buffer = Buffer.from(input.imageBase64, 'base64');
@@ -32,12 +24,11 @@ export async function uploadImage(input: IUploadImageInput): Promise<IUploadImag
     throw new Error(`Image size exceeds limit (max ${MAX_IMAGE_SIZE / 1024 / 1024}MB)`);
   }
 
-  const webpBuffer = await compressImageToWebP(buffer);
-
+  // Client already compressed to WebP, upload directly
   await putGitHubFile(
     input.storagePath,
     {
-      contentBase64: webpBuffer.toString('base64'),
+      contentBase64: input.imageBase64,
       message: `docs: add image ${input.storagePath}`,
     },
     input.token,
