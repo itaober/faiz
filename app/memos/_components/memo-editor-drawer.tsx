@@ -91,7 +91,6 @@ export default function MemosEditorDrawer({ open, onOpenChange, memo }: MemosEdi
   const handleImageUpload = () => {
     if (!token) {
       setIsSettingsOpen(true);
-      toast.error('Please set GitHub Token first');
       return;
     }
     fileInputRef.current?.click();

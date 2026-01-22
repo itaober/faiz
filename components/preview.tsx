@@ -119,6 +119,7 @@ const PreviewImage = ({ src, alt, className }: IPreviewImageProps) => {
       sizes="100vw"
       className={cn('h-5/6 w-auto object-contain', className)}
       priority
+      unoptimized
     />
   );
 };
