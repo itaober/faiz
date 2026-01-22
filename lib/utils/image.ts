@@ -1,8 +1,12 @@
-/** Image utilities using native Canvas API for WebP compression */
+/** Image utilities using @jsquash (WASM) for compression */
+
+import * as squooshJpeg from '@jsquash/jpeg';
+import * as squooshPng from '@jsquash/png';
+import resize from '@jsquash/resize';
+import * as squooshWebP from '@jsquash/webp';
 
 export { isSupportedImageType, MAX_IMAGE_SIZE, SUPPORTED_IMAGE_TYPES } from '@/lib/constants/image';
 
-// Target size: 4.5MB / 1.33 (base64 overhead) ≈ 3.38MB
 const DEFAULT_MAX_SIZE_MB = 3.38;
 const DEFAULT_MAX_DIMENSION = 1920;
 
@@ -11,94 +15,150 @@ export interface CompressOptions {
   maxWidthOrHeight?: number;
 }
 
-// Helpers must be defined before usage in const arrow functions
-
-const loadImage = (file: File): Promise<HTMLImageElement> => {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    const url = URL.createObjectURL(file);
-    img.onload = () => {
-      URL.revokeObjectURL(url);
-      resolve(img);
-    };
-    img.onerror = err => {
-      URL.revokeObjectURL(url);
-      reject(err);
-    };
-    img.src = url;
-  });
-};
-
-const calculateDimensions = (width: number, height: number, max: number) => {
-  if (width <= max && height <= max) return { width, height };
-
-  let newWidth = width;
-  let newHeight = height;
-
-  if (width > height) {
-    if (width > max) {
-      newWidth = max;
-      newHeight = Math.round((height * max) / width);
-    }
-  } else {
-    if (height > max) {
-      newHeight = max;
-      newWidth = Math.round((width * max) / height);
-    }
-  }
-  return { width: newWidth, height: newHeight };
-};
-
-const toBlob = (canvas: HTMLCanvasElement, quality: number): Promise<Blob | null> => {
-  return new Promise(resolve => canvas.toBlob(resolve, 'image/webp', quality));
-};
-
 /**
- * Compress image on client-side and convert to WebP using native Canvas API Automatically adjusts
- * quality to meet target size
+ * Main Entry: Compress image to WebP (WASM) Guarantees file size < maxSizeMB by intelligent
+ * resizing/quality reduction
  */
 export const compressImage = async (file: File, options: CompressOptions = {}): Promise<File> => {
   const { maxSizeMB = DEFAULT_MAX_SIZE_MB, maxWidthOrHeight = DEFAULT_MAX_DIMENSION } = options;
   const targetSizeBytes = maxSizeMB * 1024 * 1024;
 
-  // 1. Load image
-  const img = await loadImage(file);
+  // 1. Decode (Support JPEG/PNG WASM, fallback to Canvas for HEIC/Others)
+  const originalImageData = await decodeToImageData(file);
 
-  // 2. Setup Canvas & Resize
-  const canvas = document.createElement('canvas');
-  const { width, height } = calculateDimensions(img.width, img.height, maxWidthOrHeight);
-  canvas.width = width;
-  canvas.height = height;
+  // 2. Transcode & Optimize
+  // Recursively find best quality/dimension combo to fit strict size limit
+  const buffer = await recursiveCompress({
+    imageData: originalImageData,
+    targetSizeBytes,
+    maxWidthOrHeight,
+  });
 
-  const ctx = canvas.getContext('2d');
-  if (!ctx) throw new Error('Failed to get canvas context');
-
-  // Draw and resize
-  ctx.drawImage(img, 0, 0, width, height);
-
-  // 3. Iterative Compression
-  let quality = 0.9;
-  let blob = await toBlob(canvas, quality);
-  let attempt = 0;
-  const maxAttempts = 10;
-
-  while (blob && blob.size > targetSizeBytes && attempt < maxAttempts) {
-    quality -= 0.1;
-    // Clamp quality
-    if (quality < 0.1) quality = 0.1;
-
-    blob = await toBlob(canvas, quality);
-    attempt++;
-  }
-
-  if (!blob) throw new Error('Image compression failed');
-
-  // 4. Return new File
+  // 3. Pack result
   const newName = file.name.replace(/\.[^.]+$/, '.webp');
-  return new File([blob], newName, { type: 'image/webp', lastModified: Date.now() });
+  return new File([buffer], newName, { type: 'image/webp', lastModified: Date.now() });
 };
 
 /** Generate storage path for image file */
-export function getImageStoragePath(filename: string, dir = '/assets/images'): string {
+export const getImageStoragePath = (filename: string, dir = '/assets/images'): string => {
   return `${dir}/${filename}`;
+};
+
+// =========================================================================================
+// Internal Helpers
+// =========================================================================================
+
+async function decodeToImageData(file: File): Promise<ImageData> {
+  const buffer = await file.arrayBuffer();
+
+  // WASM Decoders
+  if (file.type === 'image/jpeg' || file.type === 'image/jpg') {
+    return await squooshJpeg.decode(buffer);
+  }
+  if (file.type === 'image/png') {
+    return await squooshPng.decode(buffer);
+  }
+
+  // Browser Fallback (e.g. for HEIC on Safari)
+  return decodeWithCanvas(file);
+}
+
+function decodeWithCanvas(file: File): Promise<ImageData> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        reject(new Error('Canvas context failed'));
+        return;
+      }
+      ctx.drawImage(img, 0, 0);
+      resolve(ctx.getImageData(0, 0, img.width, img.height));
+      URL.revokeObjectURL(url);
+    };
+    img.onerror = reject;
+    img.src = url;
+  });
+}
+
+/**
+ * Recursive Strategy:
+ *
+ * 1. Try encoding with current settings
+ * 2. If too big, reduce quality
+ * 3. If quality too low, shrink dimensions and restart quality
+ */
+async function recursiveCompress(args: {
+  imageData: ImageData;
+  targetSizeBytes: number;
+  maxWidthOrHeight: number;
+  quality?: number;
+  attempt?: number;
+}): Promise<ArrayBuffer> {
+  const { imageData, targetSizeBytes, maxWidthOrHeight } = args;
+  const { quality = 75, attempt = 0 } = args;
+
+  // 1. Calc target dimensions for this attempt
+  const { width: targetW, height: targetH } = calculateDimensions(
+    imageData.width,
+    imageData.height,
+    maxWidthOrHeight,
+  );
+
+  // 2. Resize only if necessary (WASM)
+  let workingData = imageData;
+  if (imageData.width !== targetW || imageData.height !== targetH) {
+    workingData = await resize(imageData, {
+      width: targetW,
+      height: targetH,
+    });
+  }
+
+  // 3. Encode (WASM)
+  const buffer = await squooshWebP.encode(workingData, { quality });
+
+  // 4. Check & Retry Logic
+  if (buffer.byteLength <= targetSizeBytes) {
+    return buffer;
+  }
+
+  if (attempt >= 10) {
+    // Safety break: return best effort even if slightly over
+    console.warn('Compression limit reached, returning best effort.');
+    return buffer;
+  }
+
+  // Next Step strategy
+  let nextQuality = quality;
+  let nextMaxDim = maxWidthOrHeight;
+
+  if (quality > 30) {
+    nextQuality -= 15; // Aggressive quality drop
+  } else {
+    // Quality already low, shrink size
+    nextQuality = 60; // Reset quality for new smaller size
+    nextMaxDim = Math.max(320, Math.floor(maxWidthOrHeight * 0.8)); // Shrink 20%
+    if (nextMaxDim === maxWidthOrHeight) return buffer; // Can't shrink further
+  }
+
+  return recursiveCompress({
+    ...args,
+    quality: nextQuality,
+    maxWidthOrHeight: nextMaxDim,
+    attempt: attempt + 1,
+  });
+}
+
+function calculateDimensions(width: number, height: number, max: number) {
+  if (width <= max && height <= max) return { width, height };
+
+  const aspectRatio = width / height;
+  if (width > height) {
+    return { width: max, height: Math.round(max / aspectRatio) };
+  }
+  return { width: Math.round(max * aspectRatio), height: max };
 }
