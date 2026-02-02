@@ -1,8 +1,9 @@
 [
   {
     "id": "memo_20260202171623_7t5ds0",
-    "content": "优化了一下 Memos 的数据存储，改成按月拆分 json，记录顺带测试一下。\n\n-- by Codex",
+    "content": "优化了一下 Memos 的数据存储，改成按月拆分 json，记录顺带测试一下。\n\n\\- by Codex",
     "images": [],
-    "createdTime": "2026-02-02 17:16:23"
+    "createdTime": "2026-02-02 17:16:23",
+    "updatedTime": "2026-02-02 17:17:24"
   }
 ]
