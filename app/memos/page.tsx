@@ -1,9 +1,8 @@
-import MemoCard from '@/app/memos/_components/memo-card';
-import MemoItemWrapper from '@/app/memos/_components/memo-item-wrapper';
-import MemoList from '@/app/memos/_components/memo-list';
+import MemoVirtualList from '@/app/memos/_components/memo-virtual-list';
 import MemosTitle from '@/app/memos/_components/memos-title';
 import MotionWrapper from '@/components/motion-wrapper';
-import { getMemos } from '@/lib/data/memos';
+import { getMemosByMonths, getMemosIndex } from '@/lib/data/memos';
+import { toMemoRenderItems } from '@/lib/data/memos-render';
 
 import { MemosProvider } from './_context/memos-context';
 
@@ -12,20 +11,22 @@ export const metadata = {
 };
 
 export default async function MemosPage() {
-  const memos = await getMemos();
+  const monthsIndex = await getMemosIndex();
+  const initialLoadedMonths = Math.min(2, monthsIndex.length);
+  const initialMonths = monthsIndex.slice(0, initialLoadedMonths);
+  const memos = await getMemosByMonths(initialMonths);
+  const memoItems = await toMemoRenderItems(memos);
 
   return (
     <MemosProvider>
       <MotionWrapper>
         <MemosTitle />
         <div className="mt-6">
-          <MemoList>
-            {memos.map(memo => (
-              <MemoItemWrapper key={memo.id}>
-                <MemoCard memo={memo} />
-              </MemoItemWrapper>
-            ))}
-          </MemoList>
+          <MemoVirtualList
+            initialItems={memoItems}
+            monthsIndex={monthsIndex}
+            initialLoadedMonths={initialLoadedMonths}
+          />
         </div>
       </MotionWrapper>
     </MemosProvider>

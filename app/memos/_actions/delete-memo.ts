@@ -7,6 +7,7 @@ import { type ActionResult, createActionError } from '@/lib/types/action-result'
 
 interface IDeleteMemoInput {
   id: string;
+  createdTime: string;
   token: string;
 }
 
@@ -15,6 +16,15 @@ export async function deleteMemoAction(input: IDeleteMemoInput): Promise<ActionR
     return {
       success: false,
       error: 'Memo ID is required',
+      code: 'VALIDATION',
+      retryable: false,
+    };
+  }
+
+  if (!input.createdTime?.trim()) {
+    return {
+      success: false,
+      error: 'Memo createdTime is required',
       code: 'VALIDATION',
       retryable: false,
     };
@@ -30,7 +40,11 @@ export async function deleteMemoAction(input: IDeleteMemoInput): Promise<ActionR
   }
 
   try {
-    await deleteMemoWithImages({ id: input.id, token: input.token });
+    await deleteMemoWithImages({
+      id: input.id,
+      createdTime: input.createdTime,
+      token: input.token,
+    });
     revalidatePath('/memos');
 
     return { success: true };

@@ -13,6 +13,7 @@ interface MemoActionsDrawerProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   memoId: string;
+  memoCreatedTime: string;
   onEdit: () => void;
 }
 
@@ -20,6 +21,7 @@ export default function MemoActionsDrawer({
   open,
   onOpenChange,
   memoId,
+  memoCreatedTime,
   onEdit,
 }: MemoActionsDrawerProps) {
   const router = useRouter();
@@ -44,7 +46,7 @@ export default function MemoActionsDrawer({
     setIsDeleting(true);
 
     const deleteMemo = async () => {
-      const result = await deleteMemoAction({ id: memoId, token });
+      const result = await deleteMemoAction({ id: memoId, createdTime: memoCreatedTime, token });
       if (!result.success) {
         throw new Error(result.error || 'Delete failed');
       }

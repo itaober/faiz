@@ -37,6 +37,7 @@ export default function MemoCardActions({ memo }: MemoCardActionsProps) {
         open={showActions}
         onOpenChange={setShowActions}
         memoId={memo.id}
+        memoCreatedTime={memo.createdTime}
         onEdit={() => setShowEditor(true)}
       />
 

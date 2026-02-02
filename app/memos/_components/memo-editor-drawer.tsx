@@ -126,6 +126,7 @@ export default function MemosEditorDrawer({ open, onOpenChange, memo }: MemosEdi
               id: memo.id,
               content: content.trim(),
               images: imagePaths,
+              createdTime: memo.createdTime,
               token,
             })
           : await createMemoAction({

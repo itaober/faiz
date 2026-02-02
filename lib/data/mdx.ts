@@ -71,7 +71,7 @@ export const getMemosList = cache(async () => {
 
 export const getPostList = cache(async () => {
   try {
-    const files = await fetchGitHubDir('posts');
+    const files = await fetchGitHubDir('data/posts');
     const posts = await Promise.all(
       files.map(async path => {
         const raw = await fetchGitHubText(path);
@@ -91,7 +91,7 @@ export const getPostList = cache(async () => {
 
 export const getPostMDX = cache(async (slug: string) => {
   try {
-    const raw = await fetchGitHubText(`posts/${slug}.mdx`);
+    const raw = await fetchGitHubText(`data/posts/${slug}.mdx`);
     return parseMDX(raw);
   } catch (error) {
     console.error(`Failed to fetch post ${slug}:`, error);

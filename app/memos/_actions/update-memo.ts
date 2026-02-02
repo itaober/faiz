@@ -10,6 +10,7 @@ interface IUpdateMemoInput {
   id: string;
   content: string;
   images?: string[];
+  createdTime: string;
   token: string;
 }
 
@@ -20,6 +21,15 @@ export async function updateMemoAction(input: IUpdateMemoInput): Promise<ActionR
     return {
       success: false,
       error: 'Memo ID is required',
+      code: 'VALIDATION',
+      retryable: false,
+    };
+  }
+
+  if (!input.createdTime?.trim()) {
+    return {
+      success: false,
+      error: 'Memo createdTime is required',
       code: 'VALIDATION',
       retryable: false,
     };
@@ -57,6 +67,7 @@ export async function updateMemoAction(input: IUpdateMemoInput): Promise<ActionR
       id: input.id,
       content: input.content?.trim() || '',
       images: input.images,
+      createdTime: input.createdTime,
       token: input.token,
     });
 

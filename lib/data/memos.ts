@@ -1,9 +1,15 @@
+import type { MDXRemoteSerializeResult } from 'next-mdx-remote';
 import { cache } from 'react';
 import { z } from 'zod';
 
-import { fetchGitHubJson, fetchGitHubText, writeGitHubJson } from '@/lib/data/common';
+import {
+  fetchGitHubDir,
+  fetchGitHubJson,
+  fetchGitHubText,
+  writeGitHubJson,
+} from '@/lib/data/common';
 import { deleteImages } from '@/lib/data/images';
-import { formatTime } from '@/lib/dayjs';
+import dayjs, { formatTime, TIMEZONE } from '@/lib/dayjs';
 
 export const MemoSchema = z.object({
   id: z.string(),
@@ -17,13 +23,71 @@ export const MemoListSchema = z.array(MemoSchema);
 
 export type Memo = z.infer<typeof MemoSchema>;
 export type MemoList = z.infer<typeof MemoListSchema>;
+export interface MemoRenderItem {
+  memo: Memo;
+  mdxSource: MDXRemoteSerializeResult<Record<string, unknown>>;
+}
 
-const MEMOS_PATH = 'data/memos.json';
+const MEMOS_DIR = 'data/memos';
+const MEMOS_FILE_PREFIX = 'memos-';
+const MEMOS_FILE_SUFFIX = '.json';
+
+const buildMemosPath = (month: string) =>
+  `${MEMOS_DIR}/${MEMOS_FILE_PREFIX}${month}${MEMOS_FILE_SUFFIX}`;
+
+const parseMonthFromPath = (path: string) => {
+  const filename = path.split('/').pop() ?? '';
+  if (!filename.startsWith(MEMOS_FILE_PREFIX) || !filename.endsWith(MEMOS_FILE_SUFFIX)) {
+    return null;
+  }
+  const month = filename.slice(
+    MEMOS_FILE_PREFIX.length,
+    filename.length - MEMOS_FILE_SUFFIX.length,
+  );
+  return /^\d{6}$/.test(month) ? month : null;
+};
+
+const getMemoMonthFromCreatedTime = (createdTime?: string) => {
+  if (!createdTime) return null;
+  const parsed = dayjs.tz(createdTime, TIMEZONE);
+  if (!parsed.isValid()) return null;
+  return parsed.format('YYYYMM');
+};
+
+const sortMemoList = (list: MemoList) =>
+  [...list].sort((a, b) => b.createdTime.localeCompare(a.createdTime));
+
+export const getMemosIndex = cache(async (token?: string): Promise<string[]> => {
+  try {
+    const files = await fetchGitHubDir(MEMOS_DIR, undefined, token);
+    const months = files.map(parseMonthFromPath).filter((month): month is string => Boolean(month));
+    return months.sort((a, b) => b.localeCompare(a));
+  } catch (error) {
+    console.error('Failed to fetch memos index:', error);
+    return [];
+  }
+});
+
+export const getMemosByMonth = async (month: string, token?: string): Promise<MemoList> => {
+  if (!/^\d{6}$/.test(month)) return [];
+
+  const path = buildMemosPath(month);
+  const raw = await fetchGitHubJson<unknown>(path, undefined, token).catch(() => []);
+  const list = MemoListSchema.parse(raw ?? []);
+  return sortMemoList(list);
+};
+
+export const getMemosByMonths = async (months: string[], token?: string): Promise<MemoList> => {
+  if (!months.length) return [];
+  const results = await Promise.all(months.map(month => getMemosByMonth(month, token)));
+  return results.flat();
+};
 
 export const getMemos = cache(async (token?: string): Promise<MemoList> => {
   try {
-    const raw = await fetchGitHubJson<unknown>(MEMOS_PATH, undefined, token).catch(() => []);
-    const list = MemoListSchema.parse(raw ?? []);
+    const months = await getMemosIndex(token);
+    const recentMonths = months.slice(0, 2);
+    const list = await getMemosByMonths(recentMonths, token);
     return list;
   } catch (error) {
     console.error('Failed to fetch memos list:', error);
@@ -39,7 +103,14 @@ interface ICreateMemoInput {
 }
 
 export const prependMemo = async (input: ICreateMemoInput): Promise<Memo> => {
-  const rawText = await fetchGitHubText(MEMOS_PATH, undefined, input.token).catch(() => '[]');
+  const createdTime = formatTime();
+  const memoMonth = getMemoMonthFromCreatedTime(createdTime);
+  if (!memoMonth) {
+    throw new Error('Invalid memo createdTime');
+  }
+
+  const memosPath = buildMemosPath(memoMonth);
+  const rawText = await fetchGitHubText(memosPath, undefined, input.token).catch(() => '[]');
   const raw = JSON.parse(rawText);
   const list = MemoListSchema.parse(raw ?? []);
 
@@ -47,12 +118,12 @@ export const prependMemo = async (input: ICreateMemoInput): Promise<Memo> => {
     id: input.id,
     content: input.content,
     images: input.images ?? [],
-    createdTime: formatTime(),
+    createdTime,
   };
 
   const nextList: MemoList = [memo, ...list];
 
-  await writeGitHubJson(MEMOS_PATH, nextList, 'docs: update memos.json', input.token);
+  await writeGitHubJson(memosPath, nextList, `docs: update ${memosPath}`, input.token);
 
   return memo;
 };
@@ -61,6 +132,7 @@ interface IUpdateMemoInput {
   id: string;
   content: string;
   images?: string[];
+  createdTime: string;
   token?: string;
 }
 
@@ -70,7 +142,13 @@ interface IUpdateMemoResult {
 }
 
 export const updateMemo = async (input: IUpdateMemoInput): Promise<IUpdateMemoResult> => {
-  const raw = await fetchGitHubJson<unknown>(MEMOS_PATH, undefined, input.token).catch(() => []);
+  const memoMonth = getMemoMonthFromCreatedTime(input.createdTime);
+  if (!memoMonth) {
+    throw new Error('Invalid memo createdTime');
+  }
+
+  const memosPath = buildMemosPath(memoMonth);
+  const raw = await fetchGitHubJson<unknown>(memosPath, undefined, input.token).catch(() => []);
   const list = MemoListSchema.parse(raw ?? []);
 
   const memoIndex = list.findIndex(m => m.id === input.id);
@@ -93,18 +171,25 @@ export const updateMemo = async (input: IUpdateMemoInput): Promise<IUpdateMemoRe
   const updatedList = [...list];
   updatedList[memoIndex] = updatedMemo;
 
-  await writeGitHubJson(MEMOS_PATH, updatedList, 'docs: update memos.json', input.token);
+  await writeGitHubJson(memosPath, updatedList, `docs: update ${memosPath}`, input.token);
 
   return { memo: updatedMemo, removedImages };
 };
 
 interface IDeleteMemoInput {
   id: string;
+  createdTime: string;
   token?: string;
 }
 
 export const deleteMemo = async (input: IDeleteMemoInput): Promise<Memo> => {
-  const raw = await fetchGitHubJson<unknown>(MEMOS_PATH, undefined, input.token).catch(() => []);
+  const memoMonth = getMemoMonthFromCreatedTime(input.createdTime);
+  if (!memoMonth) {
+    throw new Error('Invalid memo createdTime');
+  }
+
+  const memosPath = buildMemosPath(memoMonth);
+  const raw = await fetchGitHubJson<unknown>(memosPath, undefined, input.token).catch(() => []);
   const list = MemoListSchema.parse(raw ?? []);
 
   const memoToDelete = list.find(m => m.id === input.id);
@@ -114,7 +199,7 @@ export const deleteMemo = async (input: IDeleteMemoInput): Promise<Memo> => {
 
   const filteredList = list.filter(m => m.id !== input.id);
 
-  await writeGitHubJson(MEMOS_PATH, filteredList, 'docs: update memos.json', input.token);
+  await writeGitHubJson(memosPath, filteredList, `docs: update ${memosPath}`, input.token);
 
   return memoToDelete;
 };
