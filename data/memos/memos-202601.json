@@ -1,0 +1,14 @@
+[
+  {
+    "id": "memo_20260125120000_ijkl56",
+    "content": "January memo A",
+    "images": [],
+    "createdTime": "2026-01-25 12:00:00"
+  },
+  {
+    "id": "memo_20260103101010_mnop78",
+    "content": "January memo B",
+    "images": ["assets/memos/sample-1.png"],
+    "createdTime": "2026-01-03 10:10:10"
+  }
+]
