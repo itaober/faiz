@@ -1,15 +1,15 @@
 'use client';
 
-import { useWindowVirtualizer } from '@tanstack/react-virtual';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { loadMoreMemosAction } from '@/app/memos/_actions/load-more-memos';
 import type { MemoRenderItem } from '@/lib/data/memos';
 
 import MemoCardClient from './memo-card-client';
 import MemoItemWrapper from './memo-item-wrapper';
+import MemoList from './memo-list';
 
-interface MemoVirtualListProps {
+interface MemoInfiniteListProps {
   initialItems: MemoRenderItem[];
   monthsIndex: string[];
   initialLoadedMonths: number;
@@ -28,15 +28,16 @@ const mergeMemos = (current: MemoRenderItem[], next: MemoRenderItem[]) => {
   return merged;
 };
 
-export default function MemoVirtualList({
+export default function MemoInfiniteList({
   initialItems,
   monthsIndex,
   initialLoadedMonths,
-}: MemoVirtualListProps) {
+}: MemoInfiniteListProps) {
   const [items, setItems] = useState<MemoRenderItem[]>(initialItems);
   const [loadedMonths, setLoadedMonths] = useState(initialLoadedMonths);
   const [isLoading, setIsLoading] = useState(false);
   const [loadError, setLoadError] = useState(false);
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     setItems(initialItems);
@@ -46,7 +47,6 @@ export default function MemoVirtualList({
   }, [initialItems, initialLoadedMonths]);
 
   const hasMore = loadedMonths < monthsIndex.length;
-  const totalCount = items.length;
 
   const loadMore = useCallback(async () => {
     if (isLoading || !hasMore) return;
@@ -71,23 +71,22 @@ export default function MemoVirtualList({
     setIsLoading(false);
   }, [hasMore, isLoading, loadedMonths, monthsIndex]);
 
-  const virtualizer = useWindowVirtualizer({
-    count: totalCount,
-    estimateSize: () => 160,
-    overscan: 6,
-  });
-
-  const virtualItems = virtualizer.getVirtualItems();
-
   useEffect(() => {
-    if (!hasMore || isLoading || loadError) return;
-    if (virtualItems.length === 0) return;
+    if (!sentinelRef.current) return;
+    if (!hasMore || loadError) return;
 
-    const lastItem = virtualItems[virtualItems.length - 1];
-    if (lastItem && lastItem.index >= totalCount - 3) {
-      loadMore();
-    }
-  }, [virtualItems, totalCount, hasMore, isLoading, loadError, loadMore]);
+    const observer = new IntersectionObserver(
+      entries => {
+        if (entries[0]?.isIntersecting) {
+          loadMore();
+        }
+      },
+      { rootMargin: '200px' },
+    );
+
+    observer.observe(sentinelRef.current);
+    return () => observer.disconnect();
+  }, [hasMore, loadError, loadMore]);
 
   useEffect(() => {
     if (items.length > 0) return;
@@ -97,40 +96,14 @@ export default function MemoVirtualList({
 
   return (
     <div className="space-y-6">
-      <article className="prose dark:prose-invert">
-        <div
-          style={{
-            height: `${virtualizer.getTotalSize()}px`,
-            position: 'relative',
-          }}
-        >
-          {virtualItems.map(virtualRow => {
-            const item = items[virtualRow.index];
-            if (!item) return null;
-
-            return (
-              <div
-                key={item.memo.id}
-                ref={virtualizer.measureElement}
-                data-index={virtualRow.index}
-                style={{
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  width: '100%',
-                  transform: `translateY(${virtualRow.start}px)`,
-                }}
-              >
-                <MemoItemWrapper>
-                  <MemoCardClient memo={item.memo} mdxSource={item.mdxSource} />
-                </MemoItemWrapper>
-              </div>
-            );
-          })}
-        </div>
-      </article>
-
-      <div />
+      <MemoList>
+        {items.map(item => (
+          <MemoItemWrapper key={item.memo.id}>
+            <MemoCardClient memo={item.memo} mdxSource={item.mdxSource} />
+          </MemoItemWrapper>
+        ))}
+      </MemoList>
+      <div ref={sentinelRef} />
     </div>
   );
 }

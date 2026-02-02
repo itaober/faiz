@@ -1,4 +1,4 @@
-import MemoVirtualList from '@/app/memos/_components/memo-virtual-list';
+import MemoInfiniteList from '@/app/memos/_components/memo-infinite-list';
 import MemosTitle from '@/app/memos/_components/memos-title';
 import MotionWrapper from '@/components/motion-wrapper';
 import { getMemosByMonths, getMemosIndex } from '@/lib/data/memos';
@@ -22,7 +22,7 @@ export default async function MemosPage() {
       <MotionWrapper>
         <MemosTitle />
         <div className="mt-6">
-          <MemoVirtualList
+          <MemoInfiniteList
             initialItems={memoItems}
             monthsIndex={monthsIndex}
             initialLoadedMonths={initialLoadedMonths}
