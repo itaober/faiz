@@ -6,6 +6,8 @@ import { toMemoRenderItems } from '@/lib/data/memos-render';
 
 import { MemosProvider } from './_context/memos-context';
 
+export const dynamic = 'force-dynamic';
+
 export const metadata = {
   title: 'Memos',
 };
