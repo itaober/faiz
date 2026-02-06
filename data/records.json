@@ -103,6 +103,14 @@
   ],
   "music": [
     {
+      "title": "钱专",
+      "link": "https://music.douban.com/subject/37506974/",
+      "coverUrl": "/api/image/assets/records/music_钱专.webp",
+      "createdTime": "2026-02-06",
+      "type": "music",
+      "rating": 7.5
+    },
+    {
       "title": "跟着感觉走",
       "link": "https://music.douban.com/subject/37448993/",
       "coverUrl": "/api/image/assets/records/music_跟着感觉走.webp",
