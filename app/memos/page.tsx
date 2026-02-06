@@ -16,10 +16,10 @@ export const dynamic = 'force-dynamic';
 export const metadata = buildPageMetadata(PAGE_META.memos);
 
 interface MemosPageProps {
-  searchParams?: {
+  searchParams?: Promise<{
     end?: string;
     limit?: string;
-  };
+  }>;
 }
 
 const DEFAULT_LIMIT = 2;
@@ -57,13 +57,14 @@ const clampLimit = (value: number, total: number) => {
 };
 
 export default async function MemosPage({ searchParams }: MemosPageProps) {
+  const resolvedSearchParams = await searchParams;
   const monthsIndex = await getMemosIndex();
   const totalMonths = monthsIndex.length;
   const monthIndexMap = new Map(monthsIndex.map((month, index) => [month, index]));
-  const endMonth = normalizeEnd(searchParams?.end, monthsIndex);
+  const endMonth = normalizeEnd(resolvedSearchParams?.end, monthsIndex);
   const endIndex = monthIndexMap.get(endMonth) ?? 0;
   const availableFromEnd = Math.max(0, totalMonths - endIndex);
-  const requestedLimit = Number(searchParams?.limit ?? DEFAULT_LIMIT);
+  const requestedLimit = Number(resolvedSearchParams?.limit ?? DEFAULT_LIMIT);
   const loadedLimit = clampLimit(requestedLimit, availableFromEnd);
   const loadedMonthKeys = monthsIndex.slice(endIndex, endIndex + loadedLimit);
   const memos = await getMemosByMonths(loadedMonthKeys);
