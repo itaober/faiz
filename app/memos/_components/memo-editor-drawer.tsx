@@ -64,7 +64,9 @@ export default function MemosEditorDrawer({ open, onOpenChange, memo }: MemosEdi
   const handleFileSelect = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const files = e.target.files;
-      if (!files || files.length === 0) return;
+      if (!files || files.length === 0) {
+        return;
+      }
 
       const validFiles: File[] = [];
       for (const file of Array.from(files)) {

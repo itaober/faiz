@@ -31,7 +31,9 @@ export class SnowEngine implements ISnowController {
   }
 
   start() {
-    if (this.isRunning) return;
+    if (this.isRunning) {
+      return;
+    }
     this.isRunning = true;
     this.loop();
   }
@@ -54,7 +56,9 @@ export class SnowEngine implements ISnowController {
   }
 
   resume() {
-    if (this.isRunning) return;
+    if (this.isRunning) {
+      return;
+    }
     this.isRunning = true;
     this.loop();
   }
@@ -81,7 +85,9 @@ export class SnowEngine implements ISnowController {
   }
 
   private loop = () => {
-    if (!this.isRunning) return;
+    if (!this.isRunning) {
+      return;
+    }
 
     this.ctx.clearRect(0, 0, this.width, this.height);
     this.ctx.fillStyle = this.config.color;

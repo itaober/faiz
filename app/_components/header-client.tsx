@@ -41,7 +41,9 @@ export default function HeaderClient({ avatar, navNodes }: IHeaderClientProps) {
 
   const isActive = (key: string): boolean => {
     const href = getHref(key);
-    if (href === '/') return pathname === '/';
+    if (href === '/') {
+      return pathname === '/';
+    }
     return pathname.startsWith(href);
   };
 

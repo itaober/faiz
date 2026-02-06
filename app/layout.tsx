@@ -11,6 +11,7 @@ import { ServiceWorkerRegistration } from '@/components/service-worker-registrat
 import { SnowEffect } from '@/components/snow-effect';
 import { ThemeScript, ThemeSync } from '@/components/theme-script';
 import { getMetaInfo } from '@/lib/data/data';
+import { buildDescription } from '@/lib/utils/seo';
 
 import Header from './_components/header';
 
@@ -36,15 +37,22 @@ export async function generateMetadata(): Promise<Metadata> {
     };
   }
 
+  const siteUrl = authorInfo?.site ? new URL(authorInfo.site) : undefined;
+  const avatarUrl =
+    authorInfo?.avatar && authorInfo.avatar.startsWith('/') && authorInfo.site
+      ? new URL(authorInfo.avatar, authorInfo.site).toString()
+      : authorInfo?.avatar;
+
   return {
+    metadataBase: siteUrl,
     title: {
       default: authorInfo.name,
       template: `%s - ${authorInfo.name}`,
     },
-    description: authorInfo?.bio,
+    description: buildDescription(authorInfo?.bio, authorInfo.name),
     icons: authorInfo?.avatar,
+    authors: authorInfo?.site ? [{ name: authorInfo.name, url: authorInfo.site }] : undefined,
     alternates: {
-      canonical: authorInfo?.site,
       types: {
         'application/rss+xml': [
           {
@@ -53,6 +61,20 @@ export async function generateMetadata(): Promise<Metadata> {
           },
         ],
       },
+    },
+    openGraph: {
+      title: authorInfo.name,
+      description: buildDescription(authorInfo?.bio, authorInfo.name),
+      url: authorInfo?.site,
+      siteName: authorInfo.name,
+      type: 'website',
+      images: avatarUrl ? [{ url: avatarUrl }] : undefined,
+    },
+    twitter: {
+      card: 'summary',
+      title: authorInfo.name,
+      description: buildDescription(authorInfo?.bio, authorInfo.name),
+      images: avatarUrl ? [avatarUrl] : undefined,
     },
   };
 }

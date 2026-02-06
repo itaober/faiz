@@ -15,6 +15,7 @@ interface IUploadImageInput {
   mimeType: string;
   memoId: string;
   token: string;
+  skipRevalidate?: boolean;
 }
 
 export async function uploadImageAction(input: IUploadImageInput): Promise<ActionResult<string>> {
@@ -38,7 +39,9 @@ export async function uploadImageAction(input: IUploadImageInput): Promise<Actio
       token: input.token,
     });
 
-    revalidatePath('/memos');
+    if (!input.skipRevalidate) {
+      revalidatePath('/memos');
+    }
 
     return { success: true, data: result.path };
   } catch (error) {
@@ -57,16 +60,22 @@ export async function uploadImagesAction(
   memoId: string,
   token: string,
 ): Promise<ActionResult<IUploadImagesResult>> {
+  const results = await Promise.all(
+    images.map(img => uploadImageAction({ ...img, memoId, token, skipRevalidate: true })),
+  );
   const paths: string[] = [];
   const errors: string[] = [];
 
-  for (const img of images) {
-    const result = await uploadImageAction({ ...img, memoId, token });
+  for (const result of results) {
     if (result.success && result.data) {
       paths.push(result.data);
     } else if (!result.success) {
       errors.push(result.error);
     }
+  }
+
+  if (paths.length > 0) {
+    revalidatePath('/memos');
   }
 
   if (errors.length > 0) {

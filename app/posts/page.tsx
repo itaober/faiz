@@ -1,15 +1,15 @@
 import dayjs from 'dayjs';
 
 import MotionWrapper from '@/components/motion-wrapper';
+import { PAGE_META } from '@/lib/constants/seo';
 import { getPostListInfo } from '@/lib/data/data';
+import { buildPageMetadata } from '@/lib/utils/seo';
 
 import PostsList from './_components/posts-list';
 
 const PINNED_KEY = 'Pinned';
 
-export const metadata = {
-  title: 'Posts',
-};
+export const metadata = buildPageMetadata(PAGE_META.posts);
 
 export default async function PostsPage() {
   const postList = await getPostListInfo();

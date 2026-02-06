@@ -16,7 +16,9 @@ interface MemoInfiniteListProps {
 }
 
 const mergeMemos = (current: MemoRenderItem[], next: MemoRenderItem[]) => {
-  if (next.length === 0) return current;
+  if (next.length === 0) {
+    return current;
+  }
   const seen = new Set(current.map(item => item.memo.id));
   const merged = [...current];
   for (const item of next) {
@@ -49,7 +51,9 @@ export default function MemoInfiniteList({
   const hasMore = loadedMonths < monthsIndex.length;
 
   const loadMore = useCallback(async () => {
-    if (isLoading || !hasMore) return;
+    if (isLoading || !hasMore) {
+      return;
+    }
 
     const nextMonth = monthsIndex[loadedMonths];
     if (!nextMonth) {
@@ -72,8 +76,12 @@ export default function MemoInfiniteList({
   }, [hasMore, isLoading, loadedMonths, monthsIndex]);
 
   useEffect(() => {
-    if (!sentinelRef.current) return;
-    if (!hasMore || loadError) return;
+    if (!sentinelRef.current) {
+      return;
+    }
+    if (!hasMore || loadError) {
+      return;
+    }
 
     const observer = new IntersectionObserver(
       entries => {
@@ -89,8 +97,12 @@ export default function MemoInfiniteList({
   }, [hasMore, loadError, loadMore]);
 
   useEffect(() => {
-    if (items.length > 0) return;
-    if (!hasMore || isLoading || loadError) return;
+    if (items.length > 0) {
+      return;
+    }
+    if (!hasMore || isLoading || loadError) {
+      return;
+    }
     loadMore();
   }, [items.length, hasMore, isLoading, loadError, loadMore]);
 

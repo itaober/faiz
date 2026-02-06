@@ -1,13 +1,14 @@
 'use client';
 
 import { MoreHorizontal } from 'lucide-react';
+import dynamic from 'next/dynamic';
 import { useState } from 'react';
 
 import type { Memo } from '@/lib/data/memos';
 
 import { useMemosContext } from '../_context/memos-context';
 import MemoActionsDrawer from './memo-actions-drawer';
-import MemoEditorDrawer from './memo-editor-drawer';
+const MemoEditorDrawer = dynamic(() => import('./memo-editor-drawer'), { ssr: false });
 
 interface MemoCardActionsProps {
   memo: Memo;
@@ -41,7 +42,9 @@ export default function MemoCardActions({ memo }: MemoCardActionsProps) {
         onEdit={() => setShowEditor(true)}
       />
 
-      <MemoEditorDrawer open={showEditor} onOpenChange={setShowEditor} memo={memo} />
+      {showEditor && (
+        <MemoEditorDrawer open={showEditor} onOpenChange={setShowEditor} memo={memo} />
+      )}
     </>
   );
 }

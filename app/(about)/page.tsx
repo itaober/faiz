@@ -2,7 +2,9 @@ import { notFound } from 'next/navigation';
 
 import { MDX } from '@/components/mdx';
 import MotionWrapper from '@/components/motion-wrapper';
+import { PAGE_META } from '@/lib/constants/seo';
 import { getAboutMDX } from '@/lib/data/mdx';
+import { buildDescription, buildPageMetadata } from '@/lib/utils/seo';
 
 import PostTitle from '../_components/post-title';
 
@@ -11,7 +13,12 @@ export async function generateMetadata() {
   if (!aboutMDX) {
     return {};
   }
-  return { title: aboutMDX.data.title };
+  const description = buildDescription(aboutMDX.content, aboutMDX.data.title);
+  return buildPageMetadata({
+    title: aboutMDX.data.title,
+    description,
+    canonical: PAGE_META.about.canonical,
+  });
 }
 
 export default async function AboutPage() {

@@ -39,7 +39,9 @@ export async function uploadImage(input: IUploadImageInput): Promise<IUploadImag
 
 /** Delete images from GitHub storage (sequential, silent failure) */
 export async function deleteImages(paths: string[], token: string): Promise<void> {
-  if (!paths.length) return;
+  if (!paths.length) {
+    return;
+  }
 
   // Sequential deletion to avoid GitHub API conflicts
   for (const path of paths) {

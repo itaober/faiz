@@ -48,9 +48,13 @@ const parseMonthFromPath = (path: string) => {
 };
 
 const getMemoMonthFromCreatedTime = (createdTime?: string) => {
-  if (!createdTime) return null;
+  if (!createdTime) {
+    return null;
+  }
   const parsed = dayjs.tz(createdTime, TIMEZONE);
-  if (!parsed.isValid()) return null;
+  if (!parsed.isValid()) {
+    return null;
+  }
   return parsed.format('YYYYMM');
 };
 
@@ -69,7 +73,9 @@ export const getMemosIndex = cache(async (token?: string): Promise<string[]> => 
 });
 
 export const getMemosByMonth = async (month: string, token?: string): Promise<MemoList> => {
-  if (!/^\d{6}$/.test(month)) return [];
+  if (!/^\d{6}$/.test(month)) {
+    return [];
+  }
 
   const path = buildMemosPath(month);
   const raw = await fetchGitHubJson<unknown>(path, undefined, token).catch(() => []);
@@ -78,7 +84,9 @@ export const getMemosByMonth = async (month: string, token?: string): Promise<Me
 };
 
 export const getMemosByMonths = async (months: string[], token?: string): Promise<MemoList> => {
-  if (!months.length) return [];
+  if (!months.length) {
+    return [];
+  }
   const results = await Promise.all(months.map(month => getMemosByMonth(month, token)));
   return results.flat();
 };

@@ -3,7 +3,8 @@
 import { useTheme } from 'next-themes';
 import { useEffect, useRef, useState } from 'react';
 
-import { DEFAULT_SNOW_CONFIG, SNOW_DENSITY, SnowEngine } from '@/lib/snow';
+import { DEFAULT_SNOW_CONFIG, SNOW_DENSITY } from '@/lib/snow/constants';
+import { SnowEngine } from '@/lib/snow/snow-engine';
 
 interface ISnowEffectProps {
   enabled?: boolean;

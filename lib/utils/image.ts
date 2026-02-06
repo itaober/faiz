@@ -142,7 +142,9 @@ async function recursiveCompress(args: {
     // Quality already low, shrink size
     nextQuality = 60; // Reset quality for new smaller size
     nextMaxDim = Math.max(320, Math.floor(maxWidthOrHeight * 0.8)); // Shrink 20%
-    if (nextMaxDim === maxWidthOrHeight) return buffer; // Can't shrink further
+    if (nextMaxDim === maxWidthOrHeight) {
+      return buffer; // Can't shrink further
+    }
   }
 
   return recursiveCompress({
@@ -154,7 +156,9 @@ async function recursiveCompress(args: {
 }
 
 function calculateDimensions(width: number, height: number, max: number) {
-  if (width <= max && height <= max) return { width, height };
+  if (width <= max && height <= max) {
+    return { width, height };
+  }
 
   const aspectRatio = width / height;
   if (width > height) {
