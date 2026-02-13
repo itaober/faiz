@@ -103,6 +103,14 @@
   ],
   "music": [
     {
+      "title": "如果每天都可以 happy happy 誰想要sad:)) – 一起去度假",
+      "link": "https://music.douban.com/subject/37225280/",
+      "coverUrl": "/api/image/assets/records/music_一起去度假.webp",
+      "createdTime": "2026-02-13",
+      "type": "music",
+      "rating": 5
+    },
+    {
       "title": "钱专",
       "link": "https://music.douban.com/subject/37506974/",
       "coverUrl": "/api/image/assets/records/music_钱专.webp",
