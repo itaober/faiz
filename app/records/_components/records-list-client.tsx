@@ -1,24 +1,21 @@
 'use client';
 import dayjs from 'dayjs';
 import { motion } from 'motion/react';
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 
-import PostTitle from '@/app/_components/post-title';
 import MotionWrapper from '@/components/motion-wrapper';
 import { ANIMATION } from '@/lib/constants/animation';
 import type { Records } from '@/lib/data/data';
-import { cn } from '@/lib/utils';
 
-import { type Tab, tabList } from './constants';
+import { type Tab, tabList } from '../_constants';
 import RecordItem from './record-item';
 
-interface IRecordsClientProps {
+interface RecordsListClientProps {
   records: Records | null;
+  activeTab: Tab;
 }
 
-export function RecordsClient({ records }: IRecordsClientProps) {
-  const [activeTab, setActiveTab] = useState<Tab>('all');
-
+export function RecordsListClient({ records, activeTab }: RecordsListClientProps) {
   const sortedRecordsByYear = useMemo(() => {
     if (!records) {
       return [];
@@ -52,39 +49,17 @@ export function RecordsClient({ records }: IRecordsClientProps) {
     return '';
   };
 
+  if (!sortedRecordsByYear.length) {
+    return (
+      <div className="mt-8 text-sm opacity-60">
+        <p>No records yet.</p>
+      </div>
+    );
+  }
+
   return (
     <MotionWrapper>
-      <PostTitle title="Records" />
-      <nav>
-        <ul className="flex items-center gap-6 overflow-x-auto pb-2">
-          {tabList.map(tab => (
-            <li
-              key={tab.value}
-              className={cn(
-                'relative opacity-70 transition-opacity hover:opacity-100 active:opacity-100',
-                {
-                  'font-medium opacity-100': activeTab === tab.value,
-                },
-              )}
-            >
-              <button onClick={() => setActiveTab(tab.value)}>{tab.label}</button>
-              {activeTab === tab.value && (
-                <motion.div
-                  layoutId="records-active-tab"
-                  className="bg-foreground absolute right-0 -bottom-1 left-0 h-0.5"
-                  transition={{
-                    type: 'spring',
-                    stiffness: ANIMATION.spring.stiffness,
-                    damping: ANIMATION.spring.damping,
-                  }}
-                />
-              )}
-            </li>
-          ))}
-        </ul>
-      </nav>
       <motion.article
-        key={activeTab}
         className="mt-8 space-y-8"
         initial="hidden"
         animate="visible"
@@ -96,7 +71,7 @@ export function RecordsClient({ records }: IRecordsClientProps) {
           },
         }}
       >
-        {sortedRecordsByYear.map(([year, records]) => (
+        {sortedRecordsByYear.map(([year, recordList]) => (
           <motion.section
             key={year}
             variants={{
@@ -107,7 +82,7 @@ export function RecordsClient({ records }: IRecordsClientProps) {
           >
             <h2 className="mb-4 text-2xl font-bold">{year}</h2>
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
-              {records.map(record => (
+              {recordList.map(record => (
                 <RecordItem
                   key={record.title}
                   {...record}

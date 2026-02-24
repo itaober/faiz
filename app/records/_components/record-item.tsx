@@ -9,7 +9,7 @@ import { ANIMATION } from '@/lib/constants/animation';
 import type { RecordItem } from '@/lib/data/data';
 import { cn } from '@/lib/utils';
 
-import type { Tab } from './constants';
+import type { Tab } from '../_constants';
 
 interface IRecordItemProps extends RecordItem {
   tab: Tab;

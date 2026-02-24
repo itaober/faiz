@@ -31,6 +31,13 @@ export interface MemoRenderItem {
 const MEMOS_DIR = 'data/memos';
 const MEMOS_FILE_PREFIX = 'memos-';
 const MEMOS_FILE_SUFFIX = '.json';
+const MEMOS_REVALIDATE_SECONDS = 60;
+
+const MEMOS_FETCH_INIT: RequestInit = {
+  next: {
+    revalidate: MEMOS_REVALIDATE_SECONDS,
+  },
+};
 
 const buildMemosPath = (month: string) =>
   `${MEMOS_DIR}/${MEMOS_FILE_PREFIX}${month}${MEMOS_FILE_SUFFIX}`;
@@ -63,7 +70,7 @@ const sortMemoList = (list: MemoList) =>
 
 export const getMemosIndex = cache(async (token?: string): Promise<string[]> => {
   try {
-    const files = await fetchGitHubDir(MEMOS_DIR, undefined, token);
+    const files = await fetchGitHubDir(MEMOS_DIR, MEMOS_FETCH_INIT, token);
     const months = files.map(parseMonthFromPath).filter((month): month is string => Boolean(month));
     return months.sort((a, b) => b.localeCompare(a));
   } catch (error) {
@@ -78,7 +85,7 @@ export const getMemosByMonth = async (month: string, token?: string): Promise<Me
   }
 
   const path = buildMemosPath(month);
-  const raw = await fetchGitHubJson<unknown>(path, undefined, token).catch(() => []);
+  const raw = await fetchGitHubJson<unknown>(path, MEMOS_FETCH_INIT, token).catch(() => []);
   const list = MemoListSchema.parse(raw ?? []);
   return sortMemoList(list);
 };
