@@ -20,7 +20,7 @@ interface ITodoListProps {
 const TodoList = ({ readonly = false, items }: ITodoListProps) => {
   return (
     <div className="flex flex-col gap-0.5">
-      {items.map((item, index) => {
+      {items?.map((item, index) => {
         const { label, ...props } = item;
         return (
           <CheckboxRoot key={index} readonly={readonly} {...props}>
