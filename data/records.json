@@ -116,7 +116,7 @@
       "coverUrl": "/api/image/assets/records/music_钱专.webp",
       "createdTime": "2026-02-06",
       "type": "music",
-      "rating": 7.5
+      "rating": 8.0
     },
     {
       "title": "跟着感觉走",
@@ -286,6 +286,14 @@
     }
   ],
   "game": [
+    {
+      "title": "塞尔达传说 旷野之息",
+      "link": "https://zh.wikipedia.org/wiki/%E5%A1%9E%E5%B0%94%E8%BE%BE%E4%BC%A0%E8%AF%B4_%E6%97%B7%E9%87%8E%E4%B9%8B%E6%81%AF",
+      "coverUrl": "/api/image/assets/records/game_旷野之息.webp",
+      "createdTime": "2026-02-26",
+      "rating": 9.6,
+      "type": "game"
+    },
     {
       "title": "阿瓦隆",
       "link": "https://andyventure.com/boardgame-avalon/",
