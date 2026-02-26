@@ -2,7 +2,7 @@
 
 import { MoreHorizontal } from 'lucide-react';
 import dynamic from 'next/dynamic';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import type { Memo } from '@/lib/data/memos';
 
@@ -16,10 +16,15 @@ interface MemoCardActionsProps {
 
 export default function MemoCardActions({ memo }: MemoCardActionsProps) {
   const { isEdit } = useMemosContext();
+  const [mounted, setMounted] = useState(false);
   const [showActions, setShowActions] = useState(false);
   const [showEditor, setShowEditor] = useState(false);
 
-  if (!isEdit) {
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted || !isEdit) {
     return null;
   }
 
@@ -28,7 +33,7 @@ export default function MemoCardActions({ memo }: MemoCardActionsProps) {
       <button
         type="button"
         onClick={() => setShowActions(true)}
-        className="hover:bg-muted size-6 rounded transition-colors"
+        className="size-5 rounded transition-colors"
         aria-label="More actions"
       >
         <MoreHorizontal className="size-5 opacity-70 hover:opacity-100" />

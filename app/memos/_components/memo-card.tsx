@@ -1,8 +1,5 @@
 import Image from 'next/image';
-import Link from 'next/link';
 
-import type { ICheckboxRootProps } from '@/components/checkbox';
-import { Checkbox, CheckboxLabel, CheckboxRoot } from '@/components/checkbox';
 import { MDX } from '@/components/mdx';
 import { Preview, PreviewImage, PreviewPortal, PreviewTrigger } from '@/components/preview';
 import type { Memo } from '@/lib/data/memos';
@@ -13,70 +10,6 @@ import MemoCardActions from './memo-card-actions';
 interface IMemoCardProps {
   memo: Memo;
 }
-
-interface ITodoListProps {
-  readonly?: boolean;
-  items: Array<
-    {
-      label: React.ReactNode;
-    } & Omit<ICheckboxRootProps, 'children'>
-  >;
-}
-
-const TodoList = ({ readonly = false, items }: ITodoListProps) => {
-  return (
-    <div className="flex flex-col gap-0.5">
-      {items.map((item, index) => {
-        const { label, ...props } = item;
-        return (
-          <CheckboxRoot key={index} readonly={readonly} {...props}>
-            <Checkbox />
-            <CheckboxLabel>{label}</CheckboxLabel>
-          </CheckboxRoot>
-        );
-      })}
-    </div>
-  );
-};
-
-interface IImageProps {
-  src: string;
-  alt: string;
-  caption?: string;
-}
-
-const MdxImage = ({ src, alt, caption }: IImageProps) => {
-  const _caption = caption || alt;
-  return (
-    <Preview>
-      <PreviewTrigger>
-        <div className="relative mb-4 flex w-full flex-col items-center px-2">
-          <Image
-            src={src}
-            alt={alt}
-            width={0}
-            height={0}
-            sizes="100vw"
-            className="h-auto w-full max-w-xl rounded-md md:rounded-lg"
-          />
-          {_caption && <figcaption>{_caption}</figcaption>}
-        </div>
-      </PreviewTrigger>
-      <PreviewPortal>
-        <PreviewImage src={src} alt={alt} />
-      </PreviewPortal>
-    </Preview>
-  );
-};
-
-const mdxComponents = {
-  Link,
-  CheckboxRoot,
-  Checkbox,
-  CheckboxLabel,
-  TodoList,
-  Image: MdxImage,
-};
 
 const MemoCardImages = ({ images }: { images: string[] }) => {
   const count = images.length;
@@ -143,7 +76,7 @@ export default function MemoCard({ memo }: IMemoCardProps) {
           <div className="h-full w-px bg-neutral-200 dark:bg-neutral-800" />
         </div>
         <div className="min-w-0 flex-1">
-          <MDX source={memo.content} components={mdxComponents} />
+          <MDX source={memo.content} />
           {images.length > 0 && <MemoCardImages images={images} />}
         </div>
       </div>

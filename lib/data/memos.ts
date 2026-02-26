@@ -1,4 +1,3 @@
-import type { MDXRemoteSerializeResult } from 'next-mdx-remote';
 import { cache } from 'react';
 import { z } from 'zod';
 
@@ -23,10 +22,6 @@ export const MemoListSchema = z.array(MemoSchema);
 
 export type Memo = z.infer<typeof MemoSchema>;
 export type MemoList = z.infer<typeof MemoListSchema>;
-export interface MemoRenderItem {
-  memo: Memo;
-  mdxSource: MDXRemoteSerializeResult<Record<string, unknown>>;
-}
 
 const MEMOS_DIR = 'data/memos';
 const MEMOS_FILE_PREFIX = 'memos-';

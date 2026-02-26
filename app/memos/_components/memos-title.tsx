@@ -2,7 +2,7 @@
 
 import { EditIcon } from 'lucide-react';
 import dynamic from 'next/dynamic';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import { useConsecutiveClicks } from '@/hooks/use-consecutive-clicks';
 
@@ -11,6 +11,7 @@ const MemosEditorDrawer = dynamic(() => import('./memo-editor-drawer'), { ssr: f
 
 export default function MemosTitle() {
   const { isEdit, toggleEdit } = useMemosContext();
+  const [mounted, setMounted] = useState(false);
   const [isEditorOpen, setIsEditorOpen] = useState(false);
 
   const handleClick = useConsecutiveClicks({
@@ -18,13 +19,19 @@ export default function MemosTitle() {
     onTrigger: toggleEdit,
   });
 
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const canEdit = mounted && isEdit;
+
   return (
     <>
       <div className="mb-4 flex items-center justify-between gap-4">
         <h1 className="cursor-default text-4xl font-extrabold select-none" onClick={handleClick}>
           Memos
         </h1>
-        {isEdit && (
+        {canEdit && (
           <div className="flex items-center gap-2">
             <button
               type="button"
@@ -38,7 +45,7 @@ export default function MemosTitle() {
         )}
       </div>
 
-      {(isEdit || isEditorOpen) && (
+      {(canEdit || isEditorOpen) && (
         <MemosEditorDrawer open={isEditorOpen} onOpenChange={setIsEditorOpen} />
       )}
     </>
