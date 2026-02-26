@@ -73,5 +73,14 @@ const components: MDXComponents = {
 };
 
 export const MDX = (props: MDXRemoteProps) => {
-  return <MDXRemote {...props} components={{ ...components, ...(props.components || {}) }} />;
+  return (
+    <MDXRemote
+      {...props}
+      components={{ ...components, ...(props.components || {}) }}
+      options={{
+        blockJS: false,
+        blockDangerousJS: true,
+      }}
+    />
+  );
 };
