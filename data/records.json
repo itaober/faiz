@@ -103,6 +103,14 @@
   ],
   "music": [
     {
+      "title": " 昨日情歌",
+      "link": "https://music.douban.com/subject/5314299/",
+      "coverUrl": "/api/image/assets/records/music_昨日情歌.webp",
+      "createdTime": "2026-03-06",
+      "type": "music",
+      "rating": 9.5
+    },
+    {
       "title": "JUNGLE +",
       "link": "https://music.douban.com/subject/37840532/",
       "coverUrl": "/api/image/assets/records/music_jungle.webp",
