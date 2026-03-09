@@ -51,7 +51,7 @@ export function RecordsListClient({ records, activeTab }: RecordsListClientProps
 
   if (!sortedRecordsByYear.length) {
     return (
-      <div className="mt-8 text-sm opacity-60">
+      <div className="text-muted-foreground mt-8 text-sm">
         <p>No records yet.</p>
       </div>
     );

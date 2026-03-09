@@ -6,7 +6,7 @@ import { useEffect, useState } from 'react';
 
 import type { Memo } from '@/lib/data/memos';
 
-import { useMemosContext } from '../_context/memos-context';
+import { useMemosContext } from '../_context/use-memos-context';
 import MemoActionsDrawer from './memo-actions-drawer';
 const MemoEditorDrawer = dynamic(() => import('./memo-editor-drawer'), { ssr: false });
 
@@ -33,10 +33,10 @@ export default function MemoCardActions({ memo }: MemoCardActionsProps) {
       <button
         type="button"
         onClick={() => setShowActions(true)}
-        className="size-5 rounded transition-colors"
+        className="focus-visible:ring-foreground/40 flex size-5 items-center justify-center rounded transition-opacity focus-visible:ring-2 focus-visible:outline-none"
         aria-label="More actions"
       >
-        <MoreHorizontal className="size-5 opacity-70 hover:opacity-100" />
+        <MoreHorizontal className="size-5 opacity-70 transition-opacity hover:opacity-100" />
       </button>
 
       <MemoActionsDrawer

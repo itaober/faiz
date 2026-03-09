@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { toast } from 'sonner';
 import { Drawer } from 'vaul';
 
-import { useMemosContext } from '../_context/memos-context';
+import { useMemosContext } from '../_context/use-memos-context';
 
 interface MemosSettingsDrawerProps {
   open: boolean;
@@ -37,8 +37,8 @@ export default function MemosSettingsDrawer({ open, onOpenChange }: MemosSetting
   return (
     <Drawer.Root direction="right" open={open} onOpenChange={handleOpenChange}>
       <Drawer.Portal>
-        <Drawer.Overlay className="bg-foreground/40 fixed inset-0 z-20" />
-        <Drawer.Content className="bg-background border-r-none fixed top-0 right-0 bottom-0 z-20 flex w-[90vw] max-w-lg flex-col rounded-l-xl border border-gray-200 outline-none dark:border-gray-800">
+        <Drawer.Overlay className="bg-overlay-backdrop fixed inset-0 z-20" />
+        <Drawer.Content className="bg-background border-r-none border-border dark:border-border fixed top-0 right-0 bottom-0 z-20 flex w-[90vw] max-w-lg flex-col rounded-l-xl border outline-none">
           {/* Hidden title for accessibility */}
           <Drawer.Title className="sr-only">GitHub Token Settings</Drawer.Title>
 
@@ -47,7 +47,8 @@ export default function MemosSettingsDrawer({ open, onOpenChange }: MemosSetting
             <button
               type="button"
               onClick={() => onOpenChange(false)}
-              className="hover:bg-muted opacity-70 transition-colors hover:opacity-100"
+              className="focus-ring icon-button hover:bg-muted text-muted-foreground hover:text-foreground size-11"
+              aria-label="Close settings"
             >
               <XIcon className="size-6" />
             </button>
@@ -55,7 +56,7 @@ export default function MemosSettingsDrawer({ open, onOpenChange }: MemosSetting
               type="button"
               onClick={handleSave}
               disabled={!inputValue.trim()}
-              className="hover:bg-muted rounded-full opacity-70 transition-colors hover:opacity-100 disabled:cursor-not-allowed disabled:opacity-30"
+              className="focus-ring icon-button hover:bg-muted text-muted-foreground hover:text-foreground disabled:text-muted-foreground/50 size-11 disabled:cursor-not-allowed"
               aria-label="Save token"
             >
               <SaveIcon className="size-6" />
@@ -70,9 +71,9 @@ export default function MemosSettingsDrawer({ open, onOpenChange }: MemosSetting
               onChange={e => setInputValue(e.target.value)}
               placeholder="github_pat_xxxxxxxxxxxxxxxxxxxx"
               autoFocus
-              className="placeholder:text-foreground/40 w-full border-b bg-transparent pb-2 text-base outline-none"
+              className="placeholder:text-muted-foreground w-full border-b bg-transparent pb-2 text-base outline-none"
             />
-            <p className="text-foreground/70 mt-2 text-xs">
+            <p className="text-muted-foreground mt-2 text-xs">
               GitHub / Settings / Developer settings / Personal access tokens / Fine-grained tokens
             </p>
           </div>

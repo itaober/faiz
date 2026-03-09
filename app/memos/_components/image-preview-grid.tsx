@@ -33,12 +33,13 @@ export function ImagePreviewGrid({ images, onRemove, className }: ImagePreviewGr
 
   return (
     <div className={cn('grid grid-cols-3 gap-2', className)}>
-      {images.map(image => (
+      {images.map((image, index) => (
         <div key={image.id} className="bg-muted relative aspect-square overflow-hidden rounded-lg">
           <Image
             src={getImageSrc(image.preview)}
-            alt="Preview"
+            alt={`Upload preview ${index + 1}`}
             fill
+            sizes="(max-width: 768px) calc((100vw - 4rem) / 3), 8rem"
             className="object-cover"
             unoptimized={image.preview.startsWith('blob:')}
           />
@@ -50,8 +51,8 @@ export function ImagePreviewGrid({ images, onRemove, className }: ImagePreviewGr
           )}
 
           {image.status === 'error' && (
-            <div className="absolute inset-0 flex items-center justify-center bg-red-500/20">
-              <span className="px-2 text-center text-xs text-red-600 dark:text-red-400">
+            <div className="bg-danger-soft/80 absolute inset-0 flex items-center justify-center">
+              <span className="text-danger px-2 text-center text-xs">
                 {image.error || 'Upload failed'}
               </span>
             </div>
@@ -60,7 +61,7 @@ export function ImagePreviewGrid({ images, onRemove, className }: ImagePreviewGr
           <button
             type="button"
             onClick={() => onRemove(image.id)}
-            className="bg-background/80 hover:bg-background absolute top-1 right-1 rounded-full p-1 transition-colors"
+            className="focus-ring icon-button bg-background/80 hover:bg-background absolute top-1 right-1 size-11"
             aria-label="Remove image"
           >
             <X className="size-4" />

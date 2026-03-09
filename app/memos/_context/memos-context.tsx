@@ -1,24 +1,10 @@
 'use client';
 
-import { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 import { useGitHubToken } from '@/hooks/use-github-token';
 
-interface IMemosContext {
-  isEdit: boolean;
-  toggleEdit: () => void;
-  token: string | null;
-  saveToken: (token: string) => void;
-}
-
-const MemosContext = createContext<IMemosContext>({
-  isEdit: false,
-  toggleEdit: () => {},
-  token: null,
-  saveToken: () => {},
-});
-
-export const useMemosContext = () => useContext(MemosContext);
+import { MemosContext } from './memos-context-value';
 
 interface IMemosProviderProps {
   children: React.ReactNode;
@@ -30,7 +16,6 @@ export function MemosProvider({ children }: IMemosProviderProps) {
   const { token, saveToken } = useGitHubToken();
   const [isEdit, setIsEdit] = useState(false);
 
-  // Read from localStorage after mount (avoid hydration mismatch)
   useEffect(() => {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored === 'true') {

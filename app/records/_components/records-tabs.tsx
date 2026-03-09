@@ -18,7 +18,7 @@ export default function RecordsTabs({ activeTab }: RecordsTabsProps) {
   const router = useRouter();
 
   return (
-    <nav>
+    <nav aria-label="Record categories">
       <ul className="flex items-center gap-6 overflow-x-auto pb-2">
         {tabList.map(tab => {
           const isActive = activeTab === tab.value;
@@ -28,15 +28,17 @@ export default function RecordsTabs({ activeTab }: RecordsTabsProps) {
             <li
               key={tab.value}
               className={cn(
-                'relative opacity-70 transition-opacity hover:opacity-100 active:opacity-100',
+                'text-muted-foreground hover:text-foreground active:text-foreground relative transition-colors',
                 {
-                  'font-medium opacity-100': isActive,
+                  'text-foreground font-medium': isActive,
                 },
               )}
             >
               <Link
                 href={href}
                 prefetch
+                aria-current={isActive ? 'page' : undefined}
+                className="focus-ring rounded-sm"
                 onMouseEnter={() => router.prefetch(href)}
                 onFocus={() => router.prefetch(href)}
               >

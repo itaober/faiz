@@ -1,5 +1,7 @@
 'use client';
 
+/* eslint-disable react/no-danger */
+
 import { useEffect } from 'react';
 
 const themeScript = `
@@ -8,7 +10,7 @@ const themeScript = `
     var theme = localStorage.getItem('theme');
     var systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
     var resolvedTheme = theme === 'system' || !theme ? systemTheme : theme;
-    
+
     if (resolvedTheme === 'dark') {
       document.documentElement.classList.add('dark');
     } else {
@@ -21,13 +23,7 @@ const themeScript = `
 `;
 
 export function ThemeScript() {
-  return (
-    <script
-      dangerouslySetInnerHTML={{
-        __html: themeScript,
-      }}
-    />
-  );
+  return <script suppressHydrationWarning dangerouslySetInnerHTML={{ __html: themeScript }} />;
 }
 
 export function ThemeSync() {

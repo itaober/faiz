@@ -24,7 +24,7 @@ const PostItem = (props: PostMeta) => {
         className="group flex flex-col items-start gap-1 md:flex-row md:items-center md:gap-6"
       >
         <motion.span
-          className="text-lg opacity-70 transition-opacity group-hover:opacity-100"
+          className="text-foreground/80 group-hover:text-foreground text-lg transition-colors"
           whileHover={{ x: ANIMATION.distance.minimal }}
           transition={{
             type: 'spring',
@@ -34,7 +34,7 @@ const PostItem = (props: PostMeta) => {
         >
           {title}
         </motion.span>
-        <div className="flex flex-wrap items-baseline gap-1.5 text-xs opacity-40 transition-opacity group-hover:opacity-70 md:text-sm">
+        <div className="text-muted-foreground group-hover:text-foreground/80 flex flex-wrap items-baseline gap-1.5 text-xs transition-colors md:text-sm">
           <time dateTime={createdTime}>{dayjs(createdTime).format('MMM DD')}</time>
           {tags.length > 0 && <span>·</span>}
           <ul className="flex flex-wrap items-center gap-1.5">
@@ -51,4 +51,5 @@ const PostItem = (props: PostMeta) => {
     </motion.li>
   );
 };
+
 export default PostItem;

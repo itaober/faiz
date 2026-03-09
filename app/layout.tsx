@@ -3,10 +3,11 @@ import './globals.css';
 import { Analytics } from '@vercel/analytics/next';
 import { SpeedInsights } from '@vercel/speed-insights/next';
 import type { Metadata } from 'next';
-import { Geist, Geist_Mono } from 'next/font/google';
+import { Geist_Mono, Inter } from 'next/font/google';
 import { ThemeProvider } from 'next-themes';
 import { Toaster } from 'sonner';
 
+import { MotionProvider } from '@/components/motion-provider';
 import { ServiceWorkerRegistration } from '@/components/service-worker-registration';
 import { ThemeScript, ThemeSync } from '@/components/theme-script';
 import { getMetaInfo } from '@/lib/data/data';
@@ -14,9 +15,26 @@ import { buildDescription } from '@/lib/utils/seo';
 
 import Header from './_components/header';
 
-const geistSans = Geist({
-  variable: '--font-geist-sans',
+const inter = Inter({
+  variable: '--font-inter',
   subsets: ['latin'],
+  display: 'swap',
+  fallback: [
+    'ui-sans-serif',
+    'system-ui',
+    '-apple-system',
+    'BlinkMacSystemFont',
+    'Segoe UI',
+    'Roboto',
+    'Helvetica Neue',
+    'Arial',
+    'Noto Sans',
+    'sans-serif',
+    'Apple Color Emoji',
+    'Segoe UI Emoji',
+    'Segoe UI Symbol',
+    'Noto Color Emoji',
+  ],
 });
 
 const geistMono = Geist_Mono({
@@ -84,16 +102,18 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning className="dark">
+    <html lang="en" suppressHydrationWarning>
       <head>
         <ThemeScript />
       </head>
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
-        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-          <ThemeSync />
-          <Header />
-          <main className="mx-auto max-w-3xl px-6 py-12">{children}</main>
-        </ThemeProvider>
+      <body className={`${inter.variable} ${geistMono.variable} antialiased`}>
+        <MotionProvider>
+          <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+            <ThemeSync />
+            <Header />
+            <main className="mx-auto max-w-3xl px-6 py-12">{children}</main>
+          </ThemeProvider>
+        </MotionProvider>
         <Toaster position="top-center" style={{ top: '10%' }} duration={2000} />
         <ServiceWorkerRegistration />
         <Analytics />

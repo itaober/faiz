@@ -7,7 +7,7 @@ import { Drawer } from 'vaul';
 
 import { deleteMemoAction } from '@/app/memos/_actions/delete-memo';
 
-import { useMemosContext } from '../_context/memos-context';
+import { useMemosContext } from '../_context/use-memos-context';
 
 interface MemoActionsDrawerProps {
   open: boolean;
@@ -31,7 +31,6 @@ export default function MemoActionsDrawer({
 
   const handleOpenChange = (newOpen: boolean) => {
     if (!newOpen) {
-      // Reset state when closing
       setIsConfirmDelete(false);
     }
     onOpenChange(newOpen);
@@ -74,8 +73,7 @@ export default function MemoActionsDrawer({
           <Drawer.Title className="sr-only">Memo Actions</Drawer.Title>
 
           {!isConfirmDelete ? (
-            <div className="space-y-2 divide-y divide-gray-100 pt-2 pb-6 dark:divide-gray-800">
-              {/* Edit */}
+            <div className="divide-border space-y-2 divide-y pt-2 pb-6">
               <button
                 type="button"
                 onClick={() => {
@@ -87,25 +85,23 @@ export default function MemoActionsDrawer({
                 <span>Edit</span>
               </button>
 
-              {/* Delete */}
               <button
                 type="button"
                 onClick={() => setIsConfirmDelete(true)}
-                className="flex w-full items-center justify-center gap-3 py-3 text-red-600"
+                className="text-danger flex w-full items-center justify-center gap-3 py-3"
               >
                 <span>Delete</span>
               </button>
             </div>
           ) : (
             <div className="space-y-2 px-4 pt-2 pb-6">
-              {/* Confirm Delete */}
               <p className="text-muted-foreground py-2 text-center text-sm">Confirm delete?</p>
               <div className="flex gap-4">
                 <button
                   type="button"
                   onClick={() => setIsConfirmDelete(false)}
                   disabled={isDeleting}
-                  className="bg-muted hover:bg-muted/80 flex-1 rounded-lg border border-gray-200 px-4 py-3 transition-colors dark:border-gray-800"
+                  className="bg-muted hover:bg-muted/80 border-border flex-1 rounded-lg border px-4 py-3 transition-colors"
                 >
                   Cancel
                 </button>
@@ -113,7 +109,7 @@ export default function MemoActionsDrawer({
                   type="button"
                   onClick={handleDelete}
                   disabled={isDeleting}
-                  className="flex-1 rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-red-500 transition-colors"
+                  className="border-danger bg-danger-soft text-danger flex-1 rounded-lg border px-4 py-3 transition-colors hover:opacity-90"
                 >
                   {isDeleting ? 'Deleting...' : 'Delete'}
                 </button>

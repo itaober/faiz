@@ -23,16 +23,16 @@ export default function RecordItem({
   createdTime,
   rating,
   tab,
-  type,
   typeLabel,
 }: IRecordItemProps) {
   const isMusicTab = tab === 'music';
-  const isMusicType = type === 'music';
+  const coverSizes =
+    '(max-width: 640px) calc((100vw - 4rem) / 2), (max-width: 768px) calc((100vw - 5rem) / 3), 11rem';
 
   return (
     <motion.div
       key={title}
-      className="flex flex-col gap-1 rounded-md border border-transparent p-1.5 transition-colors duration-200 hover:bg-neutral-50 dark:hover:bg-neutral-900"
+      className="hover:bg-muted/45 flex flex-col gap-1 rounded-md border border-transparent p-1.5 transition-colors duration-200"
       variants={{
         hidden: { opacity: 0, y: ANIMATION.distance.small },
         visible: { opacity: 1, y: 0 },
@@ -43,39 +43,35 @@ export default function RecordItem({
         transition: { duration: ANIMATION.duration.fast },
       }}
     >
-      {/* Cover */}
       <Preview>
-        <PreviewTrigger>
+        <PreviewTrigger ariaLabel={`Open cover preview: ${title}`} className="rounded-md">
           <div className="overflow-hidden rounded-md">
             <Image
               src={coverUrl}
               alt={title}
               width={0}
               height={0}
-              sizes="100vw"
+              sizes={coverSizes}
               className={cn('relative aspect-[2/3] w-full rounded object-cover', {
                 'aspect-square': isMusicTab,
               })}
             />
           </div>
         </PreviewTrigger>
-        <PreviewPortal>
-          <PreviewImage
-            src={coverUrl}
-            alt={title}
-            className={cn({
-              'aspect-[2/3]': !isMusicType,
-              'aspect-square': isMusicType,
-            })}
-          />
+        <PreviewPortal ariaLabel={`Cover preview: ${title}`}>
+          <PreviewImage src={coverUrl} alt={title} />
         </PreviewPortal>
       </Preview>
-      {/* Title */}
-      <Link href={link} target="_blank" className="truncate text-sm font-medium hover:underline">
+      <Link
+        href={link}
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label={`${title} (opens in a new tab)`}
+        className="truncate text-sm font-medium hover:underline"
+      >
         {title}
       </Link>
-      {/* Other info */}
-      <div className="flex items-center gap-1 text-sm opacity-70">
+      <div className="text-muted-foreground flex items-center gap-1 text-sm">
         {rating && <span>{rating.toFixed(1)}</span>}
         {rating && <span>·</span>}
         <span>{dayjs(createdTime).format('MMM DD')}</span>

@@ -7,8 +7,8 @@ export default function manifest(): MetadataRoute.Manifest {
     description: 'Hey, I am Taober.',
     start_url: '/',
     display: 'standalone',
-    background_color: '#ffffff',
-    theme_color: '#000000',
+    background_color: '#f6f5f0',
+    theme_color: '#171614',
     icons: [
       {
         src: '/icon-192x192.png',

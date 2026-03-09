@@ -11,8 +11,21 @@ interface IMemoCardProps {
   memo: Memo;
 }
 
+const getMemoImageSizes = (count: number) => {
+  if (count <= 1) {
+    return '(max-width: 768px) calc(100vw - 5.5rem), 36rem';
+  }
+
+  if (count === 2) {
+    return '(max-width: 768px) calc((100vw - 6rem) / 2), 18rem';
+  }
+
+  return '(max-width: 768px) calc((100vw - 6rem) / 3), 12rem';
+};
+
 const MemoCardImages = ({ images }: { images: string[] }) => {
   const count = images.length;
+  const imageSizes = getMemoImageSizes(count);
 
   return (
     <div
@@ -21,11 +34,15 @@ const MemoCardImages = ({ images }: { images: string[] }) => {
         'grid grid-cols-3 gap-2 md:gap-4': count > 2,
       })}
     >
-      {images.map(url => {
+      {images.map((url, index) => {
         const previewUrl = `/api/image/${url}`;
+        const imageAlt = `Memo image ${index + 1}`;
         return (
           <Preview key={url}>
-            <PreviewTrigger className={cn('w-full', { 'w-fit': count === 1 })}>
+            <PreviewTrigger
+              ariaLabel={`Open ${imageAlt}`}
+              className={cn('rounded-md', { 'w-fit': count === 1, 'w-full': count > 1 })}
+            >
               <div
                 className={cn({
                   'bg-muted/30 w-fit max-w-full cursor-pointer overflow-hidden rounded-md':
@@ -36,10 +53,10 @@ const MemoCardImages = ({ images }: { images: string[] }) => {
               >
                 <Image
                   src={previewUrl}
-                  alt=""
+                  alt={imageAlt}
                   width={0}
                   height={0}
-                  sizes="100vw"
+                  sizes={imageSizes}
                   className={cn({
                     'h-auto w-auto max-w-full rounded': count === 1,
                     'relative aspect-square w-full rounded object-cover': count > 1,
@@ -47,8 +64,8 @@ const MemoCardImages = ({ images }: { images: string[] }) => {
                 />
               </div>
             </PreviewTrigger>
-            <PreviewPortal>
-              <PreviewImage src={previewUrl} alt="Memo preview" />
+            <PreviewPortal ariaLabel={`${imageAlt} preview`}>
+              <PreviewImage src={previewUrl} alt={imageAlt} />
             </PreviewPortal>
           </Preview>
         );
@@ -64,8 +81,11 @@ export default function MemoCard({ memo }: IMemoCardProps) {
     <div>
       <header className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 md:gap-4">
-          <div className="size-3 rounded-full border border-neutral-300 dark:border-neutral-600" />
-          <time dateTime={createdTime} className="font-sans text-sm font-medium opacity-50">
+          <div className="border-border size-3 rounded-full border" />
+          <time
+            dateTime={createdTime}
+            className="text-muted-foreground/70 font-sans text-sm font-medium"
+          >
             {createdTime}
           </time>
         </div>
@@ -73,7 +93,7 @@ export default function MemoCard({ memo }: IMemoCardProps) {
       </header>
       <div className="flex w-full gap-2 md:gap-4">
         <div className="flex h-auto w-3 shrink-0 justify-center">
-          <div className="h-full w-px bg-neutral-200 dark:bg-neutral-800" />
+          <div className="bg-border h-full w-px" />
         </div>
         <div className="min-w-0 flex-1">
           <MDX source={memo.content} />

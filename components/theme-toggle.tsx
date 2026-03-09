@@ -15,7 +15,7 @@ const ThemeToggle = () => {
 
   if (!isMounted) {
     return (
-      <button className="size-5 opacity-0" aria-label="Toggle Theme">
+      <button className="icon-button size-7 opacity-0" aria-label="Toggle Theme">
         <div className="size-5" />
       </button>
     );
@@ -26,10 +26,11 @@ const ThemeToggle = () => {
   return (
     <motion.button
       onClick={() => setTheme(isDark ? 'light' : 'dark')}
-      className="flex items-center justify-center rounded-full p-1 transition-colors hover:bg-neutral-100 dark:hover:bg-neutral-800"
+      className="focus-ring icon-button hover:bg-muted/70 size-7 text-current"
       aria-label={`Switch to ${isDark ? 'light' : 'dark'} theme`}
-      whileHover={{ scale: 1.1 }}
-      whileTap={{ scale: 0.9 }}
+      aria-pressed={isDark}
+      whileHover={{ scale: 1.06 }}
+      whileTap={{ scale: 0.92 }}
     >
       <motion.div initial={false} animate={{ rotate: isDark ? 0 : 180 }}>
         {isDark ? <MoonIcon className="size-5" /> : <SunIcon className="size-5" />}

@@ -41,23 +41,27 @@ interface IImageProps {
 
 const Image = ({ src, alt, caption }: IImageProps) => {
   const _caption = caption || alt;
+  const resolvedAlt = alt?.trim() || _caption || 'Content image';
+  const previewLabel = `Open image preview${resolvedAlt ? `: ${resolvedAlt}` : ''}`;
+  const imageSizes = '(max-width: 768px) calc(100vw - 3rem), 36rem';
+
   return (
     <Preview>
-      <PreviewTrigger>
-        <div className="relative mb-4 flex w-full flex-col items-center px-2">
+      <PreviewTrigger ariaLabel={previewLabel} className="mb-4 w-full rounded-lg px-2">
+        <figure className="relative flex w-full flex-col items-center">
           <NextImage
             src={src}
-            alt={alt}
+            alt={resolvedAlt}
             width={0}
             height={0}
-            sizes="100vw"
+            sizes={imageSizes}
             className="h-auto w-full max-w-xl rounded-md md:rounded-lg"
           />
           {_caption && <figcaption>{_caption}</figcaption>}
-        </div>
+        </figure>
       </PreviewTrigger>
-      <PreviewPortal>
-        <PreviewImage src={src} alt={alt} />
+      <PreviewPortal ariaLabel={`Image preview: ${resolvedAlt}`}>
+        <PreviewImage src={src} alt={resolvedAlt} />
       </PreviewPortal>
     </Preview>
   );

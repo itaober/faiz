@@ -113,7 +113,7 @@ const Checkbox = forwardRef<HTMLButtonElement, ICheckboxProps>(({ className, ...
       className={cn(
         'flex size-4 items-center justify-center rounded border-[1.5px] transition-all duration-100',
         'disabled:cursor-not-allowed disabled:opacity-50',
-        'focus-visible:ring-foreground/50 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-white focus-visible:outline-none',
+        'focus-ring',
         'opacity-60 hover:opacity-80 data-[disabled]:opacity-50 data-[state=checked]:opacity-100',
         className,
       )}

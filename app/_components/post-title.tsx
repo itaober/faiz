@@ -47,11 +47,9 @@ const PostTitle = ({ title, createdTime, updatedTime, tags, className }: IPostTi
 
   return (
     <div className={cn('mb-8', className)}>
-      {/* Title */}
-      <h1 className="text-4xl font-extrabold">{title}</h1>
-      {/* Meta */}
+      <h1 className="text-4xl font-bold tracking-tight">{title}</h1>
       {metaList.length > 0 && (
-        <div className="mt-2 flex flex-wrap items-center gap-2 opacity-50">
+        <div className="text-muted-foreground mt-2 flex flex-wrap items-center gap-2">
           {metaList.map((item, index, array) => (
             <Fragment key={item.id}>
               <div className="flex items-center gap-1">

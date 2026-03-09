@@ -15,7 +15,7 @@ import { MAX_IMAGE_SIZE, SUPPORTED_IMAGE_TYPES } from '@/lib/constants/image';
 import { generateId } from '@/lib/data/common';
 import type { Memo } from '@/lib/data/memos';
 
-import { useMemosContext } from '../_context/memos-context';
+import { useMemosContext } from '../_context/use-memos-context';
 import { ImagePreviewGrid } from './image-preview-grid';
 import MemosSettingsDrawer from './memos-settings-drawer';
 
@@ -165,8 +165,8 @@ export default function MemosEditorDrawer({ open, onOpenChange, memo }: MemosEdi
     <>
       <Drawer.Root direction="right" open={open} onOpenChange={onOpenChange}>
         <Drawer.Portal>
-          <Drawer.Overlay className="bg-foreground/40 fixed inset-0 z-20" />
-          <Drawer.Content className="bg-background md:border-r-none fixed top-0 right-0 bottom-0 z-20 flex w-[100vw] max-w-xl flex-col outline-none md:rounded-l-xl md:border md:border-gray-200 md:dark:border-gray-800">
+          <Drawer.Overlay className="bg-overlay-backdrop fixed inset-0 z-20" />
+          <Drawer.Content className="bg-background md:border-r-none md:border-border md:dark:border-border fixed top-0 right-0 bottom-0 z-20 flex w-[100vw] max-w-xl flex-col outline-none md:rounded-l-xl md:border">
             <motion.div
               initial={{ opacity: 0, x: ANIMATION.distance.normal }}
               animate={{ opacity: 1, x: 0 }}
@@ -182,7 +182,8 @@ export default function MemosEditorDrawer({ open, onOpenChange, memo }: MemosEdi
                 <motion.button
                   type="button"
                   onClick={() => onOpenChange(false)}
-                  className="hover:bg-muted opacity-70 transition-colors hover:opacity-100"
+                  className="focus-ring icon-button hover:bg-muted text-muted-foreground hover:text-foreground size-11"
+                  aria-label="Close editor"
                   whileTap={{ scale: 0.95 }}
                 >
                   <XIcon className="size-6" />
@@ -191,7 +192,7 @@ export default function MemosEditorDrawer({ open, onOpenChange, memo }: MemosEdi
                   <motion.button
                     type="button"
                     onClick={() => setIsSettingsOpen(true)}
-                    className="hover:bg-muted opacity-70 transition-colors hover:opacity-100"
+                    className="focus-ring icon-button hover:bg-muted text-muted-foreground hover:text-foreground size-11"
                     aria-label="Settings"
                     whileTap={{ scale: 0.95 }}
                   >
@@ -200,7 +201,7 @@ export default function MemosEditorDrawer({ open, onOpenChange, memo }: MemosEdi
                   <motion.button
                     type="button"
                     onClick={handleImageUpload}
-                    className="hover:bg-muted opacity-70 transition-colors hover:opacity-100"
+                    className="focus-ring icon-button hover:bg-muted text-muted-foreground hover:text-foreground size-11"
                     aria-label="Upload image"
                     disabled={images.length >= 9}
                     whileTap={{ scale: 0.95 }}
@@ -211,7 +212,7 @@ export default function MemosEditorDrawer({ open, onOpenChange, memo }: MemosEdi
                     type="button"
                     onClick={handleSubmit}
                     disabled={isDisabled}
-                    className="hover:bg-muted opacity-70 transition-colors hover:opacity-100 disabled:cursor-not-allowed disabled:opacity-30"
+                    className="focus-ring icon-button hover:bg-muted text-muted-foreground hover:text-foreground disabled:text-muted-foreground/50 size-11 disabled:cursor-not-allowed"
                     aria-label={isEditMode ? 'Update' : 'Publish'}
                     whileTap={{ scale: 0.95 }}
                   >
@@ -231,7 +232,7 @@ export default function MemosEditorDrawer({ open, onOpenChange, memo }: MemosEdi
                   value={content}
                   onChange={e => setContent(e.target.value)}
                   placeholder="Write something..."
-                  className="placeholder:text-foreground/40 min-h-32 flex-1 resize-none bg-transparent text-base leading-relaxed outline-none"
+                  className="placeholder:text-muted-foreground min-h-32 flex-1 resize-none bg-transparent text-base leading-relaxed outline-none"
                 />
 
                 {images.length > 0 && (

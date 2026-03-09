@@ -4,7 +4,7 @@ import { motion } from 'motion/react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import type { ReactNode } from 'react';
+import { cloneElement, isValidElement, type ReactElement, type ReactNode } from 'react';
 
 import { ANIMATION } from '@/lib/constants/animation';
 import { cn } from '@/lib/utils';
@@ -28,6 +28,7 @@ const getHref = (key: string): string => {
 
 interface IHeaderClientProps {
   avatar: string;
+  avatarAlt: string;
   navNodes: {
     key: string;
     node: ReactNode;
@@ -36,7 +37,7 @@ interface IHeaderClientProps {
   }[];
 }
 
-export default function HeaderClient({ avatar, navNodes }: IHeaderClientProps) {
+export default function HeaderClient({ avatar, avatarAlt, navNodes }: IHeaderClientProps) {
   const pathname = usePathname();
 
   const isActive = (key: string): boolean => {
@@ -60,7 +61,7 @@ export default function HeaderClient({ avatar, navNodes }: IHeaderClientProps) {
           >
             <Image
               src={avatar}
-              alt="avatar"
+              alt={avatarAlt}
               width={48}
               height={48}
               className="rounded-full select-none"
@@ -70,7 +71,14 @@ export default function HeaderClient({ avatar, navNodes }: IHeaderClientProps) {
         <nav aria-label="Primary navigation">
           <ul className="group flex items-center gap-3 md:gap-6">
             {navNodes.map((el, index) => {
-              const active = isActive(el.key);
+              const active = el.href ? isActive(el.key) : false;
+              const node =
+                el.href && isValidElement<{ 'aria-current'?: 'page' }>(el.node)
+                  ? cloneElement(el.node as ReactElement<{ 'aria-current'?: 'page' }>, {
+                      'aria-current': active ? 'page' : undefined,
+                    })
+                  : el.node;
+
               return (
                 <motion.li
                   key={el.key}
@@ -87,11 +95,11 @@ export default function HeaderClient({ avatar, navNodes }: IHeaderClientProps) {
                     y: -ANIMATION.distance.minimal,
                     transition: { duration: ANIMATION.duration.fast },
                   }}
-                  className={cn({
+                  className={cn('inline-flex items-center', {
                     'hidden md:inline-flex': el.hiddenOnMobile,
                   })}
                 >
-                  {el.node}
+                  {node}
                 </motion.li>
               );
             })}

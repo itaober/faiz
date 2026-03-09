@@ -77,7 +77,7 @@ export default function MemosLoadMore({ loadedLimit, totalAvailable, end }: Memo
 
     observer.observe(sentinel);
     return () => observer.disconnect();
-  }, [isPending, loadMore, loadedLimit, totalAvailable]);
+  }, [isComplete, isPending, loadMore]);
 
   if (isComplete) {
     return null;

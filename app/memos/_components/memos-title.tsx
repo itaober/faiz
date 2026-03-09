@@ -6,7 +6,7 @@ import { useEffect, useState } from 'react';
 
 import { useConsecutiveClicks } from '@/hooks/use-consecutive-clicks';
 
-import { useMemosContext } from '../_context/memos-context';
+import { useMemosContext } from '../_context/use-memos-context';
 const MemosEditorDrawer = dynamic(() => import('./memo-editor-drawer'), { ssr: false });
 
 export default function MemosTitle() {
@@ -28,7 +28,7 @@ export default function MemosTitle() {
   return (
     <>
       <div className="mb-4 flex items-center justify-between gap-4">
-        <h1 className="cursor-default text-4xl font-extrabold select-none" onClick={handleClick}>
+        <h1 className="cursor-default text-4xl font-bold select-none" onClick={handleClick}>
           Memos
         </h1>
         {canEdit && (
@@ -36,7 +36,7 @@ export default function MemosTitle() {
             <button
               type="button"
               onClick={() => setIsEditorOpen(true)}
-              className="flex size-5 items-center justify-center rounded-lg opacity-70 transition-colors hover:opacity-100"
+              className="focus-visible:ring-foreground/40 hover:text-foreground flex size-5 items-center justify-center rounded-lg opacity-70 transition-[color,opacity] hover:opacity-100 focus-visible:ring-2 focus-visible:outline-none"
               aria-label="Add Memo"
             >
               <EditIcon />
