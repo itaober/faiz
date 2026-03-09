@@ -1,7 +1,10 @@
 'use client';
 
+import { AnimatePresence, motion } from 'motion/react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useRef, useTransition } from 'react';
+
+import { ANIMATION } from '@/lib/constants/animation';
 
 interface MemosLoadMoreProps {
   loadedLimit: number;
@@ -86,6 +89,31 @@ export default function MemosLoadMore({ loadedLimit, totalAvailable, end }: Memo
   return (
     <div className="mt-8 flex items-center justify-center">
       <div ref={sentinelRef} className="h-1 w-1" aria-hidden="true" />
+      <AnimatePresence initial={false}>
+        {isPending ? (
+          <motion.div
+            className="bg-border relative h-px w-16 overflow-hidden rounded-full"
+            initial={{ opacity: 0, scaleX: 0.92 }}
+            animate={{ opacity: 1, scaleX: 1 }}
+            exit={{ opacity: 0, scaleX: 0.96 }}
+            transition={{ duration: 0.2, ease: ANIMATION.ease.out }}
+            aria-hidden="true"
+          >
+            <motion.div
+              className="bg-foreground/40 absolute inset-y-0 left-0 w-1/2 rounded-full"
+              initial={{ x: '-120%' }}
+              animate={{ x: '220%' }}
+              exit={{ opacity: 0 }}
+              transition={{
+                duration: 0.9,
+                ease: ANIMATION.ease.out,
+                repeat: Number.POSITIVE_INFINITY,
+                repeatDelay: 0.05,
+              }}
+            />
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
     </div>
   );
 }

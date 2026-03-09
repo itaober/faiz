@@ -32,7 +32,7 @@ export default function RecordItem({
   return (
     <motion.div
       key={title}
-      className="hover:bg-muted/45 flex flex-col gap-1 rounded-md border border-transparent p-1.5 transition-colors duration-200"
+      className="group hover:bg-muted/45 flex flex-col gap-1 rounded-md border border-transparent p-1.5 transition-colors duration-200"
       variants={{
         hidden: { opacity: 0, y: ANIMATION.distance.small },
         visible: { opacity: 1, y: 0 },
@@ -52,9 +52,12 @@ export default function RecordItem({
               width={0}
               height={0}
               sizes={coverSizes}
-              className={cn('relative aspect-[2/3] w-full rounded object-cover', {
-                'aspect-square': isMusicTab,
-              })}
+              className={cn(
+                'relative aspect-[2/3] w-full rounded object-cover transition-transform duration-300 group-hover:scale-[1.015]',
+                {
+                  'aspect-square': isMusicTab,
+                },
+              )}
             />
           </div>
         </PreviewTrigger>

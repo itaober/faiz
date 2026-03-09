@@ -1,6 +1,7 @@
 'use client';
 
 import { XIcon } from 'lucide-react';
+import { AnimatePresence, motion } from 'motion/react';
 import Image from 'next/image';
 import type {
   Dispatch,
@@ -11,6 +12,7 @@ import type {
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
+import { ANIMATION } from '@/lib/constants/animation';
 import { cn } from '@/lib/utils';
 
 interface IPreviewContext {
@@ -215,41 +217,57 @@ const PreviewPortal = ({
     };
   }, [handleClose, isPreview]);
 
-  if (!isPreview) {
+  if (typeof document === 'undefined') {
     return null;
   }
 
   return createPortal(
-    <div
-      data-preview={isPreview}
-      className={cn(
-        'bg-overlay-backdrop fixed inset-0 z-50 flex items-center justify-center px-4 py-4 backdrop-blur md:px-6 md:py-6',
-        className,
-      )}
-      onClick={handleClose}
-    >
-      <div
-        ref={dialogRef}
-        role="dialog"
-        aria-modal="true"
-        aria-label={ariaLabel}
-        tabIndex={-1}
-        onClick={event => event.stopPropagation()}
-        onKeyDown={handleDialogKeyDown}
-        className="relative flex max-h-full max-w-full flex-col items-end justify-center gap-2 md:gap-3"
-      >
-        <button
-          ref={closeButtonRef}
-          type="button"
-          aria-label="Close preview"
+    <AnimatePresence initial={false}>
+      {isPreview ? (
+        <motion.div
+          data-preview={isPreview}
+          className={cn(
+            'bg-overlay-backdrop fixed inset-0 z-50 flex items-center justify-center px-4 py-4 backdrop-blur md:px-6 md:py-6',
+            className,
+          )}
           onClick={handleClose}
-          className="focus-ring-overlay icon-button bg-overlay-control text-overlay-control-foreground hover:bg-overlay-control-hover hover:text-overlay-control-foreground size-10"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.18, ease: ANIMATION.ease.out }}
         >
-          <XIcon className="size-4.5" />
-        </button>
-        <PreviewContent>{children}</PreviewContent>
-      </div>
-    </div>,
+          <motion.div
+            ref={dialogRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label={ariaLabel}
+            tabIndex={-1}
+            onClick={event => event.stopPropagation()}
+            onKeyDown={handleDialogKeyDown}
+            className="relative flex max-h-full max-w-full flex-col items-end justify-center gap-2 md:gap-3"
+            initial={{ opacity: 0, y: ANIMATION.distance.small, scale: 0.985 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: ANIMATION.distance.minimal, scale: 0.99 }}
+            transition={{ duration: 0.24, ease: ANIMATION.ease.out }}
+          >
+            <motion.button
+              ref={closeButtonRef}
+              type="button"
+              aria-label="Close preview"
+              onClick={handleClose}
+              className="focus-ring-overlay icon-button bg-overlay-control text-overlay-control-foreground hover:bg-overlay-control-hover hover:text-overlay-control-foreground size-10"
+              initial={{ opacity: 0, y: -ANIMATION.distance.minimal }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -ANIMATION.distance.minimal }}
+              transition={{ duration: 0.18, delay: 0.03, ease: ANIMATION.ease.out }}
+            >
+              <XIcon className="size-4.5" />
+            </motion.button>
+            <PreviewContent>{children}</PreviewContent>
+          </motion.div>
+        </motion.div>
+      ) : null}
+    </AnimatePresence>,
     document.body,
   );
 };
