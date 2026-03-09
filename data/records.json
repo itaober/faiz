@@ -103,7 +103,15 @@
   ],
   "music": [
     {
-      "title": " 昨日情歌",
+      "title": "无与伦比的美丽",
+      "link": "https://music.douban.com/subject/3717116/",
+      "coverUrl": "/api/image/assets/records/music_无与伦比的美丽.webp",
+      "createdTime": "2026-03-09",
+      "type": "music",
+      "rating": 7.9
+    },
+    {
+      "title": "昨日情歌",
       "link": "https://music.douban.com/subject/5314299/",
       "coverUrl": "/api/image/assets/records/music_昨日情歌.webp",
       "createdTime": "2026-03-06",
