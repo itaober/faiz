@@ -2,7 +2,7 @@
 
 import { useCallback, useState } from 'react';
 
-import { uploadImagesAction } from '@/app/memos/_actions/upload-image';
+import { uploadImageAction } from '@/app/memos/_actions/upload-image';
 import { compressImage } from '@/lib/utils/image';
 
 interface IPendingImage {
@@ -30,12 +30,43 @@ interface IUseImageUploadReturn {
   setInitialImages: (paths: string[]) => void;
 }
 
+type UploadResult =
+  | { id: string; success: true; path: string }
+  | { id: string; success: false; error: string };
+
 const generateId = () => `img_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 
 /** Process a single file: compress and convert to WebP */
 async function processFile(file: File): Promise<File> {
   return compressImage(file);
 }
+
+const fileToBase64 = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+
+    reader.onload = () => {
+      if (typeof reader.result !== 'string') {
+        reject(new Error('Failed to encode image'));
+        return;
+      }
+
+      const base64 = reader.result.split(',')[1];
+      if (!base64) {
+        reject(new Error('Invalid image data'));
+        return;
+      }
+
+      resolve(base64);
+    };
+
+    reader.onerror = () => {
+      reject(new Error('Failed to read image file'));
+    };
+
+    reader.readAsDataURL(file);
+  });
+};
 
 export function useImageUpload(options: IUseImageUploadOptions): IUseImageUploadReturn {
   const { maxCount = 9, token } = options;
@@ -64,17 +95,16 @@ export function useImageUpload(options: IUseImageUploadOptions): IUseImageUpload
             preview: URL.createObjectURL(file),
             status: 'pending' as const,
           };
-        } else {
-          // Conversion failed, use original file and mark as error
-          const file = filesToProcess[index];
-          return {
-            id: generateId(),
-            file,
-            preview: URL.createObjectURL(file),
-            status: 'error' as const,
-            error: result.reason?.message || 'HEIC conversion failed',
-          };
         }
+
+        const file = filesToProcess[index];
+        return {
+          id: generateId(),
+          file,
+          preview: URL.createObjectURL(file),
+          status: 'error' as const,
+          error: result.reason?.message || 'Image compression failed',
+        };
       });
 
       setImages(prev => [...prev, ...newImages]);
@@ -85,7 +115,7 @@ export function useImageUpload(options: IUseImageUploadOptions): IUseImageUpload
   const removeImage = useCallback((id: string) => {
     setImages(prev => {
       const image = prev.find(img => img.id === id);
-      if (image?.preview) {
+      if (image?.preview.startsWith('blob:')) {
         URL.revokeObjectURL(image.preview);
       }
       return prev.filter(img => img.id !== id);
@@ -94,115 +124,100 @@ export function useImageUpload(options: IUseImageUploadOptions): IUseImageUpload
 
   const uploadAll = useCallback(
     async (memoId: string) => {
-      return new Promise<{ success: boolean; paths: string[]; errors: string[] }>(resolve => {
-        setImages(currentImages => {
-          const pendingImages = currentImages.filter(img => img.status === 'pending');
+      const pendingImages = images.filter(img => img.status === 'pending');
+      if (pendingImages.length === 0) {
+        const successPaths = images
+          .filter(img => img.status === 'success' && img.path)
+          .map(img => img.path!);
+        return { success: true, paths: successPaths, errors: [] };
+      }
 
-          if (pendingImages.length === 0) {
-            const successPaths = currentImages
-              .filter(img => img.status === 'success' && img.path)
-              .map(img => img.path!);
-            resolve({ success: true, paths: successPaths, errors: [] });
-            return currentImages;
-          }
+      setIsUploading(true);
+      setImages(prev =>
+        prev.map(img =>
+          img.status === 'pending' ? { ...img, status: 'uploading' as const } : img,
+        ),
+      );
 
-          (async () => {
-            setIsUploading(true);
-
-            setImages(prev =>
-              prev.map(img =>
-                img.status === 'pending' ? { ...img, status: 'uploading' as const } : img,
-              ),
-            );
-
+      try {
+        const uploadResults = await Promise.all(
+          pendingImages.map(async img => {
             try {
-              const fileDataPromises = pendingImages.map(async img => {
-                const buffer = await img.file.arrayBuffer();
-                const base64 = Buffer.from(buffer).toString('base64');
-                return {
-                  id: img.id,
-                  imageBase64: base64,
-                  mimeType: 'image/webp',
-                };
-              });
-
-              const fileData = await Promise.all(fileDataPromises);
-
-              // 调用上传 Action
-              const result = await uploadImagesAction(
-                fileData.map(f => ({ imageBase64: f.imageBase64, mimeType: f.mimeType })),
+              const imageBase64 = await fileToBase64(img.file);
+              const result = await uploadImageAction({
+                imageBase64,
+                mimeType: 'image/webp',
                 memoId,
                 token,
-              );
+                skipRevalidate: true,
+              });
 
-              if (!result.success) {
-                setImages(prev =>
-                  prev.map(img =>
-                    img.status === 'uploading'
-                      ? { ...img, status: 'error', error: result.error }
-                      : img,
-                  ),
-                );
-                resolve({ success: false, paths: [], errors: [result.error] });
-                return;
+              if (result.success && result.data) {
+                return { id: img.id, success: true, path: result.data } as UploadResult;
               }
 
-              const { paths: uploadedPaths, errors: uploadErrors } = result.data!;
-
-              // 更新图片状态并收集成功路径
-              let allSuccessPaths: string[] = [];
-              setImages(prev => {
-                const updatedImages = [...prev];
-                let pathIndex = 0;
-                let errorIndex = 0;
-
-                for (const img of updatedImages) {
-                  if (img.status === 'uploading') {
-                    if (pathIndex < uploadedPaths.length) {
-                      img.status = 'success';
-                      img.path = uploadedPaths[pathIndex];
-                      pathIndex++;
-                    } else if (errorIndex < uploadErrors.length) {
-                      img.status = 'error';
-                      img.error = uploadErrors[errorIndex];
-                      errorIndex++;
-                    }
-                  }
-                }
-
-                allSuccessPaths = updatedImages
-                  .filter(img => img.status === 'success' && img.path)
-                  .map(img => img.path!);
-
-                return updatedImages;
-              });
-
-              resolve({
-                success: uploadErrors.length === 0,
-                paths: allSuccessPaths.length > 0 ? allSuccessPaths : uploadedPaths,
-                errors: uploadErrors,
-              });
+              const errorMessage = result.success
+                ? 'Upload failed'
+                : result.error || 'Upload failed';
+              return {
+                id: img.id,
+                success: false,
+                error: errorMessage,
+              } as UploadResult;
             } catch (error) {
-              resolve({ success: false, paths: [], errors: [String(error)] });
-            } finally {
-              setIsUploading(false);
+              return {
+                id: img.id,
+                success: false,
+                error: error instanceof Error ? error.message : String(error),
+              } as UploadResult;
             }
-          })();
+          }),
+        );
 
-          return currentImages; // 先返回当前状态，后面异步更新
-        });
-      });
+        const resultMap = new Map(uploadResults.map(result => [result.id, result]));
+
+        setImages(prev =>
+          prev.map(img => {
+            const result = resultMap.get(img.id);
+            if (!result) {
+              return img;
+            }
+
+            if (result.success) {
+              return { ...img, status: 'success', path: result.path, error: undefined };
+            }
+
+            return { ...img, status: 'error', error: result.error };
+          }),
+        );
+
+        const errors = uploadResults
+          .filter(result => !result.success)
+          .map(result => (result.success ? '' : result.error));
+
+        const existingSuccessPaths = images
+          .filter(img => img.status === 'success' && img.path)
+          .map(img => img.path!);
+        const currentSuccessPaths = uploadResults
+          .filter(result => result.success)
+          .map(result => (result.success ? result.path : ''));
+
+        return {
+          success: errors.length === 0,
+          paths: [...existingSuccessPaths, ...currentSuccessPaths],
+          errors,
+        };
+      } finally {
+        setIsUploading(false);
+      }
     },
-    [token],
+    [images, token],
   );
 
-  // 清空所有图片
   const clear = useCallback(() => {
-    // 使用函数式更新，避免依赖 images
     setImages(prev => {
-      // 释放预览 URL
       for (const img of prev) {
-        if (img.preview && !img.preview.startsWith('http')) {
+        if (img.preview.startsWith('blob:')) {
           URL.revokeObjectURL(img.preview);
         }
       }
@@ -210,7 +225,6 @@ export function useImageUpload(options: IUseImageUploadOptions): IUseImageUpload
     });
   }, []);
 
-  // 设置初始图片（编辑模式）
   const setInitialImages = useCallback((paths: string[]) => {
     const initialImages: IPendingImage[] = paths.map(path => ({
       id: generateId(),
@@ -222,7 +236,6 @@ export function useImageUpload(options: IUseImageUploadOptions): IUseImageUpload
     setImages(initialImages);
   }, []);
 
-  // 获取已上传成功的路径
   const uploadedPaths = images
     .filter(img => img.status === 'success' && img.path)
     .map(img => img.path!);

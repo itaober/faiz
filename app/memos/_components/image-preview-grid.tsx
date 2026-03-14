@@ -61,10 +61,10 @@ export function ImagePreviewGrid({ images, onRemove, className }: ImagePreviewGr
           <button
             type="button"
             onClick={() => onRemove(image.id)}
-            className="focus-ring icon-button bg-background/80 hover:bg-background absolute top-1 right-1 size-11"
+            className="focus-ring icon-button bg-background/80 hover:bg-background absolute top-1 right-1 size-7"
             aria-label="Remove image"
           >
-            <X className="size-4" />
+            <X className="size-3.5" />
           </button>
         </div>
       ))}

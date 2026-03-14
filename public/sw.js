@@ -1,15 +1,42 @@
 /* eslint-disable no-restricted-globals */
-const CACHE_NAME = 'faiz_taober';
+const CACHE_NAME = 'faiz_taober_v2';
 
 // Static assets to cache
-const STATIC_ASSETS = ['/', '/icon-192x192.png', '/icon-512x512.png'];
+const STATIC_ASSETS = ['/', '/manifest.webmanifest', '/icon-192x192.png', '/icon-512x512.png'];
+
+const shouldHandleRequest = request => {
+  if (request.method !== 'GET') {
+    return false;
+  }
+
+  const url = new URL(request.url);
+  if (url.origin !== self.location.origin) {
+    return false;
+  }
+
+  if (url.pathname.startsWith('/api/')) {
+    return false;
+  }
+
+  return true;
+};
 
 // Install: cache static assets
 self.addEventListener('install', event => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then(cache => {
-      return cache.addAll(STATIC_ASSETS);
-    }),
+    (async () => {
+      const cache = await caches.open(CACHE_NAME);
+
+      await Promise.all(
+        STATIC_ASSETS.map(async asset => {
+          try {
+            await cache.add(asset);
+          } catch (error) {
+            console.warn('Failed to precache asset:', asset, error);
+          }
+        }),
+      );
+    })(),
   );
   self.skipWaiting();
 });
@@ -24,32 +51,69 @@ self.addEventListener('activate', event => {
   self.clients.claim();
 });
 
-// Fetch: network first, fallback to cache
+// Fetch:
+// - navigation requests: cache first + background revalidate
+// - other same-origin static requests: stale-while-revalidate
 self.addEventListener('fetch', event => {
-  // Skip non-GET requests
-  if (event.request.method !== 'GET') return;
+  if (!shouldHandleRequest(event.request)) {
+    return;
+  }
 
-  // Skip API requests and external URLs
-  const url = new URL(event.request.url);
-  if (url.pathname.startsWith('/api/') || url.origin !== self.location.origin) {
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      (async () => {
+        const cache = await caches.open(CACHE_NAME);
+        const cached = await cache.match(event.request);
+        const appShell = await cache.match('/');
+        const networkPromise = fetch(event.request)
+          .then(response => {
+            if (response.status === 200) {
+              cache.put(event.request, response.clone());
+            }
+            return response;
+          })
+          .catch(() => null);
+
+        if (cached) {
+          event.waitUntil(networkPromise);
+          return cached;
+        }
+
+        const network = await networkPromise;
+        if (network) {
+          return network;
+        }
+
+        return appShell || Response.error();
+      })(),
+    );
     return;
   }
 
   event.respondWith(
-    fetch(event.request)
-      .then(response => {
-        // Cache successful responses
-        if (response.status === 200) {
-          const clone = response.clone();
-          caches.open(CACHE_NAME).then(cache => {
-            cache.put(event.request, clone);
-          });
-        }
-        return response;
-      })
-      .catch(() => {
-        // Fallback to cache
-        return caches.match(event.request);
-      }),
+    (async () => {
+      const cache = await caches.open(CACHE_NAME);
+      const cached = await cache.match(event.request);
+      const networkPromise = fetch(event.request)
+        .then(response => {
+          if (response.status === 200) {
+            cache.put(event.request, response.clone());
+          }
+          return response;
+        })
+        .catch(() => null);
+
+      if (cached) {
+        event.waitUntil(networkPromise);
+        return cached;
+      }
+
+      const network = await networkPromise;
+      if (network) {
+        return network;
+      }
+
+      return Response.error();
+    })(),
   );
 });
