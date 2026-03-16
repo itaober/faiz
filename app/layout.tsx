@@ -13,6 +13,7 @@ import { ThemeScript, ThemeSync } from '@/components/theme-script';
 import { getMetaInfo } from '@/lib/data/data';
 import { buildDescription } from '@/lib/utils/seo';
 
+import BackToTop from './_components/back-to-top';
 import Header from './_components/header';
 
 const inter = Inter({
@@ -112,6 +113,7 @@ export default function RootLayout({
             <ThemeSync />
             <Header />
             <main className="mx-auto max-w-3xl px-6 py-12">{children}</main>
+            <BackToTop />
           </ThemeProvider>
         </MotionProvider>
         <Toaster position="top-center" style={{ top: '10%' }} duration={2000} />

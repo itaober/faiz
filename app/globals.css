@@ -108,6 +108,10 @@ button {
 
 @utility prose {
   max-width: none !important;
+  h2,
+  h3 {
+    scroll-margin-top: 3rem;
+  }
   ul {
     @apply ps-5;
   }

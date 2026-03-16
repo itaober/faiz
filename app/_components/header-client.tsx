@@ -49,7 +49,7 @@ export default function HeaderClient({ avatar, avatarAlt, navNodes }: IHeaderCli
   };
 
   return (
-    <header className="bg-background/70 sticky top-0 z-10 w-full backdrop-blur">
+    <header className="bg-background/70 z-10 w-full backdrop-blur">
       <div className="mx-auto flex max-w-4xl items-center justify-between px-4 py-3 md:px-6 md:py-4">
         <Link href="/">
           <motion.div
