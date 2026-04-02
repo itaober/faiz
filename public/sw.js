@@ -1,8 +1,11 @@
 /* eslint-disable no-restricted-globals */
-const CACHE_NAME = 'faiz_taober_v2';
+const CACHE_NAME = 'faiz_taober_v3';
 
-// Static assets to cache
-const STATIC_ASSETS = ['/', '/manifest.webmanifest', '/icon-192x192.png', '/icon-512x512.png'];
+const STATIC_ASSETS = ['/manifest.webmanifest', '/icon-192x192.png', '/icon-512x512.png'];
+const STATIC_DESTINATIONS = new Set(['style', 'script', 'font']);
+const STATIC_PATH_PREFIXES = ['/_next/static/'];
+const STATIC_IMAGE_PATH_PATTERN =
+  /^\/(?:icon-\d+x\d+|favicon(?:-\d+x\d+)?|apple-touch-icon(?:-\d+x\d+)?)(?:\.[a-z0-9]+)?$/i;
 
 const shouldHandleRequest = request => {
   if (request.method !== 'GET') {
@@ -18,7 +21,23 @@ const shouldHandleRequest = request => {
     return false;
   }
 
-  return true;
+  if (request.mode === 'navigate' || request.destination === 'document') {
+    return false;
+  }
+
+  if (STATIC_ASSETS.includes(url.pathname)) {
+    return true;
+  }
+
+  if (STATIC_PATH_PREFIXES.some(prefix => url.pathname.startsWith(prefix))) {
+    return true;
+  }
+
+  if (STATIC_DESTINATIONS.has(request.destination)) {
+    return true;
+  }
+
+  return request.destination === 'image' && STATIC_IMAGE_PATH_PATTERN.test(url.pathname);
 };
 
 // Install: cache static assets
@@ -52,41 +71,10 @@ self.addEventListener('activate', event => {
 });
 
 // Fetch:
-// - navigation requests: cache first + background revalidate
-// - other same-origin static requests: stale-while-revalidate
+// - static assets only: stale-while-revalidate
+// - navigations/documents/data requests: bypass SW cache and use normal network/cache
 self.addEventListener('fetch', event => {
   if (!shouldHandleRequest(event.request)) {
-    return;
-  }
-
-  if (event.request.mode === 'navigate') {
-    event.respondWith(
-      (async () => {
-        const cache = await caches.open(CACHE_NAME);
-        const cached = await cache.match(event.request);
-        const appShell = await cache.match('/');
-        const networkPromise = fetch(event.request)
-          .then(response => {
-            if (response.status === 200) {
-              cache.put(event.request, response.clone());
-            }
-            return response;
-          })
-          .catch(() => null);
-
-        if (cached) {
-          event.waitUntil(networkPromise);
-          return cached;
-        }
-
-        const network = await networkPromise;
-        if (network) {
-          return network;
-        }
-
-        return appShell || Response.error();
-      })(),
-    );
     return;
   }
 
