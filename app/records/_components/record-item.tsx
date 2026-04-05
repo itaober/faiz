@@ -6,12 +6,12 @@ import Link from 'next/link';
 import { Badge } from '@/components/badge';
 import { Preview, PreviewImage, PreviewPortal, PreviewTrigger } from '@/components/preview';
 import { ANIMATION } from '@/lib/constants/animation';
-import type { RecordItem } from '@/lib/data/data';
+import type { RecordItem as RecordDataItem } from '@/lib/data/data';
 import { cn } from '@/lib/utils';
 
 import type { Tab } from '../_constants';
 
-interface IRecordItemProps extends RecordItem {
+interface IRecordItemProps extends RecordDataItem {
   tab: Tab;
   typeLabel?: string;
 }
