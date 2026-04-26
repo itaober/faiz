@@ -12,6 +12,9 @@
   --accent: oklch(0.58 0.05 252);
   --danger: oklch(0.59 0.18 25);
   --danger-soft: oklch(0.95 0.018 25);
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
   --overlay-backdrop: color-mix(in oklch, black 90%, transparent);
   --overlay-control: color-mix(in oklch, black 28%, transparent);
   --overlay-control-hover: color-mix(in oklch, black 42%, transparent);
@@ -88,7 +91,21 @@ button {
 }
 
 @utility icon-button {
-  @apply inline-flex items-center justify-center rounded-full transition-colors;
+  @apply inline-flex items-center justify-center rounded-full;
+  transition-property: transform, color, background-color, border-color, opacity;
+  transition-duration: 160ms;
+  transition-timing-function: var(--ease-out);
+}
+
+@utility pressable {
+  transition-property: transform, color, background-color, border-color, opacity;
+  transition-duration: 160ms;
+  transition-timing-function: var(--ease-out);
+}
+
+.icon-button:not(:disabled):active,
+.pressable:not(:disabled):active {
+  transform: scale(0.97);
 }
 
 @media (prefers-reduced-motion: reduce) {

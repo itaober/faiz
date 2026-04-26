@@ -53,11 +53,11 @@ export default function HeaderClient({ avatar, avatarAlt, navNodes }: IHeaderCli
       <div className="mx-auto flex max-w-4xl items-center justify-between px-4 py-3 md:px-6 md:py-4">
         <Link href="/">
           <motion.div
-            initial={{ scale: 0.8, opacity: 0 }}
+            initial={{ scale: 0.96, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             transition={{ duration: ANIMATION.duration.slow, ease: ANIMATION.ease.out }}
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.95 }}
+            whileHover={{ scale: 1.04 }}
+            whileTap={{ scale: 0.97 }}
           >
             <Image
               src={avatar}
@@ -90,6 +90,7 @@ export default function HeaderClient({ avatar, avatarAlt, navNodes }: IHeaderCli
                   transition={{
                     delay: index * ANIMATION.stagger.fast + 0.2,
                     duration: ANIMATION.duration.normal,
+                    ease: ANIMATION.ease.out,
                   }}
                   whileHover={{
                     y: -ANIMATION.distance.minimal,

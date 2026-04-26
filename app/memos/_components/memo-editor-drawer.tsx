@@ -172,8 +172,8 @@ export default function MemosEditorDrawer({ open, onOpenChange, memo }: MemosEdi
               animate={{ opacity: 1, x: 0 }}
               transition={{
                 delay: 0.05,
-                duration: ANIMATION.duration.normal,
-                ease: ANIMATION.ease.out,
+                duration: ANIMATION.duration.slow,
+                ease: ANIMATION.ease.drawer,
               }}
               className="flex h-full flex-col"
             >

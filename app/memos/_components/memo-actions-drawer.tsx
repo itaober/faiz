@@ -80,7 +80,7 @@ export default function MemoActionsDrawer({
                   onEdit();
                   onOpenChange(false);
                 }}
-                className="flex w-full items-center justify-center gap-3 py-3"
+                className="pressable flex w-full items-center justify-center gap-3 py-3"
               >
                 <span>Edit</span>
               </button>
@@ -88,7 +88,7 @@ export default function MemoActionsDrawer({
               <button
                 type="button"
                 onClick={() => setIsConfirmDelete(true)}
-                className="text-danger flex w-full items-center justify-center gap-3 py-3"
+                className="pressable text-danger flex w-full items-center justify-center gap-3 py-3"
               >
                 <span>Delete</span>
               </button>
@@ -101,7 +101,7 @@ export default function MemoActionsDrawer({
                   type="button"
                   onClick={() => setIsConfirmDelete(false)}
                   disabled={isDeleting}
-                  className="bg-muted hover:bg-muted/80 border-border flex-1 rounded-lg border px-4 py-3 transition-colors"
+                  className="pressable bg-muted hover:bg-muted/80 border-border flex-1 rounded-lg border px-4 py-3 transition-[transform,color,background-color,border-color,opacity]"
                 >
                   Cancel
                 </button>
@@ -109,7 +109,7 @@ export default function MemoActionsDrawer({
                   type="button"
                   onClick={handleDelete}
                   disabled={isDeleting}
-                  className="border-danger bg-danger-soft text-danger flex-1 rounded-lg border px-4 py-3 transition-colors hover:opacity-90"
+                  className="pressable border-danger bg-danger-soft text-danger flex-1 rounded-lg border px-4 py-3 transition-[transform,color,background-color,border-color,opacity] hover:opacity-90"
                 >
                   {isDeleting ? 'Deleting...' : 'Delete'}
                 </button>

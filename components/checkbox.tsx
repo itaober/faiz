@@ -111,7 +111,7 @@ const Checkbox = forwardRef<HTMLButtonElement, ICheckboxProps>(({ className, ...
         }
       }}
       className={cn(
-        'flex size-4 items-center justify-center rounded border-[1.5px] transition-all duration-100',
+        'pressable flex size-4 items-center justify-center rounded border-[1.5px] transition-[transform,opacity,border-color,background-color] duration-100',
         'disabled:cursor-not-allowed disabled:opacity-50',
         'focus-ring',
         'opacity-60 hover:opacity-80 data-[disabled]:opacity-50 data-[state=checked]:opacity-100',
@@ -121,9 +121,12 @@ const Checkbox = forwardRef<HTMLButtonElement, ICheckboxProps>(({ className, ...
     >
       <CheckIcon
         strokeWidth={5}
-        className={cn('text-foreground size-2.5 opacity-0 transition-all duration-100', {
-          'opacity-100': checked,
-        })}
+        className={cn(
+          'text-foreground size-2.5 opacity-0 transition-[opacity,transform] duration-100',
+          {
+            'opacity-100': checked,
+          },
+        )}
       />
     </button>
   );

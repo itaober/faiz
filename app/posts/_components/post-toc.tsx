@@ -208,7 +208,7 @@ export default function PostToc() {
                       <span className="mr-2 inline-flex w-5 shrink-0 justify-start">
                         <span
                           className={cn(
-                            'block h-[3px] rounded-full transition-all duration-200',
+                            'block h-[3px] rounded-full transition-[width,background-color] duration-200 ease-(--ease-out)',
                             item.level === 3 ? 'w-3' : 'w-6',
                             active ? 'bg-foreground/60' : 'bg-border',
                           )}

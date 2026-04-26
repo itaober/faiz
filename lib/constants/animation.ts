@@ -1,8 +1,8 @@
 export const ANIMATION = {
   duration: {
-    fast: 0.15,
-    normal: 0.25,
-    slow: 0.35,
+    fast: 0.16,
+    normal: 0.22,
+    slow: 0.28,
   },
   distance: {
     minimal: 2,
@@ -11,9 +11,9 @@ export const ANIMATION = {
     large: 8,
   },
   ease: {
-    out: [0.25, 0.46, 0.45, 0.94] as const,
-    in: [0.55, 0.085, 0.68, 0.53] as const,
-    inOut: [0.455, 0.03, 0.515, 0.955] as const,
+    out: [0.23, 1, 0.32, 1] as const,
+    inOut: [0.77, 0, 0.175, 1] as const,
+    drawer: [0.32, 0.72, 0, 1] as const,
   },
   spring: {
     stiffness: 400,
