@@ -11,6 +11,14 @@
   ],
   "movie": [
     {
+      "title": "一一",
+      "link": "https://movie.douban.com/subject/1292434/",
+      "coverUrl": "/api/image/assets/records/movie_一一.webp",
+      "createdTime": "2026-04-27",
+      "rating": 9.5,
+      "type": "movie"
+    },
+    {
       "title": "情书",
       "link": "https://movie.douban.com/subject/1292220/",
       "coverUrl": "/api/image/assets/records/movie_情书.webp",
