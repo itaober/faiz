@@ -41,7 +41,7 @@
       "link": "https://movie.douban.com/subject/3134607/",
       "coverUrl": "/api/image/assets/records/tv_学警狙击.webp",
       "createdTime": "2025-05-22",
-      "rating": 8.0,
+      "rating": 8,
       "type": "tv"
     },
     {
@@ -179,7 +179,7 @@
       "link": "https://music.douban.com/subject/5269027/",
       "coverUrl": "/api/image/assets/records/music_牛羊下山.jpg",
       "createdTime": "2025-10-29",
-      "rating": 8.0,
+      "rating": 8,
       "type": "music"
     },
     {
@@ -194,8 +194,9 @@
       "title": "The Dark Side of the Moon",
       "link": "https://music.douban.com/subject/1395685/",
       "coverUrl": "/api/image/assets/records/music_the_dark_side_of_the_moon.jpg",
-      "createdTime": "2025-11-25",
-      "type": "music"
+      "createdTime": "2025-11-25 12:00:00",
+      "type": "music",
+      "review": "哈哈哈"
     }
   ],
   "game": [
@@ -204,7 +205,7 @@
       "link": "https://andyventure.com/boardgame-avalon/",
       "coverUrl": "/api/image/assets/records/game_阿瓦隆.webp",
       "createdTime": "2025-10-18",
-      "rating": 8.0,
+      "rating": 8,
       "type": "game"
     }
   ]
