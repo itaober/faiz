@@ -21,43 +21,11 @@
   ],
   "tv": [
     {
-      "title": "鹿鼎记",
-      "link": "https://movie.douban.com/subject/1863923/",
-      "coverUrl": "/api/image/assets/records/tv_鹿鼎记.webp",
-      "createdTime": "2025-03-12",
-      "rating": 8.9,
-      "type": "tv"
-    },
-    {
-      "title": "潜行狙击",
-      "link": "https://movie.douban.com/subject/5965670/",
-      "coverUrl": "/api/image/assets/records/tv_潜行狙击.webp",
-      "createdTime": "2025-04-30",
-      "rating": 8.2,
-      "type": "tv"
-    },
-    {
-      "title": "学警狙击",
-      "link": "https://movie.douban.com/subject/3134607/",
-      "coverUrl": "/api/image/assets/records/tv_学警狙击.webp",
-      "createdTime": "2025-05-22",
-      "rating": 8,
-      "type": "tv"
-    },
-    {
-      "title": "东京爱情故事",
-      "link": "https://movie.douban.com/subject/1438760/",
-      "coverUrl": "/api/image/assets/records/tv_东京爱情故事.webp",
-      "createdTime": "2025-05-29",
-      "rating": 8.4,
-      "type": "tv"
-    },
-    {
-      "title": "掩耳盗邻",
-      "link": "https://movie.douban.com/subject/36691469/",
-      "coverUrl": "/api/image/assets/records/tv_掩耳盗邻.webp",
-      "createdTime": "2025-08-12",
-      "rating": 7.8,
+      "title": "庆余年 第二季",
+      "link": "https://movie.douban.com/subject/34937650/",
+      "coverUrl": "/api/image/assets/records/tv_庆余年2.webp",
+      "createdTime": "2025-09-15",
+      "rating": 7.5,
       "type": "tv"
     },
     {
@@ -69,15 +37,135 @@
       "type": "tv"
     },
     {
-      "title": "庆余年 第二季",
-      "link": "https://movie.douban.com/subject/34937650/",
-      "coverUrl": "/api/image/assets/records/tv_庆余年2.webp",
-      "createdTime": "2025-09-15",
-      "rating": 7.5,
+      "title": "掩耳盗邻",
+      "link": "https://movie.douban.com/subject/36691469/",
+      "coverUrl": "/api/image/assets/records/tv_掩耳盗邻.webp",
+      "createdTime": "2025-08-12",
+      "rating": 7.8,
+      "type": "tv"
+    },
+    {
+      "title": "东京爱情故事",
+      "link": "https://movie.douban.com/subject/1438760/",
+      "coverUrl": "/api/image/assets/records/tv_东京爱情故事.webp",
+      "createdTime": "2025-05-29",
+      "rating": 8.4,
+      "type": "tv"
+    },
+    {
+      "title": "学警狙击",
+      "link": "https://movie.douban.com/subject/3134607/",
+      "coverUrl": "/api/image/assets/records/tv_学警狙击.webp",
+      "createdTime": "2025-05-22",
+      "rating": 8,
+      "type": "tv"
+    },
+    {
+      "title": "潜行狙击",
+      "link": "https://movie.douban.com/subject/5965670/",
+      "coverUrl": "/api/image/assets/records/tv_潜行狙击.webp",
+      "createdTime": "2025-04-30",
+      "rating": 8.2,
+      "type": "tv"
+    },
+    {
+      "title": "鹿鼎记",
+      "link": "https://movie.douban.com/subject/1863923/",
+      "coverUrl": "/api/image/assets/records/tv_鹿鼎记.webp",
+      "createdTime": "2025-03-12",
+      "rating": 8.9,
       "type": "tv"
     }
   ],
   "music": [
+    {
+      "title": "The Dark Side of the Moon",
+      "link": "https://music.douban.com/subject/1395685/",
+      "coverUrl": "/api/image/assets/records/music_the_dark_side_of_the_moon.jpg",
+      "createdTime": "2025-11-25",
+      "comment": "这是一首简单的小情歌",
+      "type": "music"
+    },
+    {
+      "title": "木马",
+      "link": "https://music.douban.com/subject/1406539/",
+      "coverUrl": "/api/image/assets/records/music_木马.jpg",
+      "createdTime": "2025-11-04",
+      "rating": 8.4,
+      "type": "music"
+    },
+    {
+      "title": "牛羊下山",
+      "link": "https://music.douban.com/subject/5269027/",
+      "coverUrl": "/api/image/assets/records/music_牛羊下山.jpg",
+      "createdTime": "2025-10-29",
+      "rating": 8,
+      "type": "music"
+    },
+    {
+      "title": "我去2000年",
+      "link": "https://music.douban.com/subject/2305573/",
+      "coverUrl": "/api/image/assets/records/music_我去2000年.jpg",
+      "createdTime": "2025-10-24",
+      "rating": 8.4,
+      "type": "music"
+    },
+    {
+      "title": "没有鸟鸣，关上窗吧",
+      "link": "https://music.douban.com/subject/33446085/",
+      "coverUrl": "/api/image/assets/records/music_没有鸟鸣，关上窗吧.jpg",
+      "createdTime": "2025-10-16",
+      "rating": 8.5,
+      "type": "music"
+    },
+    {
+      "title": "在雨后醒来",
+      "link": "https://music.douban.com/subject/37663914/",
+      "coverUrl": "/api/image/assets/records/music_在雨后醒来.jpg",
+      "createdTime": "2025-10-15",
+      "rating": 8.1,
+      "type": "music"
+    },
+    {
+      "title": "秋：故事",
+      "link": "https://music.douban.com/subject/24870385/",
+      "coverUrl": "/api/image/assets/records/music_秋：故事.jpg",
+      "createdTime": "2025-05-07",
+      "rating": 8.2,
+      "type": "music"
+    },
+    {
+      "title": "David Tao",
+      "link": "https://music.douban.com/subject/1407329/",
+      "coverUrl": "/api/image/assets/records/music_David Tao.jpg",
+      "createdTime": "2025-04-14",
+      "rating": 8.5,
+      "type": "music"
+    },
+    {
+      "title": "冀西南林路行",
+      "link": "https://music.douban.com/subject/35292992/",
+      "coverUrl": "/api/image/assets/records/music_冀西南林路行.jpg",
+      "createdTime": "2024-11-18",
+      "rating": 9.2,
+      "type": "music"
+    },
+    {
+      "title": "白日梦蓝",
+      "link": "https://music.douban.com/subject/3566567/",
+      "coverUrl": "/api/image/assets/records/music_白日梦蓝.jpg",
+      "createdTime": "2024-11-18",
+      "rating": 8.7,
+      "type": "music"
+    },
+    {
+      "title": "生之响往",
+      "link": "https://music.douban.com/subject/30203903/",
+      "coverUrl": "/api/image/assets/records/music_生之响往.jpg",
+      "createdTime": "2024-11-18",
+      "rating": 8.5,
+      "type": "music"
+    },
     {
       "title": "黄金时代",
       "link": "https://music.douban.com/subject/1406080/",
@@ -103,100 +191,12 @@
       "type": "music"
     },
     {
-      "title": "冀西南林路行",
-      "link": "https://music.douban.com/subject/35292992/",
-      "coverUrl": "/api/image/assets/records/music_冀西南林路行.jpg",
-      "createdTime": "2024-11-18",
-      "rating": 9.2,
-      "type": "music"
-    },
-    {
       "title": "万能青年旅店",
       "link": "https://music.douban.com/subject/5344708/",
       "coverUrl": "/api/image/assets/records/music_万能青年旅店.jpg",
       "createdTime": "2021-06-02",
       "rating": 9.1,
       "type": "music"
-    },
-    {
-      "title": "白日梦蓝",
-      "link": "https://music.douban.com/subject/3566567/",
-      "coverUrl": "/api/image/assets/records/music_白日梦蓝.jpg",
-      "createdTime": "2024-11-18",
-      "rating": 8.7,
-      "type": "music"
-    },
-    {
-      "title": "生之响往",
-      "link": "https://music.douban.com/subject/30203903/",
-      "coverUrl": "/api/image/assets/records/music_生之响往.jpg",
-      "createdTime": "2024-11-18",
-      "rating": 8.5,
-      "type": "music"
-    },
-    {
-      "title": "David Tao",
-      "link": "https://music.douban.com/subject/1407329/",
-      "coverUrl": "/api/image/assets/records/music_David Tao.jpg",
-      "createdTime": "2025-04-14",
-      "rating": 8.5,
-      "type": "music"
-    },
-    {
-      "title": "秋：故事",
-      "link": "https://music.douban.com/subject/24870385/",
-      "coverUrl": "/api/image/assets/records/music_秋：故事.jpg",
-      "createdTime": "2025-05-07",
-      "rating": 8.2,
-      "type": "music"
-    },
-    {
-      "title": "没有鸟鸣，关上窗吧",
-      "link": "https://music.douban.com/subject/33446085/",
-      "coverUrl": "/api/image/assets/records/music_没有鸟鸣，关上窗吧.jpg",
-      "createdTime": "2025-10-16",
-      "rating": 8.5,
-      "type": "music"
-    },
-    {
-      "title": "在雨后醒来",
-      "link": "https://music.douban.com/subject/37663914/",
-      "coverUrl": "/api/image/assets/records/music_在雨后醒来.jpg",
-      "createdTime": "2025-10-15",
-      "rating": 8.1,
-      "type": "music"
-    },
-    {
-      "title": "我去2000年",
-      "link": "https://music.douban.com/subject/2305573/",
-      "coverUrl": "/api/image/assets/records/music_我去2000年.jpg",
-      "createdTime": "2025-10-24",
-      "rating": 8.4,
-      "type": "music"
-    },
-    {
-      "title": "牛羊下山",
-      "link": "https://music.douban.com/subject/5269027/",
-      "coverUrl": "/api/image/assets/records/music_牛羊下山.jpg",
-      "createdTime": "2025-10-29",
-      "rating": 8,
-      "type": "music"
-    },
-    {
-      "title": "木马",
-      "link": "https://music.douban.com/subject/1406539/",
-      "coverUrl": "/api/image/assets/records/music_木马.jpg",
-      "createdTime": "2025-11-04",
-      "rating": 8.4,
-      "type": "music"
-    },
-    {
-      "title": "The Dark Side of the Moon",
-      "link": "https://music.douban.com/subject/1395685/",
-      "coverUrl": "/api/image/assets/records/music_the_dark_side_of_the_moon.jpg",
-      "createdTime": "2025-11-25 12:00:00",
-      "type": "music",
-      "review": "哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈"
     }
   ],
   "game": [
