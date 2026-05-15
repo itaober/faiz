@@ -4,12 +4,10 @@ import { ImagePlusIcon, SaveIcon, SettingsIcon, XIcon } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
-import { Drawer } from 'vaul';
 
 import { createRecordAction, updateRecordAction } from '@/app/_actions/edit-content';
 import { uploadEditorImageAction } from '@/app/_actions/upload-editor-image';
 import { useEditMode } from '@/components/edit-mode-context';
-import { hasEditorFloatingLayer } from '@/components/editing/editor-floating-layer';
 import GitHubTokenDrawer from '@/components/editing/github-token-drawer';
 import MarkdownLexicalEditor from '@/components/editing/markdown-lexical-editor';
 import { uploadStagedEditorImages } from '@/components/editing/upload-staged-editor-images';
@@ -23,10 +21,9 @@ import { compressImage, MAX_IMAGE_SIZE, SUPPORTED_IMAGE_TYPES } from '@/lib/util
 
 const recordTypes: RecordItem['type'][] = ['book', 'movie', 'tv', 'music', 'game'];
 
-interface IRecordEditorDrawerProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
+interface IRecordEditorSurfaceProps {
   record?: RecordItem;
+  onCancel: () => void;
 }
 
 const formatDateInput = (value?: string) => {
@@ -104,11 +101,7 @@ const imageFileNameFromUrl = (url: string, fallbackTitle: string) => {
   return `${fallbackTitle || 'record-cover'}.jpg`;
 };
 
-export default function RecordEditorDrawer({
-  open,
-  onOpenChange,
-  record,
-}: IRecordEditorDrawerProps) {
+export default function RecordEditorSurface({ record, onCancel }: IRecordEditorSurfaceProps) {
   const router = useRouter();
   const { token } = useEditMode();
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -151,10 +144,6 @@ export default function RecordEditorDrawer({
   }, [coverPreviewUrl]);
 
   useEffect(() => {
-    if (!open) {
-      return;
-    }
-
     setTitle(record?.title ?? '');
     setType(record?.type ?? 'movie');
     setCoverUrl(record?.coverUrl ?? '');
@@ -166,15 +155,7 @@ export default function RecordEditorDrawer({
     setRating(record?.rating !== undefined ? String(record.rating) : '');
     setComment(record?.comment ?? '');
     setStagedCommentImages([]);
-  }, [open, record]);
-
-  useEffect(() => {
-    if (open || !coverPreviewUrl) {
-      return;
-    }
-
-    clearPendingCover();
-  }, [clearPendingCover, coverPreviewUrl, open]);
+  }, [record]);
 
   useEffect(() => {
     return () => {
@@ -183,10 +164,6 @@ export default function RecordEditorDrawer({
       }
     };
   }, [coverPreviewUrl]);
-
-  const handleCoverUploadClick = () => {
-    coverInputRef.current?.click();
-  };
 
   const stageCoverFile = useCallback(
     (file: File) => {
@@ -244,30 +221,6 @@ export default function RecordEditorDrawer({
     [stageCoverFile, stageCoverUrl, title],
   );
 
-  const uploadPendingCover = async () => {
-    if (!pendingCoverFile || !pendingCoverImageId) {
-      return coverUrl;
-    }
-
-    const compressed = await compressImage(pendingCoverFile);
-    const imageBase64 = await fileToBase64(compressed);
-    const result = await uploadEditorImageAction({
-      imageBase64,
-      mimeType: 'image/webp',
-      scope: 'records',
-      entityId: coverEntityId,
-      imageId: pendingCoverImageId,
-      token: token || '',
-      revalidate: '/records',
-    });
-
-    if (!result.success || !result.data) {
-      throw new Error(result.success ? 'Upload failed' : result.error);
-    }
-
-    return toApiImageUrl(result.data);
-  };
-
   const handleCoverSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     event.target.value = '';
@@ -302,6 +255,30 @@ export default function RecordEditorDrawer({
 
     event.preventDefault();
     stageCoverFile(file);
+  };
+
+  const uploadPendingCover = async () => {
+    if (!pendingCoverFile || !pendingCoverImageId) {
+      return coverUrl;
+    }
+
+    const compressed = await compressImage(pendingCoverFile);
+    const imageBase64 = await fileToBase64(compressed);
+    const result = await uploadEditorImageAction({
+      imageBase64,
+      mimeType: 'image/webp',
+      scope: 'records',
+      entityId: coverEntityId,
+      imageId: pendingCoverImageId,
+      token: token || '',
+      revalidate: '/records',
+    });
+
+    if (!result.success || !result.data) {
+      throw new Error(result.success ? 'Upload failed' : result.error);
+    }
+
+    return toApiImageUrl(result.data);
   };
 
   const handleSubmit = async () => {
@@ -355,7 +332,7 @@ export default function RecordEditorDrawer({
       success: () => {
         clearPendingCover();
         setStagedCommentImages([]);
-        onOpenChange(false);
+        onCancel();
         router.refresh();
         return isEdit ? 'Record updated' : 'Record saved';
       },
@@ -366,191 +343,170 @@ export default function RecordEditorDrawer({
 
   return (
     <>
-      <Drawer.Root direction="right" open={open} onOpenChange={onOpenChange} handleOnly>
-        <Drawer.Portal>
-          <Drawer.Overlay className="bg-overlay-backdrop fixed inset-0 z-20" />
-          <Drawer.Content
-            onEscapeKeyDown={event => {
-              if (hasEditorFloatingLayer()) {
-                event.preventDefault();
-              }
-            }}
-            className="bg-background border-border fixed top-0 right-0 bottom-0 z-20 flex w-[100vw] max-w-2xl flex-col outline-none md:rounded-l-xl md:border"
-          >
-            <Drawer.Title className="sr-only">{isEdit ? 'Edit Record' : 'New Record'}</Drawer.Title>
-            <Drawer.Description className="sr-only">
-              Edit record metadata, cover, rating, and notes.
-            </Drawer.Description>
-            <div className="flex items-center justify-between p-4">
-              <button
-                type="button"
-                onClick={() => onOpenChange(false)}
-                className="focus-ring icon-button hover:bg-muted text-muted-foreground hover:text-foreground size-11"
-                aria-label="Close editor"
-              >
-                <XIcon className="size-6" />
-              </button>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={event => {
-                    event.currentTarget.blur();
-                    setSettingsOpen(true);
-                  }}
-                  className="focus-ring icon-button hover:bg-muted text-muted-foreground hover:text-foreground size-11"
-                  aria-label="Settings"
-                >
-                  <SettingsIcon className="size-6" />
-                </button>
-                <button
-                  type="button"
-                  onClick={async event => {
-                    event.currentTarget.blur();
-                    await handleSubmit();
-                  }}
-                  disabled={isSaveDisabled}
-                  className="focus-ring icon-button hover:bg-muted text-muted-foreground hover:text-foreground disabled:text-muted-foreground/50 size-11 disabled:cursor-not-allowed"
-                  aria-label="Save record"
-                >
-                  <SaveIcon className="size-6" />
-                </button>
-              </div>
+      <section className="not-prose bg-background/95 border-border mb-6 overflow-hidden rounded-lg border">
+        <div className="border-border flex items-center justify-between border-b px-3 py-2">
+          <p className="text-muted-foreground text-sm">
+            {isEdit ? 'Editing record' : 'New record'}
+          </p>
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={onCancel}
+              className="focus-ring icon-button hover:bg-muted text-muted-foreground hover:text-foreground size-9"
+              aria-label="Cancel editing"
+            >
+              <XIcon className="size-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => setSettingsOpen(true)}
+              className="focus-ring icon-button hover:bg-muted text-muted-foreground hover:text-foreground size-9"
+              aria-label="Settings"
+            >
+              <SettingsIcon className="size-4" />
+            </button>
+            <button
+              type="button"
+              onClick={handleSubmit}
+              disabled={isSaveDisabled}
+              className="focus-ring icon-button hover:bg-muted text-muted-foreground hover:text-foreground disabled:text-muted-foreground/50 size-9 disabled:cursor-not-allowed"
+              aria-label="Save record"
+            >
+              <SaveIcon className="size-4" />
+            </button>
+          </div>
+        </div>
+
+        <div className="grid gap-4 px-4 py-4 md:grid-cols-[8rem_1fr]">
+          <div className="space-y-2" onPaste={handleCoverPaste}>
+            <div
+              tabIndex={0}
+              aria-label="Record cover"
+              onDrop={handleCoverDrop}
+              onDragOver={event => event.preventDefault()}
+              className="focus-ring bg-muted relative aspect-[2/3] overflow-hidden rounded-md border"
+            >
+              {coverPreviewSrc ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={coverPreviewSrc}
+                  alt={title || 'Record cover'}
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                <div className="text-muted-foreground flex h-full items-center justify-center">
+                  Cover
+                </div>
+              )}
             </div>
+            <button
+              type="button"
+              onClick={() => coverInputRef.current?.click()}
+              aria-label="Upload cover"
+              className="focus-ring hover:bg-muted text-muted-foreground hover:text-foreground flex h-9 w-full items-center justify-center gap-2 rounded-md border text-sm transition-colors"
+            >
+              <ImagePlusIcon className="size-4" />
+              {pendingCoverFile ? 'Replace' : 'Upload'}
+            </button>
+          </div>
 
-            <div className="min-h-0 flex-1 overflow-auto">
-              <div className="border-border grid gap-4 border-b px-4 pb-4 md:grid-cols-[8rem_1fr]">
-                <div className="space-y-2" onPaste={handleCoverPaste}>
-                  <div
-                    tabIndex={0}
-                    aria-label="Record cover"
-                    onDrop={handleCoverDrop}
-                    onDragOver={event => event.preventDefault()}
-                    className="focus-ring bg-muted relative aspect-[2/3] overflow-hidden rounded-md border"
-                  >
-                    {coverPreviewSrc ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={coverPreviewSrc}
-                        alt={title || 'Record cover'}
-                        className="h-full w-full object-cover"
-                      />
-                    ) : (
-                      <div className="text-muted-foreground flex h-full items-center justify-center">
-                        Cover
-                      </div>
-                    )}
-                  </div>
-                  <button
-                    type="button"
-                    onClick={handleCoverUploadClick}
-                    aria-label="Upload cover"
-                    className="focus-ring hover:bg-muted text-muted-foreground hover:text-foreground flex h-9 w-full items-center justify-center gap-2 rounded-md border text-sm transition-colors"
-                  >
-                    <ImagePlusIcon className="size-4" />
-                    {pendingCoverFile ? 'Replace' : 'Upload'}
-                  </button>
-                </div>
-
-                <div className="grid content-start gap-3">
-                  <input
-                    name="record-title"
-                    aria-label="Record title"
-                    value={title}
-                    onChange={event => setTitle(event.target.value)}
-                    placeholder="Title"
-                    className="placeholder:text-muted-foreground bg-transparent text-xl font-bold outline-none"
-                  />
-                  <div className="flex flex-wrap gap-2">
-                    {recordTypes.map(recordType => (
-                      <button
-                        key={recordType}
-                        type="button"
-                        onClick={() => setType(recordType)}
-                        data-active={type === recordType || undefined}
-                        className="focus-ring hover:bg-muted data-[active=true]:bg-muted data-[active=true]:text-foreground text-muted-foreground rounded-md border px-3 py-1.5 text-sm capitalize transition-colors"
-                      >
-                        {recordType}
-                      </button>
-                    ))}
-                  </div>
-                  <input
-                    name="record-cover-url"
-                    aria-label="Record cover URL"
-                    value={displayedCoverUrl}
-                    onChange={event => {
-                      clearPendingCover();
-                      setCoverUrl(event.target.value);
-                    }}
-                    onPaste={handleCoverPaste}
-                    placeholder="Cover URL or paste image"
-                    className="placeholder:text-muted-foreground border-border bg-transparent border-b pb-2 font-mono text-sm outline-none"
-                  />
-                  <input
-                    name="record-link"
-                    aria-label="Record link"
-                    value={link}
-                    onChange={event => setLink(event.target.value)}
-                    placeholder="Link"
-                    className="placeholder:text-muted-foreground border-border bg-transparent border-b pb-2 font-mono text-sm outline-none"
-                  />
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <input
-                      name="record-created-time"
-                      aria-label="Record date"
-                      type="date"
-                      value={createdTime}
-                      onChange={event => setCreatedTime(event.target.value)}
-                      className="border-border bg-transparent border-b pb-2 font-mono text-sm outline-none"
-                    />
-                    <input
-                      name="record-rating"
-                      aria-label="Record rating"
-                      type="number"
-                      min="0"
-                      max="10"
-                      step="0.5"
-                      value={rating}
-                      onChange={event => setRating(event.target.value)}
-                      placeholder="Rating"
-                      className="placeholder:text-muted-foreground border-border bg-transparent border-b pb-2 text-sm outline-none"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <MarkdownLexicalEditor
-                key={`${record?.title ?? 'new'}-${open}`}
-                value={comment}
-                onChange={setComment}
-                token={token}
-                uploadScope="records"
-                uploadEntityId={title || 'record-comment'}
-                revalidatePath="/records"
-                placeholder="Notes, review, thoughts..."
-                minHeightClassName="min-h-64"
-                onRequestToken={() => setSettingsOpen(true)}
-                onImagesStaged={images => {
-                  setStagedCommentImages(previousImages => {
-                    const nextImages = new Map(previousImages.map(image => [image.path, image]));
-                    images.forEach(image => nextImages.set(image.path, image));
-                    return Array.from(nextImages.values());
-                  });
-                }}
+          <div className="grid content-start gap-3">
+            <input
+              name="record-title"
+              aria-label="Record title"
+              value={title}
+              onChange={event => setTitle(event.target.value)}
+              placeholder="Title"
+              className="placeholder:text-muted-foreground bg-transparent text-xl font-bold outline-none"
+            />
+            <div className="flex flex-wrap gap-2">
+              {recordTypes.map(recordType => (
+                <button
+                  key={recordType}
+                  type="button"
+                  onClick={() => setType(recordType)}
+                  data-active={type === recordType || undefined}
+                  className="focus-ring hover:bg-muted data-[active=true]:bg-muted data-[active=true]:text-foreground text-muted-foreground rounded-md border px-3 py-1.5 text-sm capitalize transition-colors"
+                >
+                  {recordType}
+                </button>
+              ))}
+            </div>
+            <input
+              name="record-cover-url"
+              aria-label="Record cover URL"
+              value={displayedCoverUrl}
+              onChange={event => {
+                clearPendingCover();
+                setCoverUrl(event.target.value);
+              }}
+              onPaste={handleCoverPaste}
+              placeholder="Cover URL or paste image"
+              className="placeholder:text-muted-foreground border-border bg-transparent border-b pb-2 font-mono text-sm outline-none"
+            />
+            <input
+              name="record-link"
+              aria-label="Record link"
+              value={link}
+              onChange={event => setLink(event.target.value)}
+              placeholder="Link"
+              className="placeholder:text-muted-foreground border-border bg-transparent border-b pb-2 font-mono text-sm outline-none"
+            />
+            <div className="grid gap-3 sm:grid-cols-2">
+              <input
+                name="record-created-time"
+                aria-label="Record date"
+                type="date"
+                value={createdTime}
+                onChange={event => setCreatedTime(event.target.value)}
+                className="border-border bg-transparent border-b pb-2 font-mono text-sm outline-none"
+              />
+              <input
+                name="record-rating"
+                aria-label="Record rating"
+                type="number"
+                min="0"
+                max="10"
+                step="0.5"
+                value={rating}
+                onChange={event => setRating(event.target.value)}
+                placeholder="Rating"
+                className="placeholder:text-muted-foreground border-border bg-transparent border-b pb-2 text-sm outline-none"
               />
             </div>
+          </div>
+        </div>
 
-            <input
-              ref={coverInputRef}
-              name="record-cover-file"
-              aria-label="Record cover file"
-              type="file"
-              accept={SUPPORTED_IMAGE_TYPES.join(',')}
-              className="hidden"
-              onChange={handleCoverSelect}
-            />
-          </Drawer.Content>
-        </Drawer.Portal>
-      </Drawer.Root>
+        <MarkdownLexicalEditor
+          key={`${record?.title ?? 'new-record'}-${record?.createdTime ?? 'draft'}`}
+          value={comment}
+          onChange={setComment}
+          token={token}
+          uploadScope="records"
+          uploadEntityId={title || 'record-comment'}
+          revalidatePath="/records"
+          placeholder="Notes, review, thoughts..."
+          minHeightClassName="min-h-64"
+          onRequestToken={() => setSettingsOpen(true)}
+          onImagesStaged={images => {
+            setStagedCommentImages(previousImages => {
+              const nextImages = new Map(previousImages.map(image => [image.path, image]));
+              images.forEach(image => nextImages.set(image.path, image));
+              return Array.from(nextImages.values());
+            });
+          }}
+        />
+
+        <input
+          ref={coverInputRef}
+          name="record-cover-file"
+          aria-label="Record cover file"
+          type="file"
+          accept={SUPPORTED_IMAGE_TYPES.join(',')}
+          className="hidden"
+          onChange={handleCoverSelect}
+        />
+      </section>
 
       <GitHubTokenDrawer open={settingsOpen} onOpenChange={setSettingsOpen} />
     </>

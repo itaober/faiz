@@ -8,7 +8,9 @@ import { ANIMATION } from '@/lib/constants/animation';
 import type { Records } from '@/lib/data/data';
 
 import { type Tab, tabList } from '../_constants';
+import RecordEditorSurface from './record-editor-surface';
 import RecordItem from './record-item';
+import { useRecordsInlineComposer } from './use-records-inline-composer';
 
 interface RecordsListClientProps {
   records: Records | null;
@@ -16,6 +18,7 @@ interface RecordsListClientProps {
 }
 
 export function RecordsListClient({ records, activeTab }: RecordsListClientProps) {
+  const { isComposerOpen, setComposerOpen } = useRecordsInlineComposer();
   const sortedRecordsByYear = useMemo(() => {
     if (!records) {
       return [];
@@ -48,7 +51,7 @@ export function RecordsListClient({ records, activeTab }: RecordsListClientProps
     return '';
   };
 
-  if (!sortedRecordsByYear.length) {
+  if (!sortedRecordsByYear.length && !isComposerOpen) {
     return (
       <div className="text-muted-foreground mt-8 text-sm">
         <p>No records yet.</p>
@@ -58,6 +61,7 @@ export function RecordsListClient({ records, activeTab }: RecordsListClientProps
 
   return (
     <MotionWrapper>
+      {isComposerOpen && <RecordEditorSurface onCancel={() => setComposerOpen(false)} />}
       <motion.article
         className="mt-8 space-y-8"
         initial="hidden"

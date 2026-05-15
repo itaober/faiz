@@ -1,7 +1,6 @@
 'use client';
 
 import { PencilIcon, Trash2Icon } from 'lucide-react';
-import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
@@ -13,17 +12,15 @@ import type { Memo } from '@/lib/data/memos';
 
 import { useMemosContext } from '../_context/use-memos-context';
 
-const MemoEditorDrawer = dynamic(() => import('./memo-editor-drawer'), { ssr: false });
-
 interface MemoCardActionsProps {
   memo: Memo;
+  onEdit: () => void;
 }
 
-export default function MemoCardActions({ memo }: MemoCardActionsProps) {
+export default function MemoCardActions({ memo, onEdit }: MemoCardActionsProps) {
   const router = useRouter();
   const { isEdit, token } = useMemosContext();
   const [mounted, setMounted] = useState(false);
-  const [showEditor, setShowEditor] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -76,7 +73,7 @@ export default function MemoCardActions({ memo }: MemoCardActionsProps) {
           type="button"
           onClick={event => {
             event.currentTarget.blur();
-            setShowEditor(true);
+            onEdit();
           }}
           className="focus-ring hover:bg-muted text-muted-foreground hover:text-foreground flex size-8 items-center justify-center rounded-md transition-colors"
           aria-label="Edit memo"
@@ -95,10 +92,6 @@ export default function MemoCardActions({ memo }: MemoCardActionsProps) {
           <Trash2Icon className="size-4" />
         </button>
       </div>
-
-      {showEditor && (
-        <MemoEditorDrawer open={showEditor} onOpenChange={setShowEditor} memo={memo} />
-      )}
 
       <ConfirmDrawer
         open={showDeleteConfirm}

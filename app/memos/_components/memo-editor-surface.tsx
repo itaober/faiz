@@ -1,29 +1,25 @@
 'use client';
 
-import { SaveIcon, Settings, Trash2Icon, XIcon } from 'lucide-react';
+import { SaveIcon, SettingsIcon, Trash2Icon, XIcon } from 'lucide-react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import { Drawer } from 'vaul';
 
 import { createMemoAction } from '@/app/memos/_actions/create-memo';
 import { updateMemoAction } from '@/app/memos/_actions/update-memo';
-import { hasEditorFloatingLayer } from '@/components/editing/editor-floating-layer';
 import GitHubTokenDrawer from '@/components/editing/github-token-drawer';
 import MarkdownLexicalEditor from '@/components/editing/markdown-lexical-editor';
 import { uploadStagedEditorImages } from '@/components/editing/upload-staged-editor-images';
-import { generateId } from '@/lib/data/common';
 import type { Memo } from '@/lib/data/memos';
 import type { StagedEditorImage } from '@/lib/utils/editor-image';
 import { toApiImageUrl, updateStagedEditorImageCaption } from '@/lib/utils/editor-image';
 
 import { useMemosContext } from '../_context/use-memos-context';
 
-interface MemosEditorDrawerProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
+interface IMemoEditorSurfaceProps {
   memo?: Memo;
+  onCancel: () => void;
 }
 
 interface MemoAttachment {
@@ -41,7 +37,12 @@ const toExistingAttachment = (path: string): MemoAttachment => ({
   previewSrc: toApiImageUrl(path),
 });
 
-export default function MemosEditorDrawer({ open, onOpenChange, memo }: MemosEditorDrawerProps) {
+const generateMemoDraftId = () =>
+  `memo_${new Date().toISOString().replace(/\D/g, '').slice(0, 14)}_${Math.random()
+    .toString(36)
+    .slice(2, 8)}`;
+
+export default function MemoEditorSurface({ memo, onCancel }: IMemoEditorSurfaceProps) {
   const router = useRouter();
   const { token } = useMemosContext();
   const [content, setContent] = useState(memo?.content ?? '');
@@ -50,30 +51,22 @@ export default function MemosEditorDrawer({ open, onOpenChange, memo }: MemosEdi
   );
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [draftId, setDraftId] = useState(() => generateId('memo'));
+  const [draftId, setDraftId] = useState(generateMemoDraftId);
 
   const isEditMode = !!memo;
   const entityId = memo?.id || draftId;
 
   useEffect(() => {
-    if (open && memo) {
+    if (memo) {
       setContent(memo.content);
       setAttachments(memo.images.map(toExistingAttachment));
       return;
     }
 
-    if (open && !memo) {
-      setDraftId(generateId('memo'));
-      setContent('');
-      setAttachments([]);
-      return;
-    }
-
-    if (!open) {
-      setContent('');
-      setAttachments([]);
-    }
-  }, [memo, open]);
+    setDraftId(generateMemoDraftId());
+    setContent('');
+    setAttachments([]);
+  }, [memo]);
 
   const handleSubmit = async () => {
     if (!token) {
@@ -129,7 +122,7 @@ export default function MemosEditorDrawer({ open, onOpenChange, memo }: MemosEdi
       success: () => {
         setContent('');
         setAttachments([]);
-        onOpenChange(false);
+        onCancel();
         router.refresh();
         return isEditMode ? 'Memo updated' : 'Memo published';
       },
@@ -239,96 +232,73 @@ export default function MemosEditorDrawer({ open, onOpenChange, memo }: MemosEdi
 
   return (
     <>
-      <Drawer.Root direction="right" open={open} onOpenChange={onOpenChange} handleOnly>
-        <Drawer.Portal>
-          <Drawer.Overlay className="bg-overlay-backdrop fixed inset-0 z-20" />
-          <Drawer.Content
-            onEscapeKeyDown={event => {
-              if (hasEditorFloatingLayer()) {
-                event.preventDefault();
-              }
-            }}
-            className="bg-background md:border-r-none md:border-border md:dark:border-border fixed top-0 right-0 bottom-0 z-20 flex w-[100vw] max-w-2xl flex-col outline-none md:rounded-l-xl md:border"
-          >
-            <Drawer.Title className="sr-only">{isEditMode ? 'Edit Memo' : 'New Memo'}</Drawer.Title>
-            <Drawer.Description className="sr-only">
-              Compose memo content with the shared Markdown editor.
-            </Drawer.Description>
+      <section className="not-prose bg-background/95 border-border mb-6 overflow-hidden rounded-lg border">
+        <div className="border-border flex items-center justify-between border-b px-3 py-2">
+          <p className="text-muted-foreground text-sm">
+            {isEditMode ? 'Editing memo' : 'New memo'}
+          </p>
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={onCancel}
+              className="focus-ring icon-button hover:bg-muted text-muted-foreground hover:text-foreground size-9"
+              aria-label="Cancel editing"
+            >
+              <XIcon className="size-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsSettingsOpen(true)}
+              className="focus-ring icon-button hover:bg-muted text-muted-foreground hover:text-foreground size-9"
+              aria-label="Settings"
+            >
+              <SettingsIcon className="size-4" />
+            </button>
+            <button
+              type="button"
+              onClick={handleSubmit}
+              disabled={isDisabled}
+              className="focus-ring icon-button hover:bg-muted text-muted-foreground hover:text-foreground disabled:text-muted-foreground/50 size-9 disabled:cursor-not-allowed"
+              aria-label={isEditMode ? 'Update memo' : 'Publish memo'}
+            >
+              <SaveIcon className="size-4" />
+            </button>
+          </div>
+        </div>
+        <MarkdownLexicalEditor
+          key={entityId}
+          value={content}
+          onChange={setContent}
+          token={token}
+          uploadScope="memos"
+          uploadEntityId={entityId}
+          revalidatePath="/memos"
+          placeholder="Write something..."
+          minHeightClassName="min-h-64"
+          onRequestToken={() => setIsSettingsOpen(true)}
+          insertUploadedImages={false}
+          editorFooter={attachmentsFooter}
+          onImagesStaged={images => {
+            setAttachments(previousAttachments => {
+              const nextAttachments = new Map(
+                previousAttachments.map(attachment => [attachment.path, attachment]),
+              );
 
-            <div className="flex items-center justify-between p-4">
-              <button
-                type="button"
-                onClick={() => onOpenChange(false)}
-                className="focus-ring icon-button hover:bg-muted text-muted-foreground hover:text-foreground size-11"
-                aria-label="Close editor"
-              >
-                <XIcon className="size-6" />
-              </button>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={event => {
-                    event.currentTarget.blur();
-                    setIsSettingsOpen(true);
-                  }}
-                  className="focus-ring icon-button hover:bg-muted text-muted-foreground hover:text-foreground size-11"
-                  aria-label="Settings"
-                >
-                  <Settings className="size-6" />
-                </button>
-                <button
-                  type="button"
-                  onClick={async event => {
-                    event.currentTarget.blur();
-                    await handleSubmit();
-                  }}
-                  disabled={isDisabled}
-                  className="focus-ring icon-button hover:bg-muted text-muted-foreground hover:text-foreground disabled:text-muted-foreground/50 size-11 disabled:cursor-not-allowed"
-                  aria-label={isEditMode ? 'Update' : 'Publish'}
-                >
-                  <SaveIcon className="size-6" />
-                </button>
-              </div>
-            </div>
+              images.forEach(image => {
+                nextAttachments.set(image.path, {
+                  alt: image.alt,
+                  id: image.path,
+                  path: image.path,
+                  pending: image,
+                  previewSrc: image.previewSrc,
+                });
+              });
 
-            <div className="flex min-h-0 flex-1 flex-col">
-              <MarkdownLexicalEditor
-                key={entityId}
-                value={content}
-                onChange={setContent}
-                token={token}
-                uploadScope="memos"
-                uploadEntityId={entityId}
-                revalidatePath="/memos"
-                placeholder="Write something..."
-                minHeightClassName="min-h-[52vh]"
-                onRequestToken={() => setIsSettingsOpen(true)}
-                insertUploadedImages={false}
-                editorFooter={attachmentsFooter}
-                onImagesStaged={images => {
-                  setAttachments(previousAttachments => {
-                    const nextAttachments = new Map(
-                      previousAttachments.map(attachment => [attachment.path, attachment]),
-                    );
-
-                    images.forEach(image => {
-                      nextAttachments.set(image.path, {
-                        alt: image.alt,
-                        id: image.path,
-                        path: image.path,
-                        pending: image,
-                        previewSrc: image.previewSrc,
-                      });
-                    });
-
-                    return Array.from(nextAttachments.values());
-                  });
-                }}
-              />
-            </div>
-          </Drawer.Content>
-        </Drawer.Portal>
-      </Drawer.Root>
+              return Array.from(nextAttachments.values());
+            });
+          }}
+        />
+      </section>
 
       <GitHubTokenDrawer open={isSettingsOpen} onOpenChange={setIsSettingsOpen} />
     </>

@@ -5,6 +5,7 @@ import { getMetaInfo } from '@/lib/data/data';
 import { buildDescription, buildPageMetadata } from '@/lib/utils/seo';
 
 import PostTitle from '../_components/post-title';
+import { RecordsInlineComposerProvider } from './_components/records-inline-composer-context';
 import RecordsList from './_components/records-list';
 import RecordsTabs from './_components/records-tabs';
 import RecordsTitleActions from './_components/records-title-actions';
@@ -39,7 +40,7 @@ export default async function RecordsPage({ searchParams }: RecordsPageProps) {
   const activeTab = normalizeTab(resolvedSearchParams?.tab);
 
   return (
-    <>
+    <RecordsInlineComposerProvider>
       <PostTitle title="Records">
         <RecordsTitleActions />
       </PostTitle>
@@ -47,6 +48,6 @@ export default async function RecordsPage({ searchParams }: RecordsPageProps) {
       <Suspense fallback={null}>
         <RecordsList activeTab={activeTab} />
       </Suspense>
-    </>
+    </RecordsInlineComposerProvider>
   );
 }

@@ -1,7 +1,6 @@
 'use client';
 
 import { PencilIcon, Trash2Icon } from 'lucide-react';
-import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { toast } from 'sonner';
@@ -12,16 +11,14 @@ import ConfirmDrawer from '@/components/editing/confirm-drawer';
 import GitHubTokenDrawer from '@/components/editing/github-token-drawer';
 import type { PostMeta } from '@/lib/data/data';
 
-const PostEditorDrawer = dynamic(() => import('./post-editor-drawer'), { ssr: false });
-
 interface IPostDetailActionsProps {
   post: PostMeta & { content: string };
+  onEdit: () => void;
 }
 
-export default function PostDetailActions({ post }: IPostDetailActionsProps) {
+export default function PostDetailActions({ post, onEdit }: IPostDetailActionsProps) {
   const router = useRouter();
   const { token } = useEditMode();
-  const [editorOpen, setEditorOpen] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -62,7 +59,7 @@ export default function PostDetailActions({ post }: IPostDetailActionsProps) {
         type="button"
         onClick={event => {
           event.currentTarget.blur();
-          setEditorOpen(true);
+          onEdit();
         }}
         className="focus-ring hover:bg-muted text-muted-foreground hover:text-foreground flex size-8 items-center justify-center rounded-md transition-colors"
         aria-label="Edit post"
@@ -81,9 +78,6 @@ export default function PostDetailActions({ post }: IPostDetailActionsProps) {
         <Trash2Icon className="size-4" />
       </button>
 
-      {editorOpen && (
-        <PostEditorDrawer open={editorOpen} onOpenChange={setEditorOpen} post={post} />
-      )}
       <ConfirmDrawer
         open={confirmOpen}
         onOpenChange={setConfirmOpen}

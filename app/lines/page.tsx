@@ -6,8 +6,7 @@ import { PAGE_META } from '@/lib/constants/seo';
 import { getLinesMDX } from '@/lib/data/mdx';
 import { buildDescription, buildPageMetadata } from '@/lib/utils/seo';
 
-import PageMdxActions from '../_components/page-mdx-actions';
-import PostTitle from '../_components/post-title';
+import PageMdxInlineSection from '../_components/page-mdx-inline-section';
 
 export async function generateMetadata() {
   const linesMDX = await getLinesMDX();
@@ -33,12 +32,11 @@ const LinesPage = async () => {
 
   return (
     <MotionWrapper>
-      <PostTitle {...data}>
-        <PageMdxActions page="lines" title={data.title} content={content} />
-      </PostTitle>
-      <article className="prose dark:prose-invert">
-        <MDX source={content} />
-      </article>
+      <PageMdxInlineSection page="lines" title={data.title} content={content}>
+        <article className="prose dark:prose-invert">
+          <MDX source={content} />
+        </article>
+      </PageMdxInlineSection>
     </MotionWrapper>
   );
 };

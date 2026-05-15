@@ -3,7 +3,6 @@
 import dayjs from 'dayjs';
 import { PencilIcon, Trash2Icon } from 'lucide-react';
 import { motion } from 'motion/react';
-import dynamic from 'next/dynamic';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -21,9 +20,8 @@ import type { RecordItem as RecordDataItem } from '@/lib/data/data';
 import { cn } from '@/lib/utils';
 
 import type { Tab } from '../_constants';
+import RecordEditorSurface from './record-editor-surface';
 import RecordPreview from './record-preview';
-
-const RecordEditorDrawer = dynamic(() => import('./record-editor-drawer'), { ssr: false });
 
 interface IRecordItemProps extends RecordDataItem {
   tab: Tab;
@@ -92,6 +90,14 @@ export default function RecordItem({
       finally: () => setIsDeleting(false),
     });
   };
+
+  if (editorOpen) {
+    return (
+      <div className="col-span-2 sm:col-span-3 md:col-span-4">
+        <RecordEditorSurface record={record} onCancel={() => setEditorOpen(false)} />
+      </div>
+    );
+  }
 
   return (
     <motion.div
@@ -174,9 +180,6 @@ export default function RecordItem({
             <Trash2Icon className="size-3.5" />
           </button>
         </div>
-      )}
-      {editorOpen && (
-        <RecordEditorDrawer open={editorOpen} onOpenChange={setEditorOpen} record={record} />
       )}
       <ConfirmDrawer
         open={confirmOpen}

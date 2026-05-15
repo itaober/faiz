@@ -1,13 +1,12 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 
-import PostTitle from '@/app/_components/post-title';
 import { MDX } from '@/components/mdx';
 import MotionWrapper from '@/components/motion-wrapper';
 import { getPostMDX } from '@/lib/data/mdx';
 import { buildDescription, buildPageMetadata } from '@/lib/utils/seo';
 
-import PostDetailActions from '../_components/post-detail-actions';
+import PostDetailInlineSection from '../_components/post-detail-inline-section';
 import PostTocDeferred from '../_components/post-toc-deferred';
 
 interface IPostPageProps {
@@ -54,15 +53,14 @@ export default async function PostPage({ params }: IPostPageProps) {
     <>
       <MotionWrapper>
         <div className="relative">
-          <PostTitle {...data}>
-            <PostDetailActions post={{ ...data, content }} />
-          </PostTitle>
-          <article id="post-content" className="prose dark:prose-invert">
-            <MDX source={content} />
-          </article>
+          <PostDetailInlineSection post={{ ...data, content }}>
+            <article id="post-content" className="prose dark:prose-invert">
+              <MDX source={content} />
+            </article>
+            <PostTocDeferred />
+          </PostDetailInlineSection>
         </div>
       </MotionWrapper>
-      <PostTocDeferred />
     </>
   );
 }

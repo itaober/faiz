@@ -1,13 +1,12 @@
 'use client';
 
 import { PlusIcon } from 'lucide-react';
-import dynamic from 'next/dynamic';
 import { useEffect, useState } from 'react';
 
 import { useConsecutiveClicks } from '@/hooks/use-consecutive-clicks';
 
 import { useMemosContext } from '../_context/use-memos-context';
-const MemosEditorDrawer = dynamic(() => import('./memo-editor-drawer'), { ssr: false });
+import MemoEditorSurface from './memo-editor-surface';
 
 export default function MemosTitle() {
   const { isEdit, toggleEdit } = useMemosContext();
@@ -48,9 +47,7 @@ export default function MemosTitle() {
         )}
       </div>
 
-      {(canEdit || isEditorOpen) && (
-        <MemosEditorDrawer open={isEditorOpen} onOpenChange={setIsEditorOpen} />
-      )}
+      {canEdit && isEditorOpen && <MemoEditorSurface onCancel={() => setIsEditorOpen(false)} />}
     </>
   );
 }

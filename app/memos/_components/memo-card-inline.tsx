@@ -1,0 +1,44 @@
+'use client';
+
+import { type ReactNode, useState } from 'react';
+
+import type { Memo } from '@/lib/data/memos';
+
+import MemoCardActions from './memo-card-actions';
+import MemoEditorSurface from './memo-editor-surface';
+
+interface IMemoCardInlineProps {
+  memo: Memo;
+  children: ReactNode;
+}
+
+export default function MemoCardInline({ memo, children }: IMemoCardInlineProps) {
+  const [isEditing, setIsEditing] = useState(false);
+
+  if (isEditing) {
+    return <MemoEditorSurface memo={memo} onCancel={() => setIsEditing(false)} />;
+  }
+
+  return (
+    <div>
+      <header className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 md:gap-4">
+          <div className="border-border size-3 rounded-full border" />
+          <time
+            dateTime={memo.createdTime}
+            className="text-muted-foreground/70 font-sans text-sm font-medium"
+          >
+            {memo.createdTime}
+          </time>
+        </div>
+        <MemoCardActions memo={memo} onEdit={() => setIsEditing(true)} />
+      </header>
+      <div className="flex w-full gap-2 md:gap-4">
+        <div className="flex h-auto w-3 shrink-0 justify-center">
+          <div className="bg-border h-full w-px" />
+        </div>
+        <div className="min-w-0 flex-1">{children}</div>
+      </div>
+    </div>
+  );
+}
