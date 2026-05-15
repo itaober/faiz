@@ -7,6 +7,7 @@ import { buildDescription, buildPageMetadata } from '@/lib/utils/seo';
 import PostTitle from '../_components/post-title';
 import RecordsList from './_components/records-list';
 import RecordsTabs from './_components/records-tabs';
+import RecordsTitleActions from './_components/records-title-actions';
 import { type Tab, tabList } from './_constants';
 
 export async function generateMetadata() {
@@ -39,7 +40,9 @@ export default async function RecordsPage({ searchParams }: RecordsPageProps) {
 
   return (
     <>
-      <PostTitle title="Records" />
+      <PostTitle title="Records">
+        <RecordsTitleActions />
+      </PostTitle>
       <RecordsTabs activeTab={activeTab} />
       <Suspense fallback={null}>
         <RecordsList activeTab={activeTab} />

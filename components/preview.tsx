@@ -4,6 +4,7 @@ import { XIcon } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import Image from 'next/image';
 import type {
+  CSSProperties,
   Dispatch,
   KeyboardEvent as ReactKeyboardEvent,
   RefObject,
@@ -23,11 +24,25 @@ interface IPreviewContext {
 
 let previewScrollLockCount = 0;
 let previousBodyOverflow: string | null = null;
+let previousBodyPosition: string | null = null;
+let previousBodyTop: string | null = null;
+let previousBodyWidth: string | null = null;
+let previousDocumentOverflow: string | null = null;
+let previousScrollY = 0;
 
 const lockPreviewScroll = () => {
   if (previewScrollLockCount === 0) {
+    previousScrollY = window.scrollY;
     previousBodyOverflow = document.body.style.overflow;
+    previousBodyPosition = document.body.style.position;
+    previousBodyTop = document.body.style.top;
+    previousBodyWidth = document.body.style.width;
+    previousDocumentOverflow = document.documentElement.style.overflow;
     document.body.style.overflow = 'hidden';
+    document.body.style.position = 'fixed';
+    document.body.style.top = `-${previousScrollY}px`;
+    document.body.style.width = '100%';
+    document.documentElement.style.overflow = 'hidden';
   }
 
   previewScrollLockCount += 1;
@@ -42,7 +57,17 @@ const unlockPreviewScroll = () => {
 
   if (previewScrollLockCount === 0) {
     document.body.style.overflow = previousBodyOverflow ?? '';
+    document.body.style.position = previousBodyPosition ?? '';
+    document.body.style.top = previousBodyTop ?? '';
+    document.body.style.width = previousBodyWidth ?? '';
+    document.documentElement.style.overflow = previousDocumentOverflow ?? '';
     previousBodyOverflow = null;
+    previousBodyPosition = null;
+    previousBodyTop = null;
+    previousBodyWidth = null;
+    previousDocumentOverflow = null;
+    window.scrollTo(0, previousScrollY);
+    previousScrollY = 0;
   }
 };
 
@@ -89,17 +114,20 @@ interface IPreviewTriggerProps {
   children: React.ReactNode;
   className?: string;
   ariaLabel?: string;
+  as?: 'div' | 'span';
 }
 
 const PreviewTrigger = ({
   children,
   className,
   ariaLabel = 'Open preview',
+  as = 'div',
 }: IPreviewTriggerProps) => {
   const { isPreview, setIsPreview, triggerRef } = usePreview();
+  const Component = as;
 
   return (
-    <div data-preview={isPreview} className={cn('relative', className)}>
+    <Component data-preview={isPreview} className={cn('relative', className)}>
       {children}
       <button
         ref={triggerRef}
@@ -110,20 +138,58 @@ const PreviewTrigger = ({
         onClick={() => setIsPreview(true)}
         className="focus-ring absolute inset-0 z-10 cursor-pointer rounded-[inherit]"
       />
-    </div>
+    </Component>
   );
 };
 
 interface IPreviewPortalProps {
   children: React.ReactNode;
   className?: string;
+  contentClassName?: string;
   ariaLabel?: string;
+  sidecar?: React.ReactNode;
+  sidecarClassName?: string;
 }
 
 interface IPreviewContentProps {
   children: React.ReactNode;
   className?: string;
 }
+
+type SidecarPlacement = 'right' | 'bottom';
+
+interface ISidecarLayout {
+  placement: SidecarPlacement;
+  style: CSSProperties;
+}
+
+const DEFAULT_SIDECAR_LAYOUT: ISidecarLayout = {
+  placement: 'bottom',
+  style: { marginTop: 8, width: '100%' },
+};
+
+const getContainedImageRect = (image: HTMLImageElement) => {
+  const rect = image.getBoundingClientRect();
+  const naturalWidth = image.naturalWidth;
+  const naturalHeight = image.naturalHeight;
+
+  if (!naturalWidth || !naturalHeight || !rect.width || !rect.height) {
+    return rect;
+  }
+
+  const imageRatio = naturalWidth / naturalHeight;
+  const frameRatio = rect.width / rect.height;
+
+  if (imageRatio > frameRatio) {
+    const height = rect.width / imageRatio;
+    const y = rect.top + (rect.height - height) / 2;
+    return new DOMRect(rect.left, y, rect.width, height);
+  }
+
+  const width = rect.height * imageRatio;
+  const x = rect.left + (rect.width - width) / 2;
+  return new DOMRect(x, rect.top, width, rect.height);
+};
 
 const getFocusableElements = (container: HTMLElement) => {
   return Array.from(
@@ -139,7 +205,7 @@ const PreviewContent = ({ children, className }: IPreviewContentProps) => {
   return (
     <div
       className={cn(
-        'relative h-[min(72vh,36rem)] w-[min(92vw,36rem)] sm:h-[min(74vh,40rem)] sm:w-[min(90vw,40rem)] md:h-[min(78vh,48rem)] md:w-[min(86vw,58rem)]',
+        'relative h-[min(72vh,36rem)] w-[min(92vw,36rem)] sm:h-[min(74vh,40rem)] sm:w-[min(90vw,40rem)] md:h-[min(84vh,54rem)] md:w-[min(86vw,64rem)]',
         className,
       )}
     >
@@ -151,11 +217,18 @@ const PreviewContent = ({ children, className }: IPreviewContentProps) => {
 const PreviewPortal = ({
   children,
   className,
+  contentClassName,
   ariaLabel = 'Image preview',
+  sidecar,
+  sidecarClassName,
 }: IPreviewPortalProps) => {
   const { isPreview, setIsPreview, triggerRef } = usePreview();
   const dialogRef = useRef<HTMLDivElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement | null>(null);
+  const previewFrameRef = useRef<HTMLDivElement | null>(null);
+  const hasSidecar = Boolean(sidecar);
+  const [sidecarLayout, setSidecarLayout] = useState<ISidecarLayout>(DEFAULT_SIDECAR_LAYOUT);
+  const sidecarPlacement = sidecarLayout.placement;
 
   const handleClose = useCallback(() => {
     setIsPreview(false);
@@ -217,6 +290,83 @@ const PreviewPortal = ({
     };
   }, [handleClose, isPreview]);
 
+  useEffect(() => {
+    if (!isPreview || !hasSidecar) {
+      setSidecarLayout(DEFAULT_SIDECAR_LAYOUT);
+      return;
+    }
+
+    let frameId = 0;
+
+    const updatePlacement = () => {
+      const frame = previewFrameRef.current;
+
+      if (!frame) {
+        return;
+      }
+
+      const content = frame.firstElementChild as HTMLElement | null;
+      const image = frame.querySelector('img');
+      const frameRect = frame.getBoundingClientRect();
+      const contentRect = content?.getBoundingClientRect() ?? frameRect;
+      const mediaRect = image ? getContainedImageRect(image) : contentRect;
+      const sidecarWidth = 224;
+      const sidecarGap = 16;
+      const viewportPadding = 16;
+      const rightSpace = window.innerWidth - mediaRect.right;
+      const canPlaceRight = rightSpace >= sidecarWidth + sidecarGap + viewportPadding;
+
+      if (canPlaceRight) {
+        setSidecarLayout({
+          placement: 'right',
+          style: {
+            left: mediaRect.right - frameRect.left + sidecarGap,
+            top: mediaRect.top - frameRect.top,
+            width: sidecarWidth,
+          },
+        });
+        return;
+      }
+
+      const visibleBottomOffset = Math.max(0, contentRect.bottom - mediaRect.bottom);
+
+      setSidecarLayout({
+        placement: 'bottom',
+        style: {
+          marginLeft: mediaRect.left - frameRect.left,
+          marginTop: 8 - visibleBottomOffset,
+          width: mediaRect.width,
+        },
+      });
+    };
+
+    const schedulePlacement = () => {
+      cancelAnimationFrame(frameId);
+      frameId = requestAnimationFrame(updatePlacement);
+    };
+
+    schedulePlacement();
+
+    const resizeObserver = new ResizeObserver(schedulePlacement);
+    const frame = previewFrameRef.current;
+    const image = frame?.querySelector('img');
+
+    if (frame) {
+      resizeObserver.observe(frame);
+    }
+
+    image?.addEventListener('load', schedulePlacement);
+
+    window.addEventListener('resize', schedulePlacement);
+
+    return () => {
+      cancelAnimationFrame(frameId);
+      resizeObserver.disconnect();
+      image?.removeEventListener('load', schedulePlacement);
+      window.removeEventListener('resize', schedulePlacement);
+    };
+  }, [hasSidecar, isPreview]);
+
   if (typeof document === 'undefined') {
     return null;
   }
@@ -255,7 +405,7 @@ const PreviewPortal = ({
               type="button"
               aria-label="Close preview"
               onClick={handleClose}
-              className="focus-ring-overlay icon-button bg-overlay-control text-overlay-control-foreground hover:bg-overlay-control-hover hover:text-overlay-control-foreground size-10"
+              className="focus-ring-overlay icon-button bg-overlay-control text-overlay-control-foreground hover:bg-overlay-control-hover hover:text-overlay-control-foreground size-11 md:size-10"
               initial={{ opacity: 0, y: -ANIMATION.distance.minimal }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -ANIMATION.distance.minimal }}
@@ -263,7 +413,36 @@ const PreviewPortal = ({
             >
               <XIcon className="size-4.5" />
             </motion.button>
-            <PreviewContent>{children}</PreviewContent>
+            {hasSidecar ? (
+              <div
+                className={cn(
+                  'relative flex max-w-[calc(100vw-2rem)] flex-col items-center overflow-visible pb-1',
+                  sidecarPlacement === 'right' && 'overflow-visible',
+                )}
+              >
+                <div ref={previewFrameRef} className="relative shrink-0">
+                  <PreviewContent className={contentClassName}>{children}</PreviewContent>
+                  <motion.aside
+                    style={sidecarLayout.style}
+                    className={cn(
+                      'text-left',
+                      sidecarPlacement === 'right'
+                        ? 'absolute max-h-[min(78vh,48rem)] max-w-56 overflow-y-auto'
+                        : 'relative max-w-full',
+                      sidecarClassName,
+                    )}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.2, delay: 0.04, ease: ANIMATION.ease.out }}
+                  >
+                    {sidecar}
+                  </motion.aside>
+                </div>
+              </div>
+            ) : (
+              <PreviewContent className={contentClassName}>{children}</PreviewContent>
+            )}
           </motion.div>
         </motion.div>
       ) : null}

@@ -20,10 +20,9 @@ export function RecordsListClient({ records, activeTab }: RecordsListClientProps
     if (!records) {
       return [];
     }
-    const currentRecordList =
-      (activeTab === 'all' ? Object.values(records).flat() : records[activeTab])?.sort((a, b) =>
-        dayjs(b.createdTime).diff(dayjs(a.createdTime)),
-      ) || [];
+    const currentRecordList = [
+      ...(activeTab === 'all' ? Object.values(records).flat() : records[activeTab] || []),
+    ].sort((a, b) => dayjs(b.createdTime).diff(dayjs(a.createdTime)));
 
     const groupedRecordsByYear = currentRecordList.reduce(
       (acc, record) => {
@@ -71,7 +70,7 @@ export function RecordsListClient({ records, activeTab }: RecordsListClientProps
           },
         }}
       >
-        {sortedRecordsByYear.map(([year, recordList]) => (
+        {sortedRecordsByYear.map(([year, recordList], sectionIndex) => (
           <motion.section
             key={year}
             variants={{
@@ -82,12 +81,13 @@ export function RecordsListClient({ records, activeTab }: RecordsListClientProps
           >
             <h2 className="mb-4 text-2xl font-bold">{year}</h2>
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
-              {recordList.map(record => (
+              {recordList.map((record, recordIndex) => (
                 <RecordItem
-                  key={record.title}
+                  key={`${record.type}-${record.createdTime}-${record.title}`}
                   {...record}
                   tab={activeTab}
                   typeLabel={getTypeLabel(record.type as Tab)}
+                  preloadCover={sectionIndex === 0 && recordIndex === 0}
                 />
               ))}
             </div>
