@@ -1,29 +1,84 @@
 import { useCallback, useEffect, useState } from 'react';
 
-const STORAGE_KEY = 'FAIZ_GITHUB_TOKEN';
+import { CONTENT_EDIT_TOKEN_CONFIGURED_VALUE } from '@/lib/content-edit-token';
+
+const LEGACY_STORAGE_KEY = 'FAIZ_GITHUB_TOKEN';
 
 /**
- * A generic hook for managing GitHub token in localStorage
+ * Manages the edit token session without exposing the raw token to client state.
  *
- * @returns Token state and operations
+ * Existing localStorage tokens are migrated once into an httpOnly cookie.
  */
 export function useGitHubToken() {
   const [token, setToken] = useState<string | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    setToken(stored);
-    setIsLoaded(true);
+    let cancelled = false;
+
+    const loadTokenState = async () => {
+      const legacyToken = localStorage.getItem(LEGACY_STORAGE_KEY);
+
+      if (legacyToken) {
+        const response = await fetch('/api/edit-token', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token: legacyToken }),
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to migrate token');
+        }
+
+        localStorage.removeItem(LEGACY_STORAGE_KEY);
+        if (!cancelled) {
+          setToken(CONTENT_EDIT_TOKEN_CONFIGURED_VALUE);
+        }
+        return;
+      }
+
+      const response = await fetch('/api/edit-token', { cache: 'no-store' });
+      const data = (await response.json()) as { configured?: boolean };
+      if (!cancelled) {
+        setToken(data.configured ? CONTENT_EDIT_TOKEN_CONFIGURED_VALUE : null);
+      }
+    };
+
+    loadTokenState()
+      .catch(() => {
+        if (!cancelled) {
+          setToken(null);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setIsLoaded(true);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  const saveToken = useCallback((newToken: string) => {
-    localStorage.setItem(STORAGE_KEY, newToken);
-    setToken(newToken);
+  const saveToken = useCallback(async (newToken: string) => {
+    const response = await fetch('/api/edit-token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token: newToken }),
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to save token');
+    }
+
+    localStorage.removeItem(LEGACY_STORAGE_KEY);
+    setToken(CONTENT_EDIT_TOKEN_CONFIGURED_VALUE);
   }, []);
 
-  const clearToken = useCallback(() => {
-    localStorage.removeItem(STORAGE_KEY);
+  const clearToken = useCallback(async () => {
+    await fetch('/api/edit-token', { method: 'DELETE' });
+    localStorage.removeItem(LEGACY_STORAGE_KEY);
     setToken(null);
   }, []);
 

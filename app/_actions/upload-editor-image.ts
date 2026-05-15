@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 
 import { uploadImage } from '@/lib/data/images';
+import { resolveContentEditToken } from '@/lib/server/content-edit-token';
 import { type ActionResult, createActionError } from '@/lib/types/action-result';
 import {
   buildEditorImageStoragePath,
@@ -25,7 +26,9 @@ interface IUploadEditorImageInput {
 export async function uploadEditorImageAction(
   input: IUploadEditorImageInput,
 ): Promise<ActionResult<string>> {
-  if (!input.token?.trim()) {
+  const token = await resolveContentEditToken(input.token);
+
+  if (!token.trim()) {
     return {
       success: false,
       error: 'GitHub token is required',
@@ -54,7 +57,7 @@ export async function uploadEditorImageAction(
       imageBase64: input.imageBase64,
       mimeType: input.mimeType,
       storagePath,
-      token: input.token,
+      token,
     });
 
     if (input.revalidate) {

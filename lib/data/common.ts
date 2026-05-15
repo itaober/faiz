@@ -1,3 +1,5 @@
+import { revalidateTag } from 'next/cache';
+
 import { formatTimeForId } from '@/lib/dayjs';
 
 import { fetchWithRetry } from './fetch-with-retry';
@@ -44,6 +46,23 @@ const CONTENT_BRANCH =
   process.env.GITHUB_CONTENT_BRANCH ||
   process.env.NEXT_PUBLIC_GITHUB_CONTENT_BRANCH ||
   'content-dev';
+const GITHUB_CONTENT_CACHE_TAG = 'github-content';
+const GITHUB_CONTENT_TAG_PREFIX = `${GITHUB_CONTENT_CACHE_TAG}:`;
+
+const normalizeGitHubPath = (path: string) => path.replace(/^\/+/, '').replace(/\/+/g, '/');
+
+const getGitHubContentTag = (path: string) =>
+  `${GITHUB_CONTENT_TAG_PREFIX}${normalizeGitHubPath(path)}`.slice(0, 256);
+
+const getGitHubFetchTags = (path: string, existingTags?: string[]) =>
+  Array.from(
+    new Set([GITHUB_CONTENT_CACHE_TAG, getGitHubContentTag(path), ...(existingTags ?? [])]),
+  );
+
+const revalidateGitHubContent = (path: string) => {
+  revalidateTag(GITHUB_CONTENT_CACHE_TAG, { expire: 0 });
+  revalidateTag(getGitHubContentTag(path), { expire: 0 });
+};
 
 /** Default GitHub API configuration */
 export const GIT_HUB_API_OPTIONS: IGitHubApiOptions = {
@@ -74,13 +93,18 @@ const getGitHubApiUrl = (path: string, { owner, repo, branch } = GIT_HUB_API_OPT
 export const fetchGitHubApi = async (path: string, init?: RequestInit, token?: string) => {
   const url = getGitHubApiUrl(path);
   const authToken = getGitHubToken(token);
+  const initNext = init?.next;
 
   const requestInit: RequestInit = {
     ...init,
-    next: {
-      revalidate: 5 * 60,
-      ...init?.next,
-    },
+    next:
+      init?.cache === 'no-store'
+        ? initNext
+        : {
+            revalidate: 5 * 60,
+            ...initNext,
+            tags: getGitHubFetchTags(path, initNext?.tags),
+          },
     headers: {
       Accept: 'application/vnd.github.v3.raw',
       'User-Agent': 'faiz-blog',
@@ -305,6 +329,8 @@ export const putGitHubFile = async (
     console.error('Failed to put GitHub file:', path, res.status, res.statusText, errorText);
     throw new Error(`Failed to put GitHub file: ${path} - ${res.status} ${res.statusText}`);
   }
+
+  revalidateGitHubContent(path);
 };
 
 /**
@@ -389,5 +415,6 @@ export const deleteGitHubFile = async (
     throw new Error(`Failed to delete GitHub file: ${path} - ${res.status} ${res.statusText}`);
   }
 
+  revalidateGitHubContent(path);
   return true;
 };

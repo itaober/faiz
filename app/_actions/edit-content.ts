@@ -19,12 +19,14 @@ import {
   RecordsSchema,
 } from '@/lib/data/data';
 import dayjs, { formatTime } from '@/lib/dayjs';
+import { resolveContentEditToken } from '@/lib/server/content-edit-token';
 import { type ActionError, type ActionResult, createActionError } from '@/lib/types/action-result';
 import { normalizeEditorImageMarkup } from '@/lib/utils/editor-image';
 
 const POSTS_INDEX_PATH = 'data/posts.json';
 const RECORDS_PATH = 'data/records.json';
 const POST_CONTENT_DIR = 'data/posts';
+const MUTATION_FETCH_INIT: RequestInit = { cache: 'no-store' };
 const PAGE_PATHS = {
   about: 'pages/about.mdx',
   lines: 'pages/lines.mdx',
@@ -109,8 +111,10 @@ const normalizeSlug = (slug: string) =>
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '');
 
-const validateToken = (token: string): ActionError | null => {
-  if (!token?.trim()) {
+const requireEditToken = async (token?: string | null): Promise<string | ActionError> => {
+  const resolvedToken = await resolveContentEditToken(token);
+
+  if (!resolvedToken.trim()) {
     return {
       success: false,
       error: 'GitHub token is required',
@@ -119,7 +123,7 @@ const validateToken = (token: string): ActionError | null => {
     };
   }
 
-  return null;
+  return resolvedToken;
 };
 
 const validatePostPayload = (input: IPostPayload): ActionError | null => {
@@ -198,12 +202,14 @@ const writeMdx = async (
 };
 
 const fetchPostList = async (token: string): Promise<PostList> => {
-  const raw = await fetchGitHubJson<unknown>(POSTS_INDEX_PATH, undefined, token).catch(() => []);
+  const raw = await fetchGitHubJson<unknown>(POSTS_INDEX_PATH, MUTATION_FETCH_INIT, token).catch(
+    () => [],
+  );
   return PostListSchema.parse(raw ?? []);
 };
 
 const fetchRecords = async (token: string): Promise<Records> => {
-  const raw = await fetchGitHubJson<unknown>(RECORDS_PATH, undefined, token).catch(
+  const raw = await fetchGitHubJson<unknown>(RECORDS_PATH, MUTATION_FETCH_INIT, token).catch(
     () => EMPTY_RECORDS,
   );
   return RecordsSchema.parse({ ...EMPTY_RECORDS, ...(raw ?? {}) });
@@ -236,9 +242,9 @@ const revalidatePosts = (slug?: string, previousSlug?: string) => {
 };
 
 export async function createPostAction(input: ICreatePostInput): Promise<ActionResult<PostMeta>> {
-  const authError = validateToken(input.token);
-  if (authError) {
-    return authError;
+  const token = await requireEditToken(input.token);
+  if (typeof token !== 'string') {
+    return token;
   }
 
   const validationError = validatePostPayload(input);
@@ -248,7 +254,7 @@ export async function createPostAction(input: ICreatePostInput): Promise<ActionR
 
   try {
     const slug = normalizeSlug(input.slug);
-    const posts = await fetchPostList(input.token);
+    const posts = await fetchPostList(token);
     if (posts.some(post => post.slug === slug)) {
       return {
         success: false,
@@ -268,12 +274,12 @@ export async function createPostAction(input: ICreatePostInput): Promise<ActionR
       pinned: input.pinned || undefined,
     };
 
-    await writeMdx(buildPostPath(slug), post, input.content, `docs: add post ${slug}`, input.token);
+    await writeMdx(buildPostPath(slug), post, input.content, `docs: add post ${slug}`, token);
     await writeGitHubJson(
       POSTS_INDEX_PATH,
       sortPosts([post, ...posts]),
       `docs: update ${POSTS_INDEX_PATH}`,
-      input.token,
+      token,
     );
 
     revalidatePosts(slug);
@@ -285,9 +291,9 @@ export async function createPostAction(input: ICreatePostInput): Promise<ActionR
 }
 
 export async function updatePostAction(input: IUpdatePostInput): Promise<ActionResult<PostMeta>> {
-  const authError = validateToken(input.token);
-  if (authError) {
-    return authError;
+  const token = await requireEditToken(input.token);
+  if (typeof token !== 'string') {
+    return token;
   }
 
   const validationError = validatePostPayload(input);
@@ -298,7 +304,7 @@ export async function updatePostAction(input: IUpdatePostInput): Promise<ActionR
   try {
     const slug = normalizeSlug(input.slug);
     const originalSlug = normalizeSlug(input.originalSlug);
-    const posts = await fetchPostList(input.token);
+    const posts = await fetchPostList(token);
     const existingPost = posts.find(post => post.slug === originalSlug);
 
     if (!existingPost) {
@@ -328,19 +334,13 @@ export async function updatePostAction(input: IUpdatePostInput): Promise<ActionR
       pinned: input.pinned || undefined,
     };
 
-    await writeMdx(
-      buildPostPath(slug),
-      post,
-      input.content,
-      `docs: update post ${slug}`,
-      input.token,
-    );
+    await writeMdx(buildPostPath(slug), post, input.content, `docs: update post ${slug}`, token);
 
     if (slug !== originalSlug) {
       await deleteGitHubFile(
         buildPostPath(originalSlug),
         `docs: delete post ${originalSlug}`,
-        input.token,
+        token,
       );
     }
 
@@ -349,7 +349,7 @@ export async function updatePostAction(input: IUpdatePostInput): Promise<ActionR
       POSTS_INDEX_PATH,
       sortPosts(nextPosts),
       `docs: update ${POSTS_INDEX_PATH}`,
-      input.token,
+      token,
     );
 
     revalidatePosts(slug, originalSlug);
@@ -361,14 +361,14 @@ export async function updatePostAction(input: IUpdatePostInput): Promise<ActionR
 }
 
 export async function deletePostAction(input: IDeletePostInput): Promise<ActionResult> {
-  const authError = validateToken(input.token);
-  if (authError) {
-    return authError;
+  const token = await requireEditToken(input.token);
+  if (typeof token !== 'string') {
+    return token;
   }
 
   try {
     const slug = normalizeSlug(input.slug);
-    const posts = await fetchPostList(input.token);
+    const posts = await fetchPostList(token);
     const nextPosts = posts.filter(post => post.slug !== slug);
 
     if (nextPosts.length === posts.length) {
@@ -380,12 +380,12 @@ export async function deletePostAction(input: IDeletePostInput): Promise<ActionR
       };
     }
 
-    await deleteGitHubFile(buildPostPath(slug), `docs: delete post ${slug}`, input.token);
+    await deleteGitHubFile(buildPostPath(slug), `docs: delete post ${slug}`, token);
     await writeGitHubJson(
       POSTS_INDEX_PATH,
       sortPosts(nextPosts),
       `docs: update ${POSTS_INDEX_PATH}`,
-      input.token,
+      token,
     );
 
     revalidatePosts(slug);
@@ -397,9 +397,9 @@ export async function deletePostAction(input: IDeletePostInput): Promise<ActionR
 }
 
 export async function updatePageAction(input: IUpdatePageInput): Promise<ActionResult> {
-  const authError = validateToken(input.token);
-  if (authError) {
-    return authError;
+  const token = await requireEditToken(input.token);
+  if (typeof token !== 'string') {
+    return token;
   }
 
   if (!input.title.trim()) {
@@ -413,7 +413,7 @@ export async function updatePageAction(input: IUpdatePageInput): Promise<ActionR
 
   try {
     const path = PAGE_PATHS[input.page];
-    const raw = await fetchGitHubText(path, undefined, input.token).catch(() => '');
+    const raw = await fetchGitHubText(path, MUTATION_FETCH_INIT, token).catch(() => '');
     const parsed = matter(raw);
     const now = formatTime();
     const data = {
@@ -425,7 +425,7 @@ export async function updatePageAction(input: IUpdatePageInput): Promise<ActionR
       updatedTime: now,
     };
 
-    await writeMdx(path, data, input.content, `docs: update ${path}`, input.token);
+    await writeMdx(path, data, input.content, `docs: update ${path}`, token);
 
     revalidatePath(input.page === 'about' ? '/' : `/${input.page}`);
     if (input.page === 'about') {
@@ -475,9 +475,9 @@ const writeRecords = async (records: Records, token: string) => {
 };
 
 export async function createRecordAction(input: IRecordInput): Promise<ActionResult<RecordItem>> {
-  const authError = validateToken(input.token);
-  if (authError) {
-    return authError;
+  const token = await requireEditToken(input.token);
+  if (typeof token !== 'string') {
+    return token;
   }
 
   try {
@@ -491,9 +491,9 @@ export async function createRecordAction(input: IRecordInput): Promise<ActionRes
       };
     }
 
-    const records = await fetchRecords(input.token);
+    const records = await fetchRecords(token);
     records[record.type] = [record, ...records[record.type]];
-    await writeRecords(records, input.token);
+    await writeRecords(records, token);
 
     return { success: true, data: record };
   } catch (error) {
@@ -505,9 +505,9 @@ export async function createRecordAction(input: IRecordInput): Promise<ActionRes
 export async function updateRecordAction(
   input: IUpdateRecordInput,
 ): Promise<ActionResult<RecordItem>> {
-  const authError = validateToken(input.token);
-  if (authError) {
-    return authError;
+  const token = await requireEditToken(input.token);
+  if (typeof token !== 'string') {
+    return token;
   }
 
   try {
@@ -521,7 +521,7 @@ export async function updateRecordAction(
       };
     }
 
-    const records = await fetchRecords(input.token);
+    const records = await fetchRecords(token);
     const existing = findRecord(records, input.original);
 
     if (!existing) {
@@ -535,7 +535,7 @@ export async function updateRecordAction(
 
     const withoutOriginal = removeRecord(records, input.original);
     withoutOriginal[record.type] = [record, ...withoutOriginal[record.type]];
-    await writeRecords(withoutOriginal, input.token);
+    await writeRecords(withoutOriginal, token);
 
     return { success: true, data: record };
   } catch (error) {
@@ -545,13 +545,13 @@ export async function updateRecordAction(
 }
 
 export async function deleteRecordAction(input: IDeleteRecordInput): Promise<ActionResult> {
-  const authError = validateToken(input.token);
-  if (authError) {
-    return authError;
+  const token = await requireEditToken(input.token);
+  if (typeof token !== 'string') {
+    return token;
   }
 
   try {
-    const records = await fetchRecords(input.token);
+    const records = await fetchRecords(token);
     const existing = findRecord(records, input.original);
 
     if (!existing) {
@@ -563,7 +563,7 @@ export async function deleteRecordAction(input: IDeleteRecordInput): Promise<Act
       };
     }
 
-    await writeRecords(removeRecord(records, input.original), input.token);
+    await writeRecords(removeRecord(records, input.original), token);
     return { success: true };
   } catch (error) {
     console.error('Failed to delete record:', error);

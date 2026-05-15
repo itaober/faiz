@@ -9,8 +9,8 @@ export interface IEditModeContextValue {
   setEditMode: (value: boolean) => void;
   token: string | null;
   isTokenLoaded: boolean;
-  saveToken: (token: string) => void;
-  clearToken: () => void;
+  saveToken: (token: string) => Promise<void>;
+  clearToken: () => Promise<void>;
 }
 
 export const EditModeContext = createContext<IEditModeContextValue | null>(null);

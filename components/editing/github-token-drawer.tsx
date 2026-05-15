@@ -15,21 +15,29 @@ interface IGitHubTokenDrawerProps {
 export default function GitHubTokenDrawer({ open, onOpenChange }: IGitHubTokenDrawerProps) {
   const { token, saveToken } = useEditMode();
   const [inputValue, setInputValue] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!inputValue.trim()) {
       return;
     }
 
-    saveToken(inputValue.trim());
-    toast.success('Token saved');
-    onOpenChange(false);
-    setInputValue('');
+    setIsSaving(true);
+    try {
+      await saveToken(inputValue.trim());
+      toast.success('Token saved');
+      onOpenChange(false);
+      setInputValue('');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to save token');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleOpenChange = (newOpen: boolean) => {
-    if (newOpen && token) {
-      setInputValue(token);
+    if (newOpen) {
+      setInputValue('');
     }
     onOpenChange(newOpen);
   };
@@ -41,14 +49,14 @@ export default function GitHubTokenDrawer({ open, onOpenChange }: IGitHubTokenDr
         <Drawer.Content className="bg-background border-border fixed top-0 right-0 bottom-0 z-30 flex w-[90vw] max-w-lg flex-col rounded-l-xl border outline-none">
           <Drawer.Title className="sr-only">GitHub Token Settings</Drawer.Title>
           <Drawer.Description className="sr-only">
-            Save a GitHub token in localStorage for content edits.
+            Save a GitHub token for content edits.
           </Drawer.Description>
 
           <form
             className="flex min-h-0 flex-1 flex-col"
-            onSubmit={event => {
+            onSubmit={async event => {
               event.preventDefault();
-              handleSave();
+              await handleSave();
             }}
           >
             <div className="flex items-center justify-between p-4">
@@ -62,7 +70,7 @@ export default function GitHubTokenDrawer({ open, onOpenChange }: IGitHubTokenDr
               </button>
               <button
                 type="submit"
-                disabled={!inputValue.trim()}
+                disabled={isSaving || !inputValue.trim()}
                 className="focus-ring icon-button hover:bg-muted text-muted-foreground hover:text-foreground disabled:text-muted-foreground/50 size-11 disabled:cursor-not-allowed"
                 aria-label="Save token"
               >
@@ -93,8 +101,9 @@ export default function GitHubTokenDrawer({ open, onOpenChange }: IGitHubTokenDr
                 className="placeholder:text-muted-foreground w-full border-b bg-transparent pb-2 text-base outline-none"
               />
               <p className="text-muted-foreground mt-2 text-xs">
-                GitHub / Settings / Developer settings / Personal access tokens / Fine-grained
-                tokens
+                {token
+                  ? 'Token saved. Paste a new token to replace it.'
+                  : 'GitHub / Settings / Developer settings / Personal access tokens / Fine-grained tokens'}
               </p>
             </div>
           </form>

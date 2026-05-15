@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 
 import type { Memo } from '@/lib/data/memos';
 import { prependMemo } from '@/lib/data/memos';
+import { resolveContentEditToken } from '@/lib/server/content-edit-token';
 import { type ActionResult, createActionError } from '@/lib/types/action-result';
 
 interface ICreateMemoInput {
@@ -35,7 +36,9 @@ export async function createMemoAction(input: ICreateMemoInput): Promise<ActionR
     };
   }
 
-  if (!input.token?.trim()) {
+  const token = await resolveContentEditToken(input.token);
+
+  if (!token.trim()) {
     return {
       success: false,
       error: 'GitHub token is required',
@@ -49,7 +52,7 @@ export async function createMemoAction(input: ICreateMemoInput): Promise<ActionR
       id: input.id,
       content: input.content?.trim() || '',
       images: input.images,
-      token: input.token,
+      token,
     });
 
     revalidatePath('/memos');
