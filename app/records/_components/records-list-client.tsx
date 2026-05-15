@@ -59,9 +59,12 @@ export function RecordsListClient({ records, activeTab }: RecordsListClientProps
     );
   }
 
+  const visibleRecordGroups: typeof sortedRecordsByYear = sortedRecordsByYear.length
+    ? sortedRecordsByYear
+    : [[String(new Date().getFullYear()), []]];
+
   return (
     <MotionWrapper>
-      {isComposerOpen && <RecordEditorSurface onCancel={() => setComposerOpen(false)} />}
       <motion.article
         className="mt-8 space-y-8"
         initial="hidden"
@@ -74,7 +77,7 @@ export function RecordsListClient({ records, activeTab }: RecordsListClientProps
           },
         }}
       >
-        {sortedRecordsByYear.map(([year, recordList], sectionIndex) => (
+        {visibleRecordGroups.map(([year, recordList], sectionIndex) => (
           <motion.section
             key={year}
             variants={{
@@ -85,13 +88,16 @@ export function RecordsListClient({ records, activeTab }: RecordsListClientProps
           >
             <h2 className="mb-4 text-2xl font-bold">{year}</h2>
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
+              {isComposerOpen && sectionIndex === 0 && (
+                <RecordEditorSurface onCancel={() => setComposerOpen(false)} />
+              )}
               {recordList.map((record, recordIndex) => (
                 <RecordItem
                   key={`${record.type}-${record.createdTime}-${record.title}`}
                   {...record}
                   tab={activeTab}
                   typeLabel={getTypeLabel(record.type as Tab)}
-                  preloadCover={sectionIndex === 0 && recordIndex === 0}
+                  preloadCover={sectionIndex === 0 && recordIndex === 0 && !isComposerOpen}
                 />
               ))}
             </div>

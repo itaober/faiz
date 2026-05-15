@@ -11,6 +11,8 @@ const files = {
   memoInline: read('app/memos/_components/memo-card-inline.tsx'),
   record: read('app/records/_components/record-editor-surface.tsx'),
   recordItem: read('app/records/_components/record-item.tsx'),
+  recordsList: read('app/records/_components/records-list-client.tsx'),
+  markdownEditor: read('components/editing/markdown-lexical-editor.tsx'),
 };
 
 for (const [name, source] of Object.entries({
@@ -23,6 +25,11 @@ for (const [name, source] of Object.entries({
     source.includes('chrome="seamless"'),
     true,
     `${name} editor should use the seamless editor chrome`,
+  );
+  assert.equal(
+    source.includes('toolbarPortal'),
+    true,
+    `${name} editor should portal the toolbar into the page action row`,
   );
   assert.equal(
     /Editing (about|post|memo|record|\$\{page\})|New (post|memo|record)/.test(source),
@@ -53,4 +60,28 @@ assert.equal(
   files.recordItem.includes('RecordEditorSurface') && files.recordItem.includes('motion.div'),
   true,
   'record edit should keep the original record card shell editable in place',
+);
+
+assert.equal(
+  files.recordsList.includes('{isComposerOpen &&') &&
+    files.recordsList.lastIndexOf('RecordEditorSurface') >
+      files.recordsList.indexOf('grid grid-cols-2 gap-4'),
+  true,
+  'record add composer should be inserted as the first grid item',
+);
+
+assert.equal(
+  files.record.includes('Review') &&
+    files.record.includes('absolute') &&
+    files.record.includes('isReviewOpen'),
+  true,
+  'record review editing should use a floating layer that does not resize the grid item',
+);
+
+assert.equal(
+  files.markdownEditor.includes('toolbarPortal') &&
+    files.markdownEditor.includes('createPortal') &&
+    files.markdownEditor.includes('fixed inset-x-3 bottom-3'),
+  true,
+  'seamless toolbar should support desktop portal and mobile overlay without pushing layout',
 );

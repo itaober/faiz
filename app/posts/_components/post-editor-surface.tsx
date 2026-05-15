@@ -43,6 +43,7 @@ export default function PostEditorSurface({ post, onCancel }: IPostEditorSurface
   const [content, setContent] = useState(post?.content ?? '');
   const [stagedImages, setStagedImages] = useState<StagedEditorImage[]>([]);
   const [slugTouched, setSlugTouched] = useState(Boolean(post));
+  const [toolbarPortal, setToolbarPortal] = useState<HTMLElement | null>(null);
 
   const isEdit = !!post;
   const uploadEntityId = useMemo(() => slug || slugify(title) || 'post', [slug, title]);
@@ -124,7 +125,7 @@ export default function PostEditorSurface({ post, onCancel }: IPostEditorSurface
   return (
     <>
       <div className="mb-8">
-        <div className="flex items-start justify-between gap-4">
+        <div className="flex items-start justify-between gap-3">
           <input
             name="post-title"
             aria-label="Post title"
@@ -132,6 +133,10 @@ export default function PostEditorSurface({ post, onCancel }: IPostEditorSurface
             onChange={event => handleTitleChange(event.target.value)}
             placeholder="Post title"
             className="placeholder:text-muted-foreground min-w-0 flex-1 bg-transparent text-4xl font-bold tracking-tight outline-none"
+          />
+          <div
+            ref={setToolbarPortal}
+            className="hidden min-w-0 max-w-[52vw] flex-1 justify-end overflow-hidden md:flex"
           />
           <div className="not-prose flex shrink-0 items-center gap-1 pt-1">
             <button
@@ -205,6 +210,7 @@ export default function PostEditorSurface({ post, onCancel }: IPostEditorSurface
           placeholder="Start writing..."
           chrome="seamless"
           showQuickReference={false}
+          toolbarPortal={toolbarPortal}
           minHeightClassName="min-h-[48vh]"
           onRequestToken={() => setIsSettingsOpen(true)}
           onImagesStaged={images => {

@@ -1,6 +1,6 @@
 'use client';
 
-import { ImagePlusIcon, SaveIcon, SettingsIcon, XIcon } from 'lucide-react';
+import { ImagePlusIcon, MessageSquareTextIcon, SaveIcon, SettingsIcon, XIcon } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
@@ -117,6 +117,8 @@ export default function RecordEditorSurface({ record, onCancel }: IRecordEditorS
   const [rating, setRating] = useState(record?.rating !== undefined ? String(record.rating) : '');
   const [comment, setComment] = useState(record?.comment ?? '');
   const [stagedCommentImages, setStagedCommentImages] = useState<StagedEditorImage[]>([]);
+  const [isReviewOpen, setIsReviewOpen] = useState(false);
+  const [toolbarPortal, setToolbarPortal] = useState<HTMLElement | null>(null);
   const coverInputRef = useRef<HTMLInputElement>(null);
 
   const isEdit = !!record;
@@ -155,6 +157,7 @@ export default function RecordEditorSurface({ record, onCancel }: IRecordEditorS
     setRating(record?.rating !== undefined ? String(record.rating) : '');
     setComment(record?.comment ?? '');
     setStagedCommentImages([]);
+    setIsReviewOpen(false);
   }, [record]);
 
   useEffect(() => {
@@ -343,12 +346,12 @@ export default function RecordEditorSurface({ record, onCancel }: IRecordEditorS
 
   return (
     <>
-      <section className="not-prose mb-6">
-        <div className="mb-2 flex items-center justify-end gap-1">
+      <section className="not-prose relative min-w-0">
+        <div className="bg-background/85 border-border absolute top-2 right-2 z-20 flex items-center gap-0.5 rounded-md border p-0.5 shadow-sm backdrop-blur">
           <button
             type="button"
             onClick={onCancel}
-            className="focus-ring icon-button hover:bg-muted text-muted-foreground hover:text-foreground size-9"
+            className="focus-ring icon-button hover:bg-muted text-muted-foreground hover:text-foreground size-8"
             aria-label="Cancel editing"
           >
             <XIcon className="size-4" />
@@ -356,7 +359,7 @@ export default function RecordEditorSurface({ record, onCancel }: IRecordEditorS
           <button
             type="button"
             onClick={() => setSettingsOpen(true)}
-            className="focus-ring icon-button hover:bg-muted text-muted-foreground hover:text-foreground size-9"
+            className="focus-ring icon-button hover:bg-muted text-muted-foreground hover:text-foreground size-8"
             aria-label="Settings"
           >
             <SettingsIcon className="size-4" />
@@ -365,31 +368,37 @@ export default function RecordEditorSurface({ record, onCancel }: IRecordEditorS
             type="button"
             onClick={handleSubmit}
             disabled={isSaveDisabled}
-            className="focus-ring icon-button hover:bg-muted text-muted-foreground hover:text-foreground disabled:text-muted-foreground/50 size-9 disabled:cursor-not-allowed"
+            className="focus-ring icon-button hover:bg-muted text-muted-foreground hover:text-foreground disabled:text-muted-foreground/50 size-8 disabled:cursor-not-allowed"
             aria-label="Save record"
           >
             <SaveIcon className="size-4" />
           </button>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-[8rem_1fr]">
-          <div className="space-y-2" onPaste={handleCoverPaste}>
+        <div className="flex flex-col gap-1.5">
+          <div className="relative" onPaste={handleCoverPaste}>
             <div
               tabIndex={0}
               aria-label="Record cover"
               onDrop={handleCoverDrop}
               onDragOver={event => event.preventDefault()}
-              className="focus-ring bg-muted relative aspect-[2/3] overflow-hidden rounded-md border"
+              className="focus-ring bg-muted relative overflow-hidden rounded-md border"
             >
               {coverPreviewSrc ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={coverPreviewSrc}
                   alt={title || 'Record cover'}
-                  className="h-full w-full object-cover"
+                  className={`relative w-full rounded object-cover ${
+                    type === 'music' ? 'aspect-square' : 'aspect-[2/3]'
+                  }`}
                 />
               ) : (
-                <div className="text-muted-foreground flex h-full items-center justify-center">
+                <div
+                  className={`text-muted-foreground flex w-full items-center justify-center ${
+                    type === 'music' ? 'aspect-square' : 'aspect-[2/3]'
+                  }`}
+                >
                   Cover
                 </div>
               )}
@@ -398,101 +407,133 @@ export default function RecordEditorSurface({ record, onCancel }: IRecordEditorS
               type="button"
               onClick={() => coverInputRef.current?.click()}
               aria-label="Upload cover"
-              className="focus-ring hover:bg-muted text-muted-foreground hover:text-foreground flex h-9 w-full items-center justify-center gap-2 rounded-md border text-sm transition-colors"
+              className="focus-ring bg-background/90 hover:bg-background text-muted-foreground hover:text-foreground absolute bottom-2 left-2 flex size-8 items-center justify-center rounded-md border shadow-sm backdrop-blur transition-colors"
             >
               <ImagePlusIcon className="size-4" />
-              {pendingCoverFile ? 'Replace' : 'Upload'}
             </button>
           </div>
 
-          <div className="grid content-start gap-3">
-            <input
-              name="record-title"
-              aria-label="Record title"
-              value={title}
-              onChange={event => setTitle(event.target.value)}
-              placeholder="Title"
-              className="placeholder:text-muted-foreground bg-transparent text-xl font-bold outline-none"
-            />
-            <div className="flex flex-wrap gap-2">
+          <input
+            name="record-title"
+            aria-label="Record title"
+            value={title}
+            onChange={event => setTitle(event.target.value)}
+            placeholder="Title"
+            className="placeholder:text-muted-foreground truncate bg-transparent text-sm font-medium outline-none"
+          />
+
+          <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-1.5">
+            <select
+              name="record-type"
+              aria-label="Record type"
+              value={type}
+              onChange={event => setType(event.target.value as RecordItem['type'])}
+              className="border-border bg-background focus:border-foreground/40 min-w-0 rounded-md border px-2 py-1.5 text-xs capitalize outline-none"
+            >
               {recordTypes.map(recordType => (
-                <button
-                  key={recordType}
-                  type="button"
-                  onClick={() => setType(recordType)}
-                  data-active={type === recordType || undefined}
-                  className="focus-ring hover:bg-muted data-[active=true]:bg-muted data-[active=true]:text-foreground text-muted-foreground rounded-md border px-3 py-1.5 text-sm capitalize transition-colors"
-                >
+                <option key={recordType} value={recordType}>
                   {recordType}
-                </button>
+                </option>
               ))}
-            </div>
+            </select>
+            <button
+              type="button"
+              onClick={() => setIsReviewOpen(open => !open)}
+              data-active={isReviewOpen || undefined}
+              className="focus-ring hover:bg-muted data-[active=true]:bg-muted data-[active=true]:text-foreground text-muted-foreground hover:text-foreground flex h-8 items-center gap-1.5 rounded-md border px-2 text-xs transition-colors"
+            >
+              <MessageSquareTextIcon className="size-3.5" />
+              Review
+            </button>
+          </div>
+
+          <input
+            name="record-cover-url"
+            aria-label="Record cover URL"
+            value={displayedCoverUrl}
+            onChange={event => {
+              clearPendingCover();
+              setCoverUrl(event.target.value);
+            }}
+            onPaste={handleCoverPaste}
+            placeholder="Cover URL or paste image"
+            className="placeholder:text-muted-foreground border-border bg-transparent border-b pb-1 font-mono text-[11px] outline-none"
+          />
+          <input
+            name="record-link"
+            aria-label="Record link"
+            value={link}
+            onChange={event => setLink(event.target.value)}
+            placeholder="Link"
+            className="placeholder:text-muted-foreground border-border bg-transparent border-b pb-1 font-mono text-[11px] outline-none"
+          />
+          <div className="grid grid-cols-[minmax(0,1fr)_4rem] gap-1.5">
             <input
-              name="record-cover-url"
-              aria-label="Record cover URL"
-              value={displayedCoverUrl}
-              onChange={event => {
-                clearPendingCover();
-                setCoverUrl(event.target.value);
-              }}
-              onPaste={handleCoverPaste}
-              placeholder="Cover URL or paste image"
-              className="placeholder:text-muted-foreground border-border bg-transparent border-b pb-2 font-mono text-sm outline-none"
+              name="record-created-time"
+              aria-label="Record date"
+              type="date"
+              value={createdTime}
+              onChange={event => setCreatedTime(event.target.value)}
+              className="border-border bg-transparent border-b pb-1 font-mono text-[11px] outline-none"
             />
             <input
-              name="record-link"
-              aria-label="Record link"
-              value={link}
-              onChange={event => setLink(event.target.value)}
-              placeholder="Link"
-              className="placeholder:text-muted-foreground border-border bg-transparent border-b pb-2 font-mono text-sm outline-none"
+              name="record-rating"
+              aria-label="Record rating"
+              type="number"
+              min="0"
+              max="10"
+              step="0.5"
+              value={rating}
+              onChange={event => setRating(event.target.value)}
+              placeholder="Rate"
+              className="placeholder:text-muted-foreground border-border bg-transparent border-b pb-1 text-[11px] outline-none"
             />
-            <div className="grid gap-3 sm:grid-cols-2">
-              <input
-                name="record-created-time"
-                aria-label="Record date"
-                type="date"
-                value={createdTime}
-                onChange={event => setCreatedTime(event.target.value)}
-                className="border-border bg-transparent border-b pb-2 font-mono text-sm outline-none"
-              />
-              <input
-                name="record-rating"
-                aria-label="Record rating"
-                type="number"
-                min="0"
-                max="10"
-                step="0.5"
-                value={rating}
-                onChange={event => setRating(event.target.value)}
-                placeholder="Rating"
-                className="placeholder:text-muted-foreground border-border bg-transparent border-b pb-2 text-sm outline-none"
-              />
-            </div>
           </div>
         </div>
 
-        <MarkdownLexicalEditor
-          key={`${record?.title ?? 'new-record'}-${record?.createdTime ?? 'draft'}`}
-          value={comment}
-          onChange={setComment}
-          token={token}
-          uploadScope="records"
-          uploadEntityId={title || 'record-comment'}
-          revalidatePath="/records"
-          placeholder="Notes, review, thoughts..."
-          chrome="seamless"
-          showQuickReference={false}
-          minHeightClassName="min-h-64"
-          onRequestToken={() => setSettingsOpen(true)}
-          onImagesStaged={images => {
-            setStagedCommentImages(previousImages => {
-              const nextImages = new Map(previousImages.map(image => [image.path, image]));
-              images.forEach(image => nextImages.set(image.path, image));
-              return Array.from(nextImages.values());
-            });
-          }}
-        />
+        {isReviewOpen ? (
+          <div className="bg-background border-border absolute top-0 left-1/2 z-30 w-[calc(100vw-2rem)] max-w-md -translate-x-1/2 rounded-lg border shadow-xl max-md:fixed max-md:inset-x-3 max-md:top-auto max-md:bottom-3 max-md:w-auto max-md:translate-x-0 md:w-[28rem]">
+            <div className="border-border flex items-center gap-2 border-b p-2">
+              <div
+                ref={setToolbarPortal}
+                className="flex min-w-0 flex-1 justify-end overflow-hidden"
+              />
+              <button
+                type="button"
+                onClick={() => setIsReviewOpen(false)}
+                className="focus-ring icon-button hover:bg-muted text-muted-foreground hover:text-foreground size-8 shrink-0"
+                aria-label="Close review"
+              >
+                <XIcon className="size-4" />
+              </button>
+            </div>
+            <div className="max-h-[55vh] overflow-auto p-3">
+              <MarkdownLexicalEditor
+                key={`${record?.title ?? 'new-record'}-${record?.createdTime ?? 'draft'}`}
+                value={comment}
+                onChange={setComment}
+                token={token}
+                uploadScope="records"
+                uploadEntityId={title || 'record-comment'}
+                revalidatePath="/records"
+                placeholder="Notes, review, thoughts..."
+                chrome="seamless"
+                showQuickReference={false}
+                showMobileToolbarOverlay={false}
+                toolbarPortal={toolbarPortal}
+                minHeightClassName="min-h-48"
+                onRequestToken={() => setSettingsOpen(true)}
+                onImagesStaged={images => {
+                  setStagedCommentImages(previousImages => {
+                    const nextImages = new Map(previousImages.map(image => [image.path, image]));
+                    images.forEach(image => nextImages.set(image.path, image));
+                    return Array.from(nextImages.values());
+                  });
+                }}
+              />
+            </div>
+          </div>
+        ) : null}
 
         <input
           ref={coverInputRef}

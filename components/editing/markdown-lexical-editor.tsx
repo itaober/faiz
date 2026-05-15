@@ -159,6 +159,8 @@ interface IMarkdownLexicalEditorProps {
   minHeightClassName?: string;
   chrome?: 'panel' | 'seamless';
   showQuickReference?: boolean;
+  showMobileToolbarOverlay?: boolean;
+  toolbarPortal?: HTMLElement | null;
   onRequestToken?: () => void;
   insertUploadedImages?: boolean;
   onImagesStaged?: (images: StagedEditorImage[]) => void;
@@ -1165,6 +1167,7 @@ function EditorToolbar({
   onModeChange,
   onUploadImage,
   chrome = 'panel',
+  detached = false,
   compact = false,
 }: {
   mode: EditorMode;
@@ -1174,6 +1177,7 @@ function EditorToolbar({
   onModeChange: (mode: EditorMode) => void;
   onUploadImage: () => void;
   chrome?: 'panel' | 'seamless';
+  detached?: boolean;
   compact?: boolean;
 }) {
   const [editor] = useLexicalComposerContext();
@@ -1363,9 +1367,11 @@ function EditorToolbar({
     <>
       <div
         className={cn(
-          'bg-background/95 border-border flex items-center gap-0.5 overflow-x-auto border-b px-2 py-2 backdrop-blur',
+          'bg-background/95 border-border flex items-center gap-0.5 overflow-x-auto backdrop-blur',
+          chrome === 'panel' && 'border-b px-2 py-2',
           chrome === 'seamless' &&
-            'not-prose sticky top-2 z-20 -mx-1 mb-4 rounded-lg border px-1.5 py-1.5 shadow-sm',
+            'not-prose rounded-lg border px-1.5 py-1.5 shadow-sm supports-[backdrop-filter]:bg-background/80',
+          chrome === 'seamless' && detached && 'max-w-full',
           compact && 'rounded-t-lg border',
         )}
       >
@@ -1895,6 +1901,8 @@ export default function MarkdownLexicalEditor({
   minHeightClassName = 'min-h-72',
   chrome = 'panel',
   showQuickReference = true,
+  showMobileToolbarOverlay = true,
+  toolbarPortal,
   insertUploadedImages = true,
   onImagesStaged,
 }: IMarkdownLexicalEditorProps) {
@@ -2070,18 +2078,25 @@ export default function MarkdownLexicalEditor({
     );
   };
 
+  const toolbar = (
+    <EditorToolbar
+      mode={mode}
+      chrome={chrome}
+      detached={chrome === 'seamless'}
+      markdownTextareaRef={markdownTextareaRef}
+      markdownValue={value}
+      onMarkdownChange={onChange}
+      onModeChange={handleModeChange}
+      onUploadImage={handleUploadClick}
+    />
+  );
+  const shouldPortalToolbar = chrome === 'seamless' && !!toolbarPortal;
+
   return (
     <LexicalComposer initialConfig={initialConfig}>
       <div className={cn('relative flex min-h-0 flex-1 flex-col', className)}>
-        <EditorToolbar
-          mode={mode}
-          chrome={chrome}
-          markdownTextareaRef={markdownTextareaRef}
-          markdownValue={value}
-          onMarkdownChange={onChange}
-          onModeChange={handleModeChange}
-          onUploadImage={handleUploadClick}
-        />
+        {chrome === 'panel' ? toolbar : null}
+        {shouldPortalToolbar ? createPortal(toolbar, toolbarPortal) : null}
         <div
           className={cn(
             'relative min-h-0 flex-1 overflow-auto',
@@ -2164,18 +2179,36 @@ export default function MarkdownLexicalEditor({
           </details>
         )}
 
-        <div className={cn('sticky bottom-0 z-10 md:hidden', chrome === 'seamless' && 'hidden')}>
-          <EditorToolbar
-            mode={mode}
-            chrome={chrome}
-            markdownTextareaRef={markdownTextareaRef}
-            markdownValue={value}
-            onMarkdownChange={onChange}
-            onModeChange={handleModeChange}
-            onUploadImage={handleUploadClick}
-            compact
-          />
-        </div>
+        {shouldPortalToolbar && showMobileToolbarOverlay && (
+          <div className="fixed inset-x-3 bottom-3 z-50 md:hidden">
+            <EditorToolbar
+              mode={mode}
+              chrome={chrome}
+              detached
+              markdownTextareaRef={markdownTextareaRef}
+              markdownValue={value}
+              onMarkdownChange={onChange}
+              onModeChange={handleModeChange}
+              onUploadImage={handleUploadClick}
+              compact
+            />
+          </div>
+        )}
+
+        {chrome === 'panel' && (
+          <div className="sticky bottom-0 z-10 md:hidden">
+            <EditorToolbar
+              mode={mode}
+              chrome={chrome}
+              markdownTextareaRef={markdownTextareaRef}
+              markdownValue={value}
+              onMarkdownChange={onChange}
+              onModeChange={handleModeChange}
+              onUploadImage={handleUploadClick}
+              compact
+            />
+          </div>
+        )}
 
         {isStagingImages && (
           <div className="text-muted-foreground bg-background/80 absolute right-3 bottom-3 rounded-full border px-3 py-1 text-xs backdrop-blur">

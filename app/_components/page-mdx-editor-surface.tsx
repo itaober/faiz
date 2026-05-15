@@ -33,6 +33,7 @@ export default function PageMdxEditorSurface({
   const [draftTitle, setDraftTitle] = useState(title);
   const [draftContent, setDraftContent] = useState(() => mdxTodoListsToMarkdown(content));
   const [stagedImages, setStagedImages] = useState<StagedEditorImage[]>([]);
+  const [toolbarPortal, setToolbarPortal] = useState<HTMLElement | null>(null);
   const isSaveDisabled = isSubmitting || !draftTitle.trim();
 
   useEffect(() => {
@@ -84,7 +85,7 @@ export default function PageMdxEditorSurface({
   return (
     <>
       <div className="mb-8">
-        <div className="flex items-start justify-between gap-4">
+        <div className="flex items-start justify-between gap-3">
           <input
             name={`${page}-title`}
             aria-label="Page title"
@@ -92,6 +93,10 @@ export default function PageMdxEditorSurface({
             onChange={event => setDraftTitle(event.target.value)}
             placeholder="Page title"
             className="placeholder:text-muted-foreground min-w-0 flex-1 bg-transparent text-4xl font-bold tracking-tight outline-none"
+          />
+          <div
+            ref={setToolbarPortal}
+            className="hidden min-w-0 max-w-[52vw] flex-1 justify-end overflow-hidden md:flex"
           />
           <div className="not-prose flex shrink-0 items-center gap-1 pt-1">
             <button
@@ -135,6 +140,7 @@ export default function PageMdxEditorSurface({
           placeholder="Edit this page..."
           chrome="seamless"
           showQuickReference={false}
+          toolbarPortal={toolbarPortal}
           minHeightClassName="min-h-[48vh]"
           onRequestToken={() => setSettingsOpen(true)}
           onImagesStaged={images => {

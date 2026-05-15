@@ -52,6 +52,7 @@ export default function MemoEditorSurface({ memo, onCancel }: IMemoEditorSurface
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [draftId, setDraftId] = useState(generateMemoDraftId);
+  const [toolbarPortal, setToolbarPortal] = useState<HTMLElement | null>(null);
 
   const isEditMode = !!memo;
   const entityId = memo?.id || draftId;
@@ -233,7 +234,11 @@ export default function MemoEditorSurface({ memo, onCancel }: IMemoEditorSurface
   return (
     <>
       <section className="not-prose mb-6">
-        <div className="mb-2 flex items-center justify-end gap-1">
+        <div className="mb-2 flex items-center justify-end gap-2">
+          <div
+            ref={setToolbarPortal}
+            className="hidden min-w-0 flex-1 justify-end overflow-hidden md:flex"
+          />
           <button
             type="button"
             onClick={onCancel}
@@ -271,6 +276,7 @@ export default function MemoEditorSurface({ memo, onCancel }: IMemoEditorSurface
           placeholder="Write something..."
           chrome="seamless"
           showQuickReference={false}
+          toolbarPortal={toolbarPortal}
           minHeightClassName="min-h-64"
           onRequestToken={() => setIsSettingsOpen(true)}
           insertUploadedImages={false}
