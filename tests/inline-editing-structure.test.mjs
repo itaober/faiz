@@ -6,13 +6,13 @@ const read = path => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8'
 const expectations = [
   {
     file: 'app/posts/_components/posts-title-actions.tsx',
-    forbidden: ['post-editor-drawer'],
-    required: ['usePostsInlineComposer'],
+    forbidden: ['post-editor-drawer', 'usePostsInlineComposer'],
+    required: ["router.push('/posts/new')"],
   },
   {
     file: 'app/posts/_components/posts-list.tsx',
-    forbidden: ['post-editor-drawer'],
-    required: ['post-editor-surface'],
+    forbidden: ['post-editor-drawer', 'post-editor-surface'],
+    required: ['PostItem'],
   },
   {
     file: 'app/posts/_components/post-detail-actions.tsx',

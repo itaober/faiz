@@ -15,10 +15,6 @@ interface IMemoCardInlineProps {
 export default function MemoCardInline({ memo, children }: IMemoCardInlineProps) {
   const [isEditing, setIsEditing] = useState(false);
 
-  if (isEditing) {
-    return <MemoEditorSurface memo={memo} onCancel={() => setIsEditing(false)} />;
-  }
-
   return (
     <div>
       <header className="flex items-center justify-between gap-2">
@@ -37,7 +33,13 @@ export default function MemoCardInline({ memo, children }: IMemoCardInlineProps)
         <div className="flex h-auto w-3 shrink-0 justify-center">
           <div className="bg-border h-full w-px" />
         </div>
-        <div className="min-w-0 flex-1">{children}</div>
+        <div className="min-w-0 flex-1">
+          {isEditing ? (
+            <MemoEditorSurface memo={memo} onCancel={() => setIsEditing(false)} />
+          ) : (
+            children
+          )}
+        </div>
       </div>
     </div>
   );

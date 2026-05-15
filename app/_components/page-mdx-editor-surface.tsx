@@ -10,6 +10,7 @@ import { useEditMode } from '@/components/edit-mode-context';
 import GitHubTokenDrawer from '@/components/editing/github-token-drawer';
 import MarkdownLexicalEditor from '@/components/editing/markdown-lexical-editor';
 import { uploadStagedEditorImages } from '@/components/editing/upload-staged-editor-images';
+import { markdownTodoListsToMdx, mdxTodoListsToMarkdown } from '@/lib/mdx-editing';
 import type { StagedEditorImage } from '@/lib/utils/editor-image';
 
 interface IPageMdxEditorSurfaceProps {
@@ -30,13 +31,13 @@ export default function PageMdxEditorSurface({
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [draftTitle, setDraftTitle] = useState(title);
-  const [draftContent, setDraftContent] = useState(content);
+  const [draftContent, setDraftContent] = useState(() => mdxTodoListsToMarkdown(content));
   const [stagedImages, setStagedImages] = useState<StagedEditorImage[]>([]);
   const isSaveDisabled = isSubmitting || !draftTitle.trim();
 
   useEffect(() => {
     setDraftTitle(title);
-    setDraftContent(content);
+    setDraftContent(mdxTodoListsToMarkdown(content));
     setStagedImages([]);
   }, [content, title]);
 
@@ -58,7 +59,7 @@ export default function PageMdxEditorSurface({
       const result = await updatePageAction({
         page,
         title: draftTitle,
-        content: draftContent,
+        content: markdownTodoListsToMdx(draftContent),
         token,
       });
       if (!result.success) {
@@ -82,10 +83,17 @@ export default function PageMdxEditorSurface({
 
   return (
     <>
-      <section className="not-prose bg-background/95 border-border mb-8 overflow-hidden rounded-lg border">
-        <div className="border-border flex items-center justify-between border-b px-3 py-2">
-          <p className="text-muted-foreground text-sm">Editing {page}</p>
-          <div className="flex items-center gap-1">
+      <div className="mb-8">
+        <div className="flex items-start justify-between gap-4">
+          <input
+            name={`${page}-title`}
+            aria-label="Page title"
+            value={draftTitle}
+            onChange={event => setDraftTitle(event.target.value)}
+            placeholder="Page title"
+            className="placeholder:text-muted-foreground min-w-0 flex-1 bg-transparent text-4xl font-bold tracking-tight outline-none"
+          />
+          <div className="not-prose flex shrink-0 items-center gap-1 pt-1">
             <button
               type="button"
               onClick={onCancel}
@@ -113,18 +121,9 @@ export default function PageMdxEditorSurface({
             </button>
           </div>
         </div>
+      </div>
 
-        <div className="border-border border-b px-4 py-4">
-          <input
-            name={`${page}-title`}
-            aria-label="Page title"
-            value={draftTitle}
-            onChange={event => setDraftTitle(event.target.value)}
-            placeholder="Page title"
-            className="placeholder:text-muted-foreground w-full bg-transparent text-4xl font-bold tracking-tight outline-none"
-          />
-        </div>
-
+      <div className="mb-8">
         <MarkdownLexicalEditor
           key={page}
           value={draftContent}
@@ -134,6 +133,8 @@ export default function PageMdxEditorSurface({
           uploadEntityId={page}
           revalidatePath={page === 'about' ? '/' : `/${page}`}
           placeholder="Edit this page..."
+          chrome="seamless"
+          showQuickReference={false}
           minHeightClassName="min-h-[48vh]"
           onRequestToken={() => setSettingsOpen(true)}
           onImagesStaged={images => {
@@ -144,7 +145,7 @@ export default function PageMdxEditorSurface({
             });
           }}
         />
-      </section>
+      </div>
 
       <GitHubTokenDrawer open={settingsOpen} onOpenChange={setSettingsOpen} />
     </>

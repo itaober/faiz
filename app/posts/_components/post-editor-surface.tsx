@@ -123,10 +123,17 @@ export default function PostEditorSurface({ post, onCancel }: IPostEditorSurface
 
   return (
     <>
-      <section className="not-prose bg-background/95 border-border mb-8 overflow-hidden rounded-lg border">
-        <div className="border-border flex items-center justify-between border-b px-3 py-2">
-          <p className="text-muted-foreground text-sm">{isEdit ? 'Editing post' : 'New post'}</p>
-          <div className="flex items-center gap-1">
+      <div className="mb-8">
+        <div className="flex items-start justify-between gap-4">
+          <input
+            name="post-title"
+            aria-label="Post title"
+            value={title}
+            onChange={event => handleTitleChange(event.target.value)}
+            placeholder="Post title"
+            className="placeholder:text-muted-foreground min-w-0 flex-1 bg-transparent text-4xl font-bold tracking-tight outline-none"
+          />
+          <div className="not-prose flex shrink-0 items-center gap-1 pt-1">
             <button
               type="button"
               onClick={onCancel}
@@ -154,48 +161,39 @@ export default function PostEditorSurface({ post, onCancel }: IPostEditorSurface
             </button>
           </div>
         </div>
-
-        <div className="border-border grid gap-3 border-b px-4 py-4">
+        <div className="text-muted-foreground mt-2 grid gap-3 md:grid-cols-[1fr_1fr_auto]">
           <input
-            name="post-title"
-            aria-label="Post title"
-            value={title}
-            onChange={event => handleTitleChange(event.target.value)}
-            placeholder="Post title"
-            className="placeholder:text-muted-foreground bg-transparent text-3xl font-bold tracking-tight outline-none"
+            name="post-slug"
+            aria-label="Post slug"
+            value={slug}
+            onChange={event => {
+              setSlugTouched(true);
+              setSlug(slugify(event.target.value));
+            }}
+            placeholder="post-slug"
+            className="placeholder:text-muted-foreground border-border bg-transparent border-b pb-2 font-mono text-sm outline-none"
           />
-          <div className="grid gap-3 md:grid-cols-[1fr_1fr_auto]">
-            <input
-              name="post-slug"
-              aria-label="Post slug"
-              value={slug}
-              onChange={event => {
-                setSlugTouched(true);
-                setSlug(slugify(event.target.value));
-              }}
-              placeholder="post-slug"
-              className="placeholder:text-muted-foreground border-border bg-transparent border-b pb-2 font-mono text-sm outline-none"
-            />
-            <input
-              name="post-tags"
-              aria-label="Post tags"
-              value={tags}
-              onChange={event => setTags(event.target.value)}
-              placeholder="tags, separated, by comma"
-              className="placeholder:text-muted-foreground border-border bg-transparent border-b pb-2 text-sm outline-none"
-            />
-            <button
-              type="button"
-              onClick={() => setPinned(value => !value)}
-              data-active={pinned || undefined}
-              className="focus-ring hover:bg-muted data-[active=true]:text-foreground data-[active=true]:bg-muted text-muted-foreground flex h-9 items-center gap-2 rounded-md px-3 text-sm transition-colors"
-            >
-              <PinIcon className="size-4" />
-              Pinned
-            </button>
-          </div>
+          <input
+            name="post-tags"
+            aria-label="Post tags"
+            value={tags}
+            onChange={event => setTags(event.target.value)}
+            placeholder="tags, separated, by comma"
+            className="placeholder:text-muted-foreground border-border bg-transparent border-b pb-2 text-sm outline-none"
+          />
+          <button
+            type="button"
+            onClick={() => setPinned(value => !value)}
+            data-active={pinned || undefined}
+            className="focus-ring hover:bg-muted data-[active=true]:text-foreground data-[active=true]:bg-muted text-muted-foreground flex h-9 items-center gap-2 rounded-md px-3 text-sm transition-colors"
+          >
+            <PinIcon className="size-4" />
+            Pinned
+          </button>
         </div>
+      </div>
 
+      <div className="mb-8">
         <MarkdownLexicalEditor
           key={post?.slug ?? 'new-post'}
           value={content}
@@ -205,6 +203,8 @@ export default function PostEditorSurface({ post, onCancel }: IPostEditorSurface
           uploadEntityId={uploadEntityId}
           revalidatePath={isEdit && post ? `/posts/${post.slug}` : '/posts'}
           placeholder="Start writing..."
+          chrome="seamless"
+          showQuickReference={false}
           minHeightClassName="min-h-[48vh]"
           onRequestToken={() => setIsSettingsOpen(true)}
           onImagesStaged={images => {
@@ -215,7 +215,7 @@ export default function PostEditorSurface({ post, onCancel }: IPostEditorSurface
             });
           }}
         />
-      </section>
+      </div>
 
       <GitHubTokenDrawer open={isSettingsOpen} onOpenChange={setIsSettingsOpen} />
     </>

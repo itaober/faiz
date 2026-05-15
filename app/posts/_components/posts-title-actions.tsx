@@ -1,18 +1,17 @@
 'use client';
 
 import { PlusIcon } from 'lucide-react';
-
-import { usePostsInlineComposer } from './use-posts-inline-composer';
+import { useRouter } from 'next/navigation';
 
 export default function PostsTitleActions() {
-  const { setComposerOpen } = usePostsInlineComposer();
+  const router = useRouter();
 
   return (
     <button
       type="button"
       onClick={event => {
         event.currentTarget.blur();
-        setComposerOpen(true);
+        router.push('/posts/new');
       }}
       className="focus-ring hover:bg-muted text-muted-foreground hover:text-foreground flex size-11 items-center justify-center rounded-md transition-colors md:size-8"
       aria-label="Add post"

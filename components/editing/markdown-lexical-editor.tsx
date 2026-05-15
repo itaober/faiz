@@ -157,6 +157,8 @@ interface IMarkdownLexicalEditorProps {
   className?: string;
   editorClassName?: string;
   minHeightClassName?: string;
+  chrome?: 'panel' | 'seamless';
+  showQuickReference?: boolean;
   onRequestToken?: () => void;
   insertUploadedImages?: boolean;
   onImagesStaged?: (images: StagedEditorImage[]) => void;
@@ -1162,6 +1164,7 @@ function EditorToolbar({
   onMarkdownChange,
   onModeChange,
   onUploadImage,
+  chrome = 'panel',
   compact = false,
 }: {
   mode: EditorMode;
@@ -1170,6 +1173,7 @@ function EditorToolbar({
   onMarkdownChange: (value: string) => void;
   onModeChange: (mode: EditorMode) => void;
   onUploadImage: () => void;
+  chrome?: 'panel' | 'seamless';
   compact?: boolean;
 }) {
   const [editor] = useLexicalComposerContext();
@@ -1360,6 +1364,8 @@ function EditorToolbar({
       <div
         className={cn(
           'bg-background/95 border-border flex items-center gap-0.5 overflow-x-auto border-b px-2 py-2 backdrop-blur',
+          chrome === 'seamless' &&
+            'not-prose sticky top-2 z-20 -mx-1 mb-4 rounded-lg border px-1.5 py-1.5 shadow-sm',
           compact && 'rounded-t-lg border',
         )}
       >
@@ -1887,6 +1893,8 @@ export default function MarkdownLexicalEditor({
   editorClassName,
   editorFooter,
   minHeightClassName = 'min-h-72',
+  chrome = 'panel',
+  showQuickReference = true,
   insertUploadedImages = true,
   onImagesStaged,
 }: IMarkdownLexicalEditorProps) {
@@ -2067,6 +2075,7 @@ export default function MarkdownLexicalEditor({
       <div className={cn('relative flex min-h-0 flex-1 flex-col', className)}>
         <EditorToolbar
           mode={mode}
+          chrome={chrome}
           markdownTextareaRef={markdownTextareaRef}
           markdownValue={value}
           onMarkdownChange={onChange}
@@ -2075,8 +2084,9 @@ export default function MarkdownLexicalEditor({
         />
         <div
           className={cn(
-            'border-border relative min-h-0 flex-1 overflow-auto',
-            editorFooter ? '' : 'border-b',
+            'relative min-h-0 flex-1 overflow-auto',
+            chrome === 'panel' && 'border-border',
+            chrome === 'panel' && (editorFooter ? '' : 'border-b'),
           )}
         >
           <EditorRefPlugin editorRef={editorRef} />
@@ -2092,7 +2102,8 @@ export default function MarkdownLexicalEditor({
                       </div>
                     }
                     className={cn(
-                      'prose dark:prose-invert max-w-none px-4 py-4 text-base leading-relaxed outline-none',
+                      'prose dark:prose-invert text-base leading-relaxed outline-none',
+                      chrome === 'panel' ? 'max-w-none px-4 py-4' : 'px-0 py-0',
                       minHeightClassName,
                       editorClassName,
                     )}
@@ -2127,7 +2138,8 @@ export default function MarkdownLexicalEditor({
               onPaste={handleImagePaste}
               placeholder={placeholder}
               className={cn(
-                'placeholder:text-muted-foreground w-full resize-none bg-transparent px-4 py-4 font-mono text-sm leading-6 outline-none',
+                'placeholder:text-muted-foreground w-full resize-none bg-transparent font-mono text-sm leading-6 outline-none',
+                chrome === 'panel' ? 'px-4 py-4' : 'px-0 py-0',
                 minHeightClassName,
               )}
             />
@@ -2136,23 +2148,26 @@ export default function MarkdownLexicalEditor({
 
         {editorFooter}
 
-        <details className="border-border bg-background group border-b px-4 py-3 text-sm">
-          <summary className="text-muted-foreground hover:text-foreground cursor-pointer list-none">
-            Markdown quick reference
-          </summary>
-          <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 md:grid-cols-3">
-            {markdownHelp.map(([syntax, label]) => (
-              <div key={syntax} className="flex flex-col gap-0.5">
-                <code className="bg-muted rounded px-1.5 py-1 font-mono text-xs">{syntax}</code>
-                <span className="text-muted-foreground text-xs">{label}</span>
-              </div>
-            ))}
-          </div>
-        </details>
+        {showQuickReference && (
+          <details className="border-border bg-background group border-b px-4 py-3 text-sm">
+            <summary className="text-muted-foreground hover:text-foreground cursor-pointer list-none">
+              Markdown quick reference
+            </summary>
+            <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 md:grid-cols-3">
+              {markdownHelp.map(([syntax, label]) => (
+                <div key={syntax} className="flex flex-col gap-0.5">
+                  <code className="bg-muted rounded px-1.5 py-1 font-mono text-xs">{syntax}</code>
+                  <span className="text-muted-foreground text-xs">{label}</span>
+                </div>
+              ))}
+            </div>
+          </details>
+        )}
 
-        <div className="sticky bottom-0 z-10 md:hidden">
+        <div className={cn('sticky bottom-0 z-10 md:hidden', chrome === 'seamless' && 'hidden')}>
           <EditorToolbar
             mode={mode}
+            chrome={chrome}
             markdownTextareaRef={markdownTextareaRef}
             markdownValue={value}
             onMarkdownChange={onChange}

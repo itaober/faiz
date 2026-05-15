@@ -232,38 +232,33 @@ export default function MemoEditorSurface({ memo, onCancel }: IMemoEditorSurface
 
   return (
     <>
-      <section className="not-prose bg-background/95 border-border mb-6 overflow-hidden rounded-lg border">
-        <div className="border-border flex items-center justify-between border-b px-3 py-2">
-          <p className="text-muted-foreground text-sm">
-            {isEditMode ? 'Editing memo' : 'New memo'}
-          </p>
-          <div className="flex items-center gap-1">
-            <button
-              type="button"
-              onClick={onCancel}
-              className="focus-ring icon-button hover:bg-muted text-muted-foreground hover:text-foreground size-9"
-              aria-label="Cancel editing"
-            >
-              <XIcon className="size-4" />
-            </button>
-            <button
-              type="button"
-              onClick={() => setIsSettingsOpen(true)}
-              className="focus-ring icon-button hover:bg-muted text-muted-foreground hover:text-foreground size-9"
-              aria-label="Settings"
-            >
-              <SettingsIcon className="size-4" />
-            </button>
-            <button
-              type="button"
-              onClick={handleSubmit}
-              disabled={isDisabled}
-              className="focus-ring icon-button hover:bg-muted text-muted-foreground hover:text-foreground disabled:text-muted-foreground/50 size-9 disabled:cursor-not-allowed"
-              aria-label={isEditMode ? 'Update memo' : 'Publish memo'}
-            >
-              <SaveIcon className="size-4" />
-            </button>
-          </div>
+      <section className="not-prose mb-6">
+        <div className="mb-2 flex items-center justify-end gap-1">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="focus-ring icon-button hover:bg-muted text-muted-foreground hover:text-foreground size-9"
+            aria-label="Cancel editing"
+          >
+            <XIcon className="size-4" />
+          </button>
+          <button
+            type="button"
+            onClick={() => setIsSettingsOpen(true)}
+            className="focus-ring icon-button hover:bg-muted text-muted-foreground hover:text-foreground size-9"
+            aria-label="Settings"
+          >
+            <SettingsIcon className="size-4" />
+          </button>
+          <button
+            type="button"
+            onClick={handleSubmit}
+            disabled={isDisabled}
+            className="focus-ring icon-button hover:bg-muted text-muted-foreground hover:text-foreground disabled:text-muted-foreground/50 size-9 disabled:cursor-not-allowed"
+            aria-label={isEditMode ? 'Update memo' : 'Publish memo'}
+          >
+            <SaveIcon className="size-4" />
+          </button>
         </div>
         <MarkdownLexicalEditor
           key={entityId}
@@ -274,6 +269,8 @@ export default function MemoEditorSurface({ memo, onCancel }: IMemoEditorSurface
           uploadEntityId={entityId}
           revalidatePath="/memos"
           placeholder="Write something..."
+          chrome="seamless"
+          showQuickReference={false}
           minHeightClassName="min-h-64"
           onRequestToken={() => setIsSettingsOpen(true)}
           insertUploadedImages={false}

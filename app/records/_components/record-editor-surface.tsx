@@ -343,41 +343,36 @@ export default function RecordEditorSurface({ record, onCancel }: IRecordEditorS
 
   return (
     <>
-      <section className="not-prose bg-background/95 border-border mb-6 overflow-hidden rounded-lg border">
-        <div className="border-border flex items-center justify-between border-b px-3 py-2">
-          <p className="text-muted-foreground text-sm">
-            {isEdit ? 'Editing record' : 'New record'}
-          </p>
-          <div className="flex items-center gap-1">
-            <button
-              type="button"
-              onClick={onCancel}
-              className="focus-ring icon-button hover:bg-muted text-muted-foreground hover:text-foreground size-9"
-              aria-label="Cancel editing"
-            >
-              <XIcon className="size-4" />
-            </button>
-            <button
-              type="button"
-              onClick={() => setSettingsOpen(true)}
-              className="focus-ring icon-button hover:bg-muted text-muted-foreground hover:text-foreground size-9"
-              aria-label="Settings"
-            >
-              <SettingsIcon className="size-4" />
-            </button>
-            <button
-              type="button"
-              onClick={handleSubmit}
-              disabled={isSaveDisabled}
-              className="focus-ring icon-button hover:bg-muted text-muted-foreground hover:text-foreground disabled:text-muted-foreground/50 size-9 disabled:cursor-not-allowed"
-              aria-label="Save record"
-            >
-              <SaveIcon className="size-4" />
-            </button>
-          </div>
+      <section className="not-prose mb-6">
+        <div className="mb-2 flex items-center justify-end gap-1">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="focus-ring icon-button hover:bg-muted text-muted-foreground hover:text-foreground size-9"
+            aria-label="Cancel editing"
+          >
+            <XIcon className="size-4" />
+          </button>
+          <button
+            type="button"
+            onClick={() => setSettingsOpen(true)}
+            className="focus-ring icon-button hover:bg-muted text-muted-foreground hover:text-foreground size-9"
+            aria-label="Settings"
+          >
+            <SettingsIcon className="size-4" />
+          </button>
+          <button
+            type="button"
+            onClick={handleSubmit}
+            disabled={isSaveDisabled}
+            className="focus-ring icon-button hover:bg-muted text-muted-foreground hover:text-foreground disabled:text-muted-foreground/50 size-9 disabled:cursor-not-allowed"
+            aria-label="Save record"
+          >
+            <SaveIcon className="size-4" />
+          </button>
         </div>
 
-        <div className="grid gap-4 px-4 py-4 md:grid-cols-[8rem_1fr]">
+        <div className="grid gap-4 md:grid-cols-[8rem_1fr]">
           <div className="space-y-2" onPaste={handleCoverPaste}>
             <div
               tabIndex={0}
@@ -486,6 +481,8 @@ export default function RecordEditorSurface({ record, onCancel }: IRecordEditorS
           uploadEntityId={title || 'record-comment'}
           revalidatePath="/records"
           placeholder="Notes, review, thoughts..."
+          chrome="seamless"
+          showQuickReference={false}
           minHeightClassName="min-h-64"
           onRequestToken={() => setSettingsOpen(true)}
           onImagesStaged={images => {
