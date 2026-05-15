@@ -11,3 +11,10 @@
 .nvmrc
 *.tsx.snap
 pnpm-lock.yaml
+skills-lock.json
+.claude/**
+.agents/**
+.playwright-cli/**
+.next/**
+Design/**
+output/**
