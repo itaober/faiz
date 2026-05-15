@@ -79,6 +79,15 @@
   ],
   "music": [
     {
+      "title": "无法停止我的音乐",
+      "link": "https://music.douban.com/subject/3236064",
+      "coverUrl": "/api/image/assets/records/record-cover_f3r8tm.webp",
+      "createdTime": "2026-05-15",
+      "rating": 8.2,
+      "comment": "hahaha",
+      "type": "music"
+    },
+    {
       "title": "The Dark Side of the Moon",
       "link": "https://music.douban.com/subject/1395685/",
       "coverUrl": "/api/image/assets/records/music_the_dark_side_of_the_moon.jpg",
