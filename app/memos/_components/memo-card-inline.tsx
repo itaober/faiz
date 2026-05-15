@@ -27,7 +27,7 @@ export default function MemoCardInline({ memo, children }: IMemoCardInlineProps)
             {memo.createdTime}
           </time>
         </div>
-        <MemoCardActions memo={memo} onEdit={() => setIsEditing(true)} />
+        {isEditing ? null : <MemoCardActions memo={memo} onEdit={() => setIsEditing(true)} />}
       </header>
       <div className="flex w-full gap-2 md:gap-4">
         <div className="flex h-auto w-3 shrink-0 justify-center">

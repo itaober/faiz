@@ -94,10 +94,7 @@ export default function PageMdxEditorSurface({
             placeholder="Page title"
             className="placeholder:text-muted-foreground min-w-0 flex-1 bg-transparent text-4xl font-bold tracking-tight outline-none"
           />
-          <div
-            ref={setToolbarPortal}
-            className="hidden min-w-0 max-w-[52vw] flex-1 justify-end overflow-hidden md:flex"
-          />
+          <div ref={setToolbarPortal} className="hidden shrink-0 md:flex" />
           <div className="not-prose flex shrink-0 items-center gap-1 pt-1">
             <button
               type="button"

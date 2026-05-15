@@ -1136,6 +1136,35 @@ function ToolbarDivider() {
   return <div className="bg-border mx-1 h-5 w-px shrink-0" />;
 }
 
+function ToolbarTriggerButton({
+  active,
+  buttonRef,
+  className,
+  onClick,
+}: {
+  active: boolean;
+  buttonRef: MutableRefObject<HTMLButtonElement | null>;
+  className?: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      ref={buttonRef}
+      type="button"
+      onClick={onClick}
+      data-active={active || undefined}
+      title="Formatting tools"
+      aria-label={active ? 'Hide formatting tools' : 'Show formatting tools'}
+      className={cn(
+        'focus-ring icon-button hover:bg-muted data-[active=true]:bg-muted data-[active=true]:text-foreground text-muted-foreground hover:text-foreground size-9',
+        className,
+      )}
+    >
+      <PanelTopIcon className="size-4" />
+    </button>
+  );
+}
+
 function SelectionBubbleButton({
   label,
   onClick,
@@ -1912,8 +1941,18 @@ export default function MarkdownLexicalEditor({
   const editorRef = useRef<LexicalEditor | null>(null);
   const markdownTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const markdownUploadSelectionRef = useRef<{ end: number; start: number } | null>(null);
+  const toolbarTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const mobileToolbarTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const toolbarPopoverRef = useRef<HTMLDivElement | null>(null);
   const previewSrcByImageSrcRef = useRef(new Map<string, string>());
   const stagedImageIdsRef = useRef(new Map<string, number>());
+  const [isToolbarOpen, setIsToolbarOpen] = useState(false);
+  const [toolbarPopoverPortal, setToolbarPopoverPortal] = useState<HTMLElement | null>(null);
+  const [toolbarPopoverStyle, setToolbarPopoverStyle] = useState<CSSProperties>({});
+
+  useEffect(() => {
+    setToolbarPopoverPortal(document.body);
+  }, []);
 
   const handleModeChange = useCallback(
     (nextMode: EditorMode) => {
@@ -2078,7 +2117,7 @@ export default function MarkdownLexicalEditor({
     );
   };
 
-  const toolbar = (
+  const renderToolbar = (compact = false) => (
     <EditorToolbar
       mode={mode}
       chrome={chrome}
@@ -2088,15 +2127,123 @@ export default function MarkdownLexicalEditor({
       onMarkdownChange={onChange}
       onModeChange={handleModeChange}
       onUploadImage={handleUploadClick}
+      compact={compact}
     />
   );
   const shouldPortalToolbar = chrome === 'seamless' && !!toolbarPortal;
 
+  const getVisibleToolbarAnchor = useCallback(() => {
+    const anchors = [toolbarTriggerRef.current, mobileToolbarTriggerRef.current];
+    return (
+      anchors.find(anchor => {
+        if (!anchor) {
+          return false;
+        }
+
+        const rect = anchor.getBoundingClientRect();
+        return rect.width > 0 && rect.height > 0;
+      }) ?? null
+    );
+  }, []);
+
+  const updateToolbarPopoverPosition = useCallback(() => {
+    const anchor = getVisibleToolbarAnchor();
+
+    if (!anchor) {
+      return;
+    }
+
+    if (window.innerWidth < 768) {
+      setToolbarPopoverStyle({
+        bottom: 12,
+        left: 12,
+        position: 'fixed',
+        right: 12,
+      });
+      return;
+    }
+
+    const rect = anchor.getBoundingClientRect();
+    const width = Math.min(680, window.innerWidth - 24);
+    const left = Math.max(12, Math.min(window.innerWidth - width - 12, rect.right - width));
+    const belowTop = rect.bottom + 10;
+    const aboveTop = rect.top - 58;
+    const hasRoomAbove = aboveTop >= 12;
+
+    setToolbarPopoverStyle({
+      left,
+      position: 'fixed',
+      top: hasRoomAbove ? aboveTop : belowTop,
+      width,
+    });
+  }, [getVisibleToolbarAnchor]);
+
+  const toggleToolbar = useCallback(() => {
+    setIsToolbarOpen(open => {
+      const nextOpen = !open;
+      if (nextOpen) {
+        window.requestAnimationFrame(updateToolbarPopoverPosition);
+      }
+      return nextOpen;
+    });
+  }, [updateToolbarPopoverPosition]);
+
+  useEffect(() => {
+    if (!isToolbarOpen) {
+      return;
+    }
+
+    window.requestAnimationFrame(updateToolbarPopoverPosition);
+
+    const handlePointerDown = (event: PointerEvent) => {
+      const target = event.target;
+      if (!(target instanceof Node)) {
+        return;
+      }
+
+      if (
+        toolbarPopoverRef.current?.contains(target) ||
+        toolbarTriggerRef.current?.contains(target) ||
+        mobileToolbarTriggerRef.current?.contains(target)
+      ) {
+        return;
+      }
+
+      setIsToolbarOpen(false);
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsToolbarOpen(false);
+      }
+    };
+
+    document.addEventListener('pointerdown', handlePointerDown, true);
+    document.addEventListener('keydown', handleKeyDown, true);
+    window.addEventListener('resize', updateToolbarPopoverPosition);
+    window.addEventListener('scroll', updateToolbarPopoverPosition, true);
+
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown, true);
+      document.removeEventListener('keydown', handleKeyDown, true);
+      window.removeEventListener('resize', updateToolbarPopoverPosition);
+      window.removeEventListener('scroll', updateToolbarPopoverPosition, true);
+    };
+  }, [isToolbarOpen, updateToolbarPopoverPosition]);
+
+  const toolbarTrigger = (
+    <ToolbarTriggerButton
+      active={isToolbarOpen}
+      buttonRef={toolbarTriggerRef}
+      onClick={toggleToolbar}
+    />
+  );
+
   return (
     <LexicalComposer initialConfig={initialConfig}>
       <div className={cn('relative flex min-h-0 flex-1 flex-col', className)}>
-        {chrome === 'panel' ? toolbar : null}
-        {shouldPortalToolbar ? createPortal(toolbar, toolbarPortal) : null}
+        {chrome === 'panel' ? renderToolbar() : null}
+        {shouldPortalToolbar ? createPortal(toolbarTrigger, toolbarPortal) : null}
         <div
           className={cn(
             'relative min-h-0 flex-1 overflow-auto',
@@ -2180,20 +2327,28 @@ export default function MarkdownLexicalEditor({
         )}
 
         {shouldPortalToolbar && showMobileToolbarOverlay && (
-          <div className="fixed inset-x-3 bottom-3 z-50 md:hidden">
-            <EditorToolbar
-              mode={mode}
-              chrome={chrome}
-              detached
-              markdownTextareaRef={markdownTextareaRef}
-              markdownValue={value}
-              onMarkdownChange={onChange}
-              onModeChange={handleModeChange}
-              onUploadImage={handleUploadClick}
-              compact
+          <div className="fixed right-3 bottom-3 z-50 md:hidden">
+            <ToolbarTriggerButton
+              active={isToolbarOpen}
+              buttonRef={mobileToolbarTriggerRef}
+              onClick={toggleToolbar}
+              className="bg-background/90 border-border border shadow-lg backdrop-blur"
             />
           </div>
         )}
+
+        {isToolbarOpen && toolbarPopoverPortal
+          ? createPortal(
+              <div
+                ref={toolbarPopoverRef}
+                className="not-prose pointer-events-auto z-[70]"
+                style={toolbarPopoverStyle}
+              >
+                {renderToolbar(true)}
+              </div>,
+              toolbarPopoverPortal,
+            )
+          : null}
 
         {chrome === 'panel' && (
           <div className="sticky bottom-0 z-10 md:hidden">

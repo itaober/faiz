@@ -235,10 +235,7 @@ export default function MemoEditorSurface({ memo, onCancel }: IMemoEditorSurface
     <>
       <section className="not-prose mb-6">
         <div className="mb-2 flex items-center justify-end gap-2">
-          <div
-            ref={setToolbarPortal}
-            className="hidden min-w-0 flex-1 justify-end overflow-hidden md:flex"
-          />
+          <div ref={setToolbarPortal} className="hidden shrink-0 md:flex" />
           <button
             type="button"
             onClick={onCancel}

@@ -29,7 +29,7 @@ for (const [name, source] of Object.entries({
   assert.equal(
     source.includes('toolbarPortal'),
     true,
-    `${name} editor should portal the toolbar into the page action row`,
+    `${name} editor should portal the formatting trigger into the page action row`,
   );
   assert.equal(
     /Editing (about|post|memo|record|\$\{page\})|New (post|memo|record)/.test(source),
@@ -57,6 +57,12 @@ assert.equal(
 );
 
 assert.equal(
+  files.memoInline.includes('isEditing ? null : <MemoCardActions'),
+  true,
+  'memo edit should hide the original edit/delete actions while the inline editor is active',
+);
+
+assert.equal(
   files.recordItem.includes('RecordEditorSurface') && files.recordItem.includes('motion.div'),
   true,
   'record edit should keep the original record card shell editable in place',
@@ -79,9 +85,17 @@ assert.equal(
 );
 
 assert.equal(
+  files.record.includes('Record details') && !files.record.includes('useState(!record)'),
+  true,
+  'record maintenance fields should live behind an explicit details popover, not open by default',
+);
+
+assert.equal(
   files.markdownEditor.includes('toolbarPortal') &&
     files.markdownEditor.includes('createPortal') &&
-    files.markdownEditor.includes('fixed inset-x-3 bottom-3'),
+    files.markdownEditor.includes('ToolbarTriggerButton') &&
+    files.markdownEditor.includes('Formatting tools') &&
+    files.markdownEditor.includes('toolbarPopoverRef'),
   true,
-  'seamless toolbar should support desktop portal and mobile overlay without pushing layout',
+  'seamless toolbar should render as an on-demand formatting popover without pushing layout',
 );

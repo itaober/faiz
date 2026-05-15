@@ -118,6 +118,7 @@ export default function RecordEditorSurface({ record, onCancel }: IRecordEditorS
   const [comment, setComment] = useState(record?.comment ?? '');
   const [stagedCommentImages, setStagedCommentImages] = useState<StagedEditorImage[]>([]);
   const [isReviewOpen, setIsReviewOpen] = useState(false);
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [toolbarPortal, setToolbarPortal] = useState<HTMLElement | null>(null);
   const coverInputRef = useRef<HTMLInputElement>(null);
 
@@ -158,6 +159,7 @@ export default function RecordEditorSurface({ record, onCancel }: IRecordEditorS
     setComment(record?.comment ?? '');
     setStagedCommentImages([]);
     setIsReviewOpen(false);
+    setIsDetailsOpen(false);
   }, [record]);
 
   useEffect(() => {
@@ -347,7 +349,7 @@ export default function RecordEditorSurface({ record, onCancel }: IRecordEditorS
   return (
     <>
       <section className="not-prose relative min-w-0">
-        <div className="bg-background/85 border-border absolute top-2 right-2 z-20 flex items-center gap-0.5 rounded-md border p-0.5 shadow-sm backdrop-blur">
+        <div className="bg-background/80 border-border/80 absolute top-2 right-2 z-20 flex items-center gap-0.5 rounded-full border p-0.5 shadow-sm backdrop-blur">
           <button
             type="button"
             onClick={onCancel}
@@ -358,9 +360,13 @@ export default function RecordEditorSurface({ record, onCancel }: IRecordEditorS
           </button>
           <button
             type="button"
-            onClick={() => setSettingsOpen(true)}
-            className="focus-ring icon-button hover:bg-muted text-muted-foreground hover:text-foreground size-8"
-            aria-label="Settings"
+            onClick={() => {
+              setIsReviewOpen(false);
+              setIsDetailsOpen(open => !open);
+            }}
+            data-active={isDetailsOpen || undefined}
+            className="focus-ring icon-button hover:bg-muted data-[active=true]:bg-muted data-[active=true]:text-foreground text-muted-foreground hover:text-foreground size-8"
+            aria-label="Record details"
           >
             <SettingsIcon className="size-4" />
           </button>
@@ -375,14 +381,14 @@ export default function RecordEditorSurface({ record, onCancel }: IRecordEditorS
           </button>
         </div>
 
-        <div className="flex flex-col gap-1.5">
+        <div className="flex flex-col gap-2">
           <div className="relative" onPaste={handleCoverPaste}>
             <div
               tabIndex={0}
               aria-label="Record cover"
               onDrop={handleCoverDrop}
               onDragOver={event => event.preventDefault()}
-              className="focus-ring bg-muted relative overflow-hidden rounded-md border"
+              className="focus-ring bg-muted/50 border-border/70 relative overflow-hidden rounded-md border"
             >
               {coverPreviewSrc ? (
                 // eslint-disable-next-line @next/next/no-img-element
@@ -419,7 +425,7 @@ export default function RecordEditorSurface({ record, onCancel }: IRecordEditorS
             value={title}
             onChange={event => setTitle(event.target.value)}
             placeholder="Title"
-            className="placeholder:text-muted-foreground truncate bg-transparent text-sm font-medium outline-none"
+            className="placeholder:text-muted-foreground truncate bg-transparent text-sm font-medium leading-5 outline-none"
           />
 
           <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-1.5">
@@ -428,7 +434,7 @@ export default function RecordEditorSurface({ record, onCancel }: IRecordEditorS
               aria-label="Record type"
               value={type}
               onChange={event => setType(event.target.value as RecordItem['type'])}
-              className="border-border bg-background focus:border-foreground/40 min-w-0 rounded-md border px-2 py-1.5 text-xs capitalize outline-none"
+              className="border-border/70 bg-background/70 focus:border-foreground/40 min-w-0 rounded-md border px-2 py-1.5 text-xs capitalize outline-none"
             >
               {recordTypes.map(recordType => (
                 <option key={recordType} value={recordType}>
@@ -438,36 +444,19 @@ export default function RecordEditorSurface({ record, onCancel }: IRecordEditorS
             </select>
             <button
               type="button"
-              onClick={() => setIsReviewOpen(open => !open)}
+              onClick={() => {
+                setIsDetailsOpen(false);
+                setIsReviewOpen(open => !open);
+              }}
               data-active={isReviewOpen || undefined}
-              className="focus-ring hover:bg-muted data-[active=true]:bg-muted data-[active=true]:text-foreground text-muted-foreground hover:text-foreground flex h-8 items-center gap-1.5 rounded-md border px-2 text-xs transition-colors"
+              className="focus-ring hover:bg-muted data-[active=true]:bg-muted data-[active=true]:text-foreground text-muted-foreground hover:text-foreground flex h-8 items-center gap-1.5 rounded-md border border-transparent px-2 text-xs transition-colors"
             >
               <MessageSquareTextIcon className="size-3.5" />
               Review
             </button>
           </div>
 
-          <input
-            name="record-cover-url"
-            aria-label="Record cover URL"
-            value={displayedCoverUrl}
-            onChange={event => {
-              clearPendingCover();
-              setCoverUrl(event.target.value);
-            }}
-            onPaste={handleCoverPaste}
-            placeholder="Cover URL or paste image"
-            className="placeholder:text-muted-foreground border-border bg-transparent border-b pb-1 font-mono text-[11px] outline-none"
-          />
-          <input
-            name="record-link"
-            aria-label="Record link"
-            value={link}
-            onChange={event => setLink(event.target.value)}
-            placeholder="Link"
-            className="placeholder:text-muted-foreground border-border bg-transparent border-b pb-1 font-mono text-[11px] outline-none"
-          />
-          <div className="grid grid-cols-[minmax(0,1fr)_4rem] gap-1.5">
+          <div className="grid grid-cols-[minmax(0,1fr)_3.25rem] gap-1.5">
             <input
               name="record-created-time"
               aria-label="Record date"
@@ -491,13 +480,60 @@ export default function RecordEditorSurface({ record, onCancel }: IRecordEditorS
           </div>
         </div>
 
-        {isReviewOpen ? (
-          <div className="bg-background border-border absolute top-0 left-1/2 z-30 w-[calc(100vw-2rem)] max-w-md -translate-x-1/2 rounded-lg border shadow-xl max-md:fixed max-md:inset-x-3 max-md:top-auto max-md:bottom-3 max-md:w-auto max-md:translate-x-0 md:w-[28rem]">
-            <div className="border-border flex items-center gap-2 border-b p-2">
-              <div
-                ref={setToolbarPortal}
-                className="flex min-w-0 flex-1 justify-end overflow-hidden"
+        {isDetailsOpen ? (
+          <div className="bg-background border-border absolute top-11 right-0 z-30 w-[min(20rem,calc(100vw-2rem))] rounded-lg border p-3 shadow-xl max-md:fixed max-md:inset-x-3 max-md:top-auto max-md:bottom-3 max-md:w-auto">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <p className="text-muted-foreground text-xs font-medium">Record details</p>
+              <button
+                type="button"
+                onClick={() => setIsDetailsOpen(false)}
+                className="focus-ring icon-button hover:bg-muted text-muted-foreground hover:text-foreground size-7"
+                aria-label="Close record details"
+              >
+                <XIcon className="size-3.5" />
+              </button>
+            </div>
+            <label className="mb-3 block">
+              <span className="text-muted-foreground mb-1 block text-xs">Cover URL</span>
+              <input
+                name="record-cover-url"
+                aria-label="Record cover URL"
+                value={displayedCoverUrl}
+                onChange={event => {
+                  clearPendingCover();
+                  setCoverUrl(event.target.value);
+                }}
+                onPaste={handleCoverPaste}
+                placeholder="Paste cover URL"
+                className="border-border placeholder:text-muted-foreground focus:border-foreground/40 w-full rounded-md border bg-transparent px-2.5 py-2 font-mono text-xs outline-none"
               />
+            </label>
+            <label className="mb-3 block">
+              <span className="text-muted-foreground mb-1 block text-xs">Link</span>
+              <input
+                name="record-link"
+                aria-label="Record link"
+                value={link}
+                onChange={event => setLink(event.target.value)}
+                placeholder="Paste source link"
+                className="border-border placeholder:text-muted-foreground focus:border-foreground/40 w-full rounded-md border bg-transparent px-2.5 py-2 font-mono text-xs outline-none"
+              />
+            </label>
+            <button
+              type="button"
+              onClick={() => setSettingsOpen(true)}
+              className="focus-ring hover:bg-muted text-muted-foreground hover:text-foreground flex h-8 items-center rounded-md px-2 text-xs transition-colors"
+            >
+              GitHub token settings
+            </button>
+          </div>
+        ) : null}
+
+        {isReviewOpen ? (
+          <div className="bg-background border-border absolute top-0 left-1/2 z-40 w-[calc(100vw-2rem)] max-w-md -translate-x-1/2 rounded-lg border shadow-xl max-md:fixed max-md:inset-x-3 max-md:top-auto max-md:bottom-3 max-md:w-auto max-md:translate-x-0 md:w-[28rem]">
+            <div className="border-border flex items-center gap-2 border-b p-2">
+              <p className="text-muted-foreground px-1 text-xs font-medium">Review</p>
+              <div ref={setToolbarPortal} className="ml-auto flex shrink-0" />
               <button
                 type="button"
                 onClick={() => setIsReviewOpen(false)}
