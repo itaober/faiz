@@ -40,11 +40,16 @@ interface IGitHubApiOptions {
   branch?: string;
 }
 
+const CONTENT_BRANCH =
+  process.env.GITHUB_CONTENT_BRANCH ||
+  process.env.NEXT_PUBLIC_GITHUB_CONTENT_BRANCH ||
+  'content-dev';
+
 /** Default GitHub API configuration */
 export const GIT_HUB_API_OPTIONS: IGitHubApiOptions = {
   owner: 'itaober',
   repo: 'faiz',
-  branch: 'content',
+  branch: CONTENT_BRANCH,
 };
 
 /**

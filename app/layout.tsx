@@ -7,6 +7,7 @@ import { Geist_Mono, Inter } from 'next/font/google';
 import { ThemeProvider } from 'next-themes';
 import { Toaster } from 'sonner';
 
+import { EditModeProvider } from '@/components/edit-mode-provider';
 import { MotionProvider } from '@/components/motion-provider';
 import { ServiceWorkerRegistration } from '@/components/service-worker-registration';
 import { ThemeScript, ThemeSync } from '@/components/theme-script';
@@ -111,9 +112,11 @@ export default function RootLayout({
         <MotionProvider>
           <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
             <ThemeSync />
-            <Header />
-            <main className="mx-auto max-w-3xl px-6 py-12">{children}</main>
-            <BackToTop />
+            <EditModeProvider>
+              <Header />
+              <main className="mx-auto max-w-3xl px-6 py-12">{children}</main>
+              <BackToTop />
+            </EditModeProvider>
           </ThemeProvider>
         </MotionProvider>
         <Toaster position="top-center" style={{ top: '10%' }} duration={2000} />

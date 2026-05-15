@@ -3,6 +3,9 @@ import NextImage from 'next/image';
 import Link from 'next/link';
 import type { MDXRemoteProps } from 'next-mdx-remote/rsc';
 import { MDXRemote } from 'next-mdx-remote/rsc';
+import type { ImgHTMLAttributes } from 'react';
+
+import { unescapeMarkdownValue } from '@/lib/utils/editor-image';
 
 import type { ICheckboxRootProps } from './checkbox';
 import { Checkbox, CheckboxLabel, CheckboxRoot } from './checkbox';
@@ -33,35 +36,47 @@ const TodoList = ({ readonly = false, items }: ITodoListProps) => {
   );
 };
 
-interface IImageProps {
-  src: string;
-  alt: string;
+interface IImageProps extends ImgHTMLAttributes<HTMLImageElement> {
+  src?: string;
+  alt?: string;
   caption?: string;
 }
 
-const Image = ({ src, alt, caption }: IImageProps) => {
-  const _caption = caption || alt;
-  const resolvedAlt = alt?.trim() || _caption || 'Content image';
+const Image = ({ src, alt = '', caption }: IImageProps) => {
+  if (!src) {
+    return null;
+  }
+
+  const imageSrc = unescapeMarkdownValue(String(src));
+  const imageAlt = unescapeMarkdownValue(String(alt));
+  const _caption = caption || imageAlt;
+  const resolvedAlt = imageAlt.trim() || _caption || 'Content image';
   const previewLabel = `Open image preview${resolvedAlt ? `: ${resolvedAlt}` : ''}`;
   const imageSizes = '(max-width: 768px) calc(100vw - 3rem), 36rem';
 
   return (
     <Preview>
-      <PreviewTrigger ariaLabel={previewLabel} className="mb-4 w-full rounded-lg px-2">
-        <figure className="relative flex w-full flex-col items-center">
+      <PreviewTrigger
+        as="span"
+        ariaLabel={previewLabel}
+        className="not-prose mb-4 block w-full rounded-lg px-2"
+      >
+        <span className="relative flex w-full flex-col items-center">
           <NextImage
-            src={src}
+            src={imageSrc}
             alt={resolvedAlt}
             width={0}
             height={0}
             sizes={imageSizes}
             className="h-auto w-full max-w-xl rounded-md md:rounded-lg"
           />
-          {_caption && <figcaption>{_caption}</figcaption>}
-        </figure>
+          {_caption ? (
+            <span className="text-muted-foreground mt-2 block text-center text-sm">{_caption}</span>
+          ) : null}
+        </span>
       </PreviewTrigger>
       <PreviewPortal ariaLabel={`Image preview: ${resolvedAlt}`}>
-        <PreviewImage src={src} alt={resolvedAlt} />
+        <PreviewImage src={imageSrc} alt={resolvedAlt} />
       </PreviewPortal>
     </Preview>
   );
@@ -74,6 +89,7 @@ const components: MDXComponents = {
   CheckboxLabel,
   TodoList,
   Image,
+  img: Image,
 };
 
 export const MDX = (props: MDXRemoteProps) => {
