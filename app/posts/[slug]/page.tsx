@@ -7,6 +7,7 @@ import MotionWrapper from '@/components/motion-wrapper';
 import { getPostMDX } from '@/lib/data/mdx';
 import { buildDescription, buildPageMetadata } from '@/lib/utils/seo';
 
+import PostDetailActions from '../_components/post-detail-actions';
 import PostTocDeferred from '../_components/post-toc-deferred';
 
 interface IPostPageProps {
@@ -53,7 +54,9 @@ export default async function PostPage({ params }: IPostPageProps) {
     <>
       <MotionWrapper>
         <div className="relative">
-          <PostTitle {...data} />
+          <PostTitle {...data}>
+            <PostDetailActions post={{ ...data, content }} />
+          </PostTitle>
           <article id="post-content" className="prose dark:prose-invert">
             <MDX source={content} />
           </article>

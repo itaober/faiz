@@ -1,23 +1,24 @@
 'use client';
 
-import { ImagePlus, Send, Settings, XIcon } from 'lucide-react';
-import { motion } from 'motion/react';
+import { SaveIcon, Settings, Trash2Icon, XIcon } from 'lucide-react';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { Drawer } from 'vaul';
 
 import { createMemoAction } from '@/app/memos/_actions/create-memo';
 import { updateMemoAction } from '@/app/memos/_actions/update-memo';
-import { useImageUpload } from '@/hooks/use-image-upload';
-import { ANIMATION } from '@/lib/constants/animation';
-import { MAX_IMAGE_SIZE, SUPPORTED_IMAGE_TYPES } from '@/lib/constants/image';
+import { hasEditorFloatingLayer } from '@/components/editing/editor-floating-layer';
+import GitHubTokenDrawer from '@/components/editing/github-token-drawer';
+import MarkdownLexicalEditor from '@/components/editing/markdown-lexical-editor';
+import { uploadStagedEditorImages } from '@/components/editing/upload-staged-editor-images';
 import { generateId } from '@/lib/data/common';
 import type { Memo } from '@/lib/data/memos';
+import type { StagedEditorImage } from '@/lib/utils/editor-image';
+import { toApiImageUrl, updateStagedEditorImageCaption } from '@/lib/utils/editor-image';
 
 import { useMemosContext } from '../_context/use-memos-context';
-import { ImagePreviewGrid } from './image-preview-grid';
-import MemosSettingsDrawer from './memos-settings-drawer';
 
 interface MemosEditorDrawerProps {
   open: boolean;
@@ -25,78 +26,54 @@ interface MemosEditorDrawerProps {
   memo?: Memo;
 }
 
+interface MemoAttachment {
+  alt: string;
+  id: string;
+  path: string;
+  pending?: StagedEditorImage;
+  previewSrc: string;
+}
+
+const toExistingAttachment = (path: string): MemoAttachment => ({
+  alt: 'Memo attachment',
+  id: path,
+  path,
+  previewSrc: toApiImageUrl(path),
+});
+
 export default function MemosEditorDrawer({ open, onOpenChange, memo }: MemosEditorDrawerProps) {
   const router = useRouter();
   const { token } = useMemosContext();
-  const [content, setContent] = useState('');
+  const [content, setContent] = useState(memo?.content ?? '');
+  const [attachments, setAttachments] = useState<MemoAttachment[]>(() =>
+    memo ? memo.images.map(toExistingAttachment) : [],
+  );
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [draftId, setDraftId] = useState(() => generateId('memo'));
 
   const isEditMode = !!memo;
+  const entityId = memo?.id || draftId;
 
-  const {
-    images,
-    isUploading,
-    addImages,
-    removeImage,
-    uploadAll,
-    clear: clearImages,
-    setInitialImages,
-  } = useImageUpload({
-    token: token || '',
-    maxCount: 9,
-  });
-
-  // Fill content and images when opening in edit mode
   useEffect(() => {
     if (open && memo) {
       setContent(memo.content);
-      if (memo.images.length > 0) {
-        setInitialImages(memo.images);
-      }
-    } else if (!open) {
-      setContent('');
-      clearImages();
-    }
-  }, [open, memo, setInitialImages, clearImages]);
-
-  const handleFileSelect = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const files = e.target.files;
-      if (!files || files.length === 0) {
-        return;
-      }
-
-      const validFiles: File[] = [];
-      for (const file of Array.from(files)) {
-        if (!SUPPORTED_IMAGE_TYPES.includes(file.type as (typeof SUPPORTED_IMAGE_TYPES)[number])) {
-          toast.error(`Unsupported format: ${file.name}`);
-          continue;
-        }
-        if (file.size > MAX_IMAGE_SIZE) {
-          toast.error(`File too large: ${file.name} (max 10MB)`);
-          continue;
-        }
-        validFiles.push(file);
-      }
-
-      if (validFiles.length > 0) {
-        addImages(validFiles);
-      }
-
-      e.target.value = '';
-    },
-    [addImages],
-  );
-
-  const handleImageUpload = () => {
-    if (!token) {
-      setIsSettingsOpen(true);
+      setAttachments(memo.images.map(toExistingAttachment));
       return;
     }
-    fileInputRef.current?.click();
-  };
+
+    if (open && !memo) {
+      setDraftId(generateId('memo'));
+      setContent('');
+      setAttachments([]);
+      return;
+    }
+
+    if (!open) {
+      setContent('');
+      setAttachments([]);
+    }
+  }, [memo, open]);
 
   const handleSubmit = async () => {
     if (!token) {
@@ -104,7 +81,7 @@ export default function MemosEditorDrawer({ open, onOpenChange, memo }: MemosEdi
       return;
     }
 
-    if (!content.trim() && images.length === 0) {
+    if (!content.trim() && attachments.length === 0) {
       toast.error('Please enter content or upload images');
       return;
     }
@@ -112,15 +89,13 @@ export default function MemosEditorDrawer({ open, onOpenChange, memo }: MemosEdi
     setIsSubmitting(true);
 
     const submitMemo = async () => {
-      // For new memo: generate memoId upfront; for edit: use existing memo.id
-      const memoId = isEditMode && memo ? memo.id : generateId('memo');
+      await uploadStagedEditorImages({
+        images: attachments.flatMap(attachment => (attachment.pending ? [attachment.pending] : [])),
+        token,
+        revalidatePath: '/memos',
+      });
 
-      const uploadResult = await uploadAll(memoId);
-      if (!uploadResult.success && uploadResult.errors.length > 0) {
-        throw new Error(uploadResult.errors[0]);
-      }
-
-      const imagePaths = uploadResult.paths;
+      const imagePaths = attachments.map(attachment => attachment.path);
 
       const result =
         isEditMode && memo
@@ -132,7 +107,7 @@ export default function MemosEditorDrawer({ open, onOpenChange, memo }: MemosEdi
               token,
             })
           : await createMemoAction({
-              id: memoId,
+              id: draftId,
               content: content.trim(),
               images: imagePaths,
               token,
@@ -146,116 +121,216 @@ export default function MemosEditorDrawer({ open, onOpenChange, memo }: MemosEdi
     };
 
     toast.promise(submitMemo(), {
-      loading: isEditMode ? 'Updating...' : 'Publishing...',
+      loading: attachments.some(attachment => attachment.pending)
+        ? 'Uploading images...'
+        : isEditMode
+          ? 'Updating...'
+          : 'Publishing...',
       success: () => {
         setContent('');
-        clearImages();
+        setAttachments([]);
         onOpenChange(false);
         router.refresh();
         return isEditMode ? 'Memo updated' : 'Memo published';
       },
-      error: err => err.message || 'Operation failed',
+      error: error => error.message || 'Operation failed',
       finally: () => setIsSubmitting(false),
     });
   };
 
-  const isDisabled = isSubmitting || isUploading || (!content.trim() && images.length === 0);
+  const updateAttachmentCaption = (attachmentId: string, caption: string) => {
+    setAttachments(previousAttachments =>
+      previousAttachments.map(attachment => {
+        if (attachment.id !== attachmentId) {
+          return attachment;
+        }
+
+        const alt = caption.trim();
+        if (!attachment.pending) {
+          return { ...attachment, alt };
+        }
+
+        const imageId = alt || attachment.pending.imageId || 'image';
+        let pending = updateStagedEditorImageCaption(attachment.pending, alt, imageId);
+        let suffix = 2;
+
+        while (
+          previousAttachments.some(
+            otherAttachment =>
+              otherAttachment.id !== attachment.id && otherAttachment.path === pending.path,
+          )
+        ) {
+          pending = updateStagedEditorImageCaption(attachment.pending, alt, `${imageId}-${suffix}`);
+          suffix += 1;
+        }
+
+        return {
+          ...attachment,
+          alt: pending.alt,
+          path: pending.path,
+          pending,
+        };
+      }),
+    );
+  };
+
+  const isDisabled = isSubmitting || (!content.trim() && attachments.length === 0);
+  const attachmentsFooter =
+    attachments.length > 0 ? (
+      <section className="bg-background px-4 pt-4 pb-5">
+        <div className="mb-3 flex items-center justify-between">
+          <p className="text-muted-foreground text-xs font-medium">
+            Attached images · {attachments.length}
+          </p>
+          <p className="text-muted-foreground/70 text-[11px]">Uploads on save</p>
+        </div>
+        <div className="grid grid-cols-3 gap-3 sm:grid-cols-4">
+          {attachments.map(attachment => (
+            <div key={attachment.id} className="group space-y-2">
+              <div className="bg-muted/20 relative overflow-hidden rounded-lg">
+                {attachment.previewSrc.startsWith('data:') ||
+                attachment.previewSrc.startsWith('blob:') ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={attachment.previewSrc}
+                    alt={attachment.alt}
+                    className="aspect-square w-full object-cover"
+                  />
+                ) : (
+                  <Image
+                    src={attachment.previewSrc}
+                    alt={attachment.alt}
+                    width={180}
+                    height={180}
+                    className="aspect-square w-full object-cover"
+                  />
+                )}
+                {attachment.pending ? (
+                  <span className="bg-background/90 text-muted-foreground absolute bottom-1.5 left-1.5 rounded-full px-2 py-0.5 text-[10px] shadow-sm">
+                    Pending
+                  </span>
+                ) : null}
+                <button
+                  type="button"
+                  onClick={() =>
+                    setAttachments(images => images.filter(image => image.id !== attachment.id))
+                  }
+                  className="focus-ring bg-background/90 text-danger absolute top-1.5 right-1.5 flex size-7 items-center justify-center rounded-full opacity-100 shadow-sm md:opacity-0 md:group-hover:opacity-100"
+                  aria-label="Remove attached image"
+                >
+                  <Trash2Icon className="size-4" />
+                </button>
+              </div>
+              {attachment.pending ? (
+                <input
+                  type="text"
+                  aria-label="Attachment caption"
+                  value={attachment.alt}
+                  onChange={event => updateAttachmentCaption(attachment.id, event.target.value)}
+                  placeholder="Image caption"
+                  className="placeholder:text-muted-foreground/60 focus:border-foreground/40 w-full border-b border-transparent bg-transparent px-1 pb-1 text-xs outline-none transition-colors"
+                />
+              ) : null}
+            </div>
+          ))}
+        </div>
+      </section>
+    ) : null;
 
   return (
     <>
-      <Drawer.Root direction="right" open={open} onOpenChange={onOpenChange}>
+      <Drawer.Root direction="right" open={open} onOpenChange={onOpenChange} handleOnly>
         <Drawer.Portal>
           <Drawer.Overlay className="bg-overlay-backdrop fixed inset-0 z-20" />
-          <Drawer.Content className="bg-background md:border-r-none md:border-border md:dark:border-border fixed top-0 right-0 bottom-0 z-20 flex w-[100vw] max-w-xl flex-col outline-none md:rounded-l-xl md:border">
-            <motion.div
-              initial={{ opacity: 0, x: ANIMATION.distance.normal }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{
-                delay: 0.05,
-                duration: ANIMATION.duration.slow,
-                ease: ANIMATION.ease.drawer,
-              }}
-              className="flex h-full flex-col"
-            >
-              {/* Header  */}
-              <div className="flex items-center justify-between p-4">
-                <motion.button
+          <Drawer.Content
+            onEscapeKeyDown={event => {
+              if (hasEditorFloatingLayer()) {
+                event.preventDefault();
+              }
+            }}
+            className="bg-background md:border-r-none md:border-border md:dark:border-border fixed top-0 right-0 bottom-0 z-20 flex w-[100vw] max-w-2xl flex-col outline-none md:rounded-l-xl md:border"
+          >
+            <Drawer.Title className="sr-only">{isEditMode ? 'Edit Memo' : 'New Memo'}</Drawer.Title>
+            <Drawer.Description className="sr-only">
+              Compose memo content with the shared Markdown editor.
+            </Drawer.Description>
+
+            <div className="flex items-center justify-between p-4">
+              <button
+                type="button"
+                onClick={() => onOpenChange(false)}
+                className="focus-ring icon-button hover:bg-muted text-muted-foreground hover:text-foreground size-11"
+                aria-label="Close editor"
+              >
+                <XIcon className="size-6" />
+              </button>
+              <div className="flex items-center gap-2">
+                <button
                   type="button"
-                  onClick={() => onOpenChange(false)}
+                  onClick={event => {
+                    event.currentTarget.blur();
+                    setIsSettingsOpen(true);
+                  }}
                   className="focus-ring icon-button hover:bg-muted text-muted-foreground hover:text-foreground size-11"
-                  aria-label="Close editor"
-                  whileTap={{ scale: 0.95 }}
+                  aria-label="Settings"
                 >
-                  <XIcon className="size-6" />
-                </motion.button>
-                <div className="flex items-center gap-2">
-                  <motion.button
-                    type="button"
-                    onClick={() => setIsSettingsOpen(true)}
-                    className="focus-ring icon-button hover:bg-muted text-muted-foreground hover:text-foreground size-11"
-                    aria-label="Settings"
-                    whileTap={{ scale: 0.95 }}
-                  >
-                    <Settings className="size-6" />
-                  </motion.button>
-                  <motion.button
-                    type="button"
-                    onClick={handleImageUpload}
-                    className="focus-ring icon-button hover:bg-muted text-muted-foreground hover:text-foreground size-11"
-                    aria-label="Upload image"
-                    disabled={images.length >= 9}
-                    whileTap={{ scale: 0.95 }}
-                  >
-                    <ImagePlus className="size-6" />
-                  </motion.button>
-                  <motion.button
-                    type="button"
-                    onClick={handleSubmit}
-                    disabled={isDisabled}
-                    className="focus-ring icon-button hover:bg-muted text-muted-foreground hover:text-foreground disabled:text-muted-foreground/50 size-11 disabled:cursor-not-allowed"
-                    aria-label={isEditMode ? 'Update' : 'Publish'}
-                    whileTap={{ scale: 0.95 }}
-                  >
-                    <Send className="size-6" />
-                  </motion.button>
-                </div>
+                  <Settings className="size-6" />
+                </button>
+                <button
+                  type="button"
+                  onClick={async event => {
+                    event.currentTarget.blur();
+                    await handleSubmit();
+                  }}
+                  disabled={isDisabled}
+                  className="focus-ring icon-button hover:bg-muted text-muted-foreground hover:text-foreground disabled:text-muted-foreground/50 size-11 disabled:cursor-not-allowed"
+                  aria-label={isEditMode ? 'Update' : 'Publish'}
+                >
+                  <SaveIcon className="size-6" />
+                </button>
               </div>
+            </div>
 
-              {/* Hidden title for accessibility */}
-              <Drawer.Title className="sr-only">
-                {isEditMode ? 'Edit Memo' : 'New Memo'}
-              </Drawer.Title>
+            <div className="flex min-h-0 flex-1 flex-col">
+              <MarkdownLexicalEditor
+                key={entityId}
+                value={content}
+                onChange={setContent}
+                token={token}
+                uploadScope="memos"
+                uploadEntityId={entityId}
+                revalidatePath="/memos"
+                placeholder="Write something..."
+                minHeightClassName="min-h-[52vh]"
+                onRequestToken={() => setIsSettingsOpen(true)}
+                insertUploadedImages={false}
+                editorFooter={attachmentsFooter}
+                onImagesStaged={images => {
+                  setAttachments(previousAttachments => {
+                    const nextAttachments = new Map(
+                      previousAttachments.map(attachment => [attachment.path, attachment]),
+                    );
 
-              {/* Editor area */}
-              <div className="flex flex-1 flex-col gap-4 overflow-auto px-4 pb-4">
-                <textarea
-                  value={content}
-                  onChange={e => setContent(e.target.value)}
-                  placeholder="Write something..."
-                  className="placeholder:text-muted-foreground min-h-32 flex-1 resize-none bg-transparent text-base leading-relaxed outline-none"
-                />
+                    images.forEach(image => {
+                      nextAttachments.set(image.path, {
+                        alt: image.alt,
+                        id: image.path,
+                        path: image.path,
+                        pending: image,
+                        previewSrc: image.previewSrc,
+                      });
+                    });
 
-                {images.length > 0 && (
-                  <ImagePreviewGrid images={images} onRemove={removeImage} className="mt-auto" />
-                )}
-              </div>
-
-              {/* Hidden file input */}
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept={SUPPORTED_IMAGE_TYPES.join(',')}
-                multiple
-                onChange={handleFileSelect}
-                className="hidden"
+                    return Array.from(nextAttachments.values());
+                  });
+                }}
               />
-            </motion.div>
+            </div>
           </Drawer.Content>
         </Drawer.Portal>
       </Drawer.Root>
 
-      {/* Nested Settings Drawer */}
-      <MemosSettingsDrawer open={isSettingsOpen} onOpenChange={setIsSettingsOpen} />
+      <GitHubTokenDrawer open={isSettingsOpen} onOpenChange={setIsSettingsOpen} />
     </>
   );
 }

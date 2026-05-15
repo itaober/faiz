@@ -6,6 +6,7 @@ import { PAGE_META } from '@/lib/constants/seo';
 import { getAboutMDX } from '@/lib/data/mdx';
 import { buildDescription, buildPageMetadata } from '@/lib/utils/seo';
 
+import PageMdxActions from '../_components/page-mdx-actions';
 import PostTitle from '../_components/post-title';
 
 export async function generateMetadata() {
@@ -32,7 +33,9 @@ export default async function AboutPage() {
 
   return (
     <MotionWrapper className="overflow-y-hidden">
-      <PostTitle title={data.title} />
+      <PostTitle title={data.title}>
+        <PageMdxActions page="about" title={data.title} content={content} />
+      </PostTitle>
       <article className="prose dark:prose-invert">
         <MDX source={content} />
       </article>

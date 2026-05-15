@@ -1,6 +1,6 @@
 'use client';
 
-import { EditIcon } from 'lucide-react';
+import { PlusIcon } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import { useEffect, useState } from 'react';
 
@@ -35,11 +35,14 @@ export default function MemosTitle() {
           <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={() => setIsEditorOpen(true)}
-              className="focus-visible:ring-foreground/40 hover:text-foreground flex size-5 items-center justify-center rounded-lg opacity-70 transition-[color,opacity] hover:opacity-100 focus-visible:ring-2 focus-visible:outline-none"
+              onClick={event => {
+                event.currentTarget.blur();
+                setIsEditorOpen(true);
+              }}
+              className="focus-ring hover:bg-muted text-muted-foreground hover:text-foreground flex size-11 items-center justify-center rounded-md transition-colors md:size-8"
               aria-label="Add Memo"
             >
-              <EditIcon />
+              <PlusIcon className="size-4" />
             </button>
           </div>
         )}
