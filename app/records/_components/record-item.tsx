@@ -22,6 +22,7 @@ import { cn } from '@/lib/utils';
 import type { Tab } from '../_constants';
 import RecordEditorSurface from './record-editor-surface';
 import RecordPreview from './record-preview';
+import { useRecordsInlineComposer } from './use-records-inline-composer';
 
 interface IRecordItemProps extends RecordDataItem {
   tab: Tab;
@@ -43,17 +44,19 @@ export default function RecordItem({
 }: IRecordItemProps) {
   const router = useRouter();
   const { isEditMode, token } = useEditMode();
+  const { editingRecordKey, setEditingRecordKey } = useRecordsInlineComposer();
   const [mounted, setMounted] = useState(false);
-  const [editorOpen, setEditorOpen] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const isMusicTab = tab === 'music';
   const previewComment = comment?.trim();
+  const recordKey = `${type}-${createdTime}-${title}`;
   const coverSizes =
     '(max-width: 640px) calc((100vw - 4rem) / 2), (max-width: 768px) calc((100vw - 5rem) / 3), 11rem';
   const record = { title, link, coverUrl, createdTime, rating, comment, type };
   const canEdit = mounted && isEditMode;
+  const editorOpen = editingRecordKey === recordKey;
 
   useEffect(() => {
     setMounted(true);
@@ -101,7 +104,7 @@ export default function RecordItem({
         }}
         transition={{ duration: ANIMATION.duration.normal }}
       >
-        <RecordEditorSurface record={record} onCancel={() => setEditorOpen(false)} />
+        <RecordEditorSurface record={record} onCancel={() => setEditingRecordKey(null)} />
       </motion.div>
     );
   }
@@ -168,7 +171,7 @@ export default function RecordItem({
             type="button"
             onClick={event => {
               event.currentTarget.blur();
-              setEditorOpen(true);
+              setEditingRecordKey(recordKey);
             }}
             className="focus-ring pressable hover:bg-muted text-muted-foreground hover:text-foreground flex size-11 items-center justify-center rounded-md md:size-7"
             aria-label={`Edit ${title}`}

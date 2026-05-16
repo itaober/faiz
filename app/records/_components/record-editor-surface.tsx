@@ -556,6 +556,7 @@ export default function RecordEditorSurface({ record, onCancel }: IRecordEditorS
                 chrome="seamless"
                 showQuickReference={false}
                 showMobileToolbarOverlay={false}
+                toolbarPlacement="below"
                 toolbarPortal={toolbarPortal}
                 minHeightClassName="min-h-48"
                 onRequestToken={() => setSettingsOpen(true)}

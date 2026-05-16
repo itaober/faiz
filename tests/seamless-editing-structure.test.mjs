@@ -11,8 +11,11 @@ const files = {
   memoInline: read('app/memos/_components/memo-card-inline.tsx'),
   record: read('app/records/_components/record-editor-surface.tsx'),
   recordItem: read('app/records/_components/record-item.tsx'),
+  recordsComposerContext: read('app/records/_components/records-inline-composer-context.tsx'),
+  recordsComposerState: read('app/records/_components/records-inline-composer-state.ts'),
   recordsList: read('app/records/_components/records-list-client.tsx'),
   markdownEditor: read('components/editing/markdown-lexical-editor.tsx'),
+  globals: read('app/globals.css'),
 };
 
 for (const [name, source] of Object.entries({
@@ -45,6 +48,20 @@ assert.equal(
 );
 
 assert.equal(
+  files.markdownEditor.includes('editor-checklist-item') &&
+    files.globals.includes('.editor-checklist-item::before') &&
+    files.globals.includes('padding-inline-start: 1.75rem'),
+  true,
+  'editable TodoList items should keep visible checkbox affordances in WYSIWYG mode',
+);
+
+assert.equal(
+  /listitemChecked:\s*'[^']*line-through/.test(files.markdownEditor),
+  false,
+  'checked TodoList items should stay visually aligned with the read-only page instead of becoming struck-through admin UI',
+);
+
+assert.equal(
   files.postActions.includes("router.push('/posts/new')"),
   true,
   'post add action should navigate to the blank post page',
@@ -66,6 +83,15 @@ assert.equal(
   files.recordItem.includes('RecordEditorSurface') && files.recordItem.includes('motion.div'),
   true,
   'record edit should keep the original record card shell editable in place',
+);
+
+assert.equal(
+  files.recordsComposerState.includes('editingRecordKey') &&
+    files.recordsComposerContext.includes('setEditingRecordKeyState(null)') &&
+    files.recordsComposerContext.includes('setComposerOpen(false)') &&
+    files.recordItem.includes('editingRecordKey === recordKey'),
+  true,
+  'record add and edit surfaces should be mutually exclusive',
 );
 
 assert.equal(
@@ -95,7 +121,15 @@ assert.equal(
     files.markdownEditor.includes('createPortal') &&
     files.markdownEditor.includes('ToolbarTriggerButton') &&
     files.markdownEditor.includes('Formatting tools') &&
-    files.markdownEditor.includes('toolbarPopoverRef'),
+    files.markdownEditor.includes('toolbarPopoverRef') &&
+    files.markdownEditor.includes('toolbarPlacement') &&
+    files.markdownEditor.includes('bottom: 76'),
   true,
-  'seamless toolbar should render as an on-demand formatting popover without pushing layout',
+  'seamless toolbar should render as an on-demand formatting popover without pushing layout or colliding with mobile corner controls',
+);
+
+assert.equal(
+  files.record.includes('toolbarPlacement="below"'),
+  true,
+  'record review editors should keep the formatting popover inside the floating review surface',
 );

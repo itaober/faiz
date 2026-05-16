@@ -160,6 +160,7 @@ interface IMarkdownLexicalEditorProps {
   chrome?: 'panel' | 'seamless';
   showQuickReference?: boolean;
   showMobileToolbarOverlay?: boolean;
+  toolbarPlacement?: 'auto' | 'below';
   toolbarPortal?: HTMLElement | null;
   onRequestToken?: () => void;
   insertUploadedImages?: boolean;
@@ -180,8 +181,8 @@ const theme = {
     ol: 'list-decimal ps-5',
     listitem: 'my-1',
     checklist: 'flex flex-col gap-1 ps-0',
-    listitemChecked: 'line-through text-muted-foreground list-none',
-    listitemUnchecked: 'list-none',
+    listitemChecked: 'editor-checklist-item list-none',
+    listitemUnchecked: 'editor-checklist-item list-none',
   },
   text: {
     bold: 'font-semibold',
@@ -1931,6 +1932,7 @@ export default function MarkdownLexicalEditor({
   chrome = 'panel',
   showQuickReference = true,
   showMobileToolbarOverlay = true,
+  toolbarPlacement = 'auto',
   toolbarPortal,
   insertUploadedImages = true,
   onImagesStaged,
@@ -2155,7 +2157,7 @@ export default function MarkdownLexicalEditor({
 
     if (window.innerWidth < 768) {
       setToolbarPopoverStyle({
-        bottom: 12,
+        bottom: 76,
         left: 12,
         position: 'fixed',
         right: 12,
@@ -2167,16 +2169,16 @@ export default function MarkdownLexicalEditor({
     const width = Math.min(680, window.innerWidth - 24);
     const left = Math.max(12, Math.min(window.innerWidth - width - 12, rect.right - width));
     const belowTop = rect.bottom + 10;
-    const aboveTop = rect.top - 58;
+    const aboveTop = rect.top - 50;
     const hasRoomAbove = aboveTop >= 12;
 
     setToolbarPopoverStyle({
       left,
       position: 'fixed',
-      top: hasRoomAbove ? aboveTop : belowTop,
+      top: toolbarPlacement === 'below' || !hasRoomAbove ? belowTop : aboveTop,
       width,
     });
-  }, [getVisibleToolbarAnchor]);
+  }, [getVisibleToolbarAnchor, toolbarPlacement]);
 
   const toggleToolbar = useCallback(() => {
     setIsToolbarOpen(open => {
