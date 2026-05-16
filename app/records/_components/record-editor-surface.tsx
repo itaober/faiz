@@ -1,6 +1,5 @@
 'use client';
 
-import dayjs from 'dayjs';
 import { ImagePlusIcon, MessageSquareTextIcon, SaveIcon, SettingsIcon, XIcon } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -22,6 +21,8 @@ import {
 import { compressImage, MAX_IMAGE_SIZE, SUPPORTED_IMAGE_TYPES } from '@/lib/utils/image';
 
 const recordTypes: RecordItem['type'][] = ['book', 'movie', 'tv', 'music', 'game'];
+const inlineMetaControlClass =
+  'focus-ring hover:border-border focus:border-border focus:bg-background h-7 rounded-sm border border-transparent bg-transparent px-1 text-sm text-muted-foreground outline-none transition-colors';
 
 interface IRecordEditorSurfaceProps {
   initialType?: RecordItem['type'];
@@ -461,7 +462,7 @@ export default function RecordEditorSurface({
             className="placeholder:text-muted-foreground truncate bg-transparent text-sm font-medium leading-5 outline-none"
           />
 
-          <div className="text-muted-foreground flex items-center gap-1 text-sm">
+          <div className="text-muted-foreground flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
             <input
               name="record-rating"
               aria-label="Record rating"
@@ -480,33 +481,28 @@ export default function RecordEditorSurface({
                 rating ? 'w-[3ch]' : 'w-10',
               )}
             />
-            <span>·</span>
-            <button
-              type="button"
-              onClick={() => {
-                setIsReviewOpen(false);
-                setIsDetailsOpen(true);
-              }}
-              className="focus-ring hover:text-foreground rounded-sm transition-colors"
-              aria-label="Edit record date"
-            >
-              {dayjs(createdTime).format('MMM DD')}
-            </button>
+            <input
+              name="record-created-time-inline"
+              aria-label="Record date"
+              type="date"
+              value={createdTime}
+              onChange={event => setCreatedTime(event.target.value)}
+              className={cn(inlineMetaControlClass, 'w-[7.25rem]')}
+            />
             {showTypeInMeta && (
-              <>
-                <span>·</span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsReviewOpen(false);
-                    setIsDetailsOpen(true);
-                  }}
-                  className="focus-ring hover:text-foreground rounded-sm capitalize transition-colors"
-                  aria-label="Edit record type"
-                >
-                  {type}
-                </button>
-              </>
+              <select
+                name="record-type-inline"
+                aria-label="Record type"
+                value={type}
+                onChange={event => setType(event.target.value as RecordItem['type'])}
+                className={cn(inlineMetaControlClass, 'w-[5.5rem] capitalize')}
+              >
+                {recordTypes.map(recordType => (
+                  <option key={recordType} value={recordType}>
+                    {recordType}
+                  </option>
+                ))}
+              </select>
             )}
           </div>
         </div>

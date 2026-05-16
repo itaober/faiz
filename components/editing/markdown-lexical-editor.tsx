@@ -2367,12 +2367,14 @@ export default function MarkdownLexicalEditor({
 
         {shouldPortalToolbar && showMobileToolbarOverlay && (
           <div className="fixed right-3 bottom-3 z-50 md:hidden">
-            <ToolbarTriggerButton
-              active={isToolbarOpen}
-              buttonRef={mobileToolbarTriggerRef}
-              onClick={toggleToolbar}
-              className="bg-background/90 border-border border shadow-lg backdrop-blur"
-            />
+            <div className="bg-background/90 border-border flex max-w-[calc(100vw-1.5rem)] items-center gap-1 rounded-lg border p-1 shadow-lg backdrop-blur">
+              <ToolbarTriggerButton
+                active={isToolbarOpen}
+                buttonRef={mobileToolbarTriggerRef}
+                onClick={toggleToolbar}
+              />
+              {floatingActions}
+            </div>
           </div>
         )}
 

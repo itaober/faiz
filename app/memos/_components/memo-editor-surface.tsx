@@ -287,6 +287,7 @@ export default function MemoEditorSurface({
           chrome="seamless"
           showQuickReference={false}
           toolbarPortal={toolbarPortal}
+          editorClassName="memo-editor-content"
           minHeightClassName={isEditMode ? 'min-h-0' : 'min-h-40'}
           onRequestToken={() => setIsSettingsOpen(true)}
           insertUploadedImages={false}

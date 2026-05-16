@@ -86,9 +86,12 @@ assert.equal(
 assert.equal(
   files.memoInline.includes('editorActionsPortal') &&
     files.memoInline.includes('actionsPortal={editorActionsPortal}') &&
-    files.memo.includes('createPortal(actions, actionsPortal)'),
+    files.memo.includes('createPortal(actions, actionsPortal)') &&
+    files.memo.includes('editorClassName="memo-editor-content"') &&
+    files.globals.includes('.memo-editor-content ul') &&
+    files.globals.includes('list-style-type: disc'),
   true,
-  'memo edit controls should reuse the existing memo header action slot instead of inserting an admin row into the body',
+  'memo edit controls should reuse the existing memo header action slot and match read-mode prose rhythm',
 );
 
 assert.equal(
@@ -140,10 +143,12 @@ assert.equal(
     files.recordsList.includes("squareCover={activeTab === 'music'}") &&
     files.recordItem.includes('squareCover={isMusicTab}') &&
     files.record.includes('const hasCover = !!(coverPreviewSrc.trim() || pendingCoverFile)') &&
+    files.record.includes('type="date"') &&
+    files.record.includes('name="record-type-inline"') &&
     files.recordItem.includes('absolute top-2 right-2') &&
     !files.recordItem.includes('sidecar='),
   true,
-  'record composer and editor should preserve the active tab/type and cover aspect, uploaded covers should enable save before final URLs, and edit controls should not alter public card layout',
+  'record composer and editor should preserve active tab/type and cover aspect, use real date/select inputs, enable uploaded covers before final URLs, and keep controls out of public card layout',
 );
 
 assert.equal(
@@ -154,9 +159,10 @@ assert.equal(
     files.markdownEditor.includes('toolbarPopoverRef') &&
     files.markdownEditor.includes('toolbarPlacement') &&
     files.markdownEditor.includes('bottom: 76') &&
-    files.markdownEditor.includes('dockedToolbarTriggerRef'),
+    files.markdownEditor.includes('dockedToolbarTriggerRef') &&
+    files.markdownEditor.includes('floatingActions'),
   true,
-  'seamless toolbar should render as an on-demand formatting popover without pushing layout or colliding with mobile corner controls',
+  'seamless toolbar should render as an on-demand formatting popover with persistent page actions on long desktop and mobile editors',
 );
 
 assert.equal(
