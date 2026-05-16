@@ -9,6 +9,7 @@ const files = {
   postActions: read('app/posts/_components/posts-title-actions.tsx'),
   memo: read('app/memos/_components/memo-editor-surface.tsx'),
   memoInline: read('app/memos/_components/memo-card-inline.tsx'),
+  memoTitle: read('app/memos/_components/memos-title.tsx'),
   record: read('app/records/_components/record-editor-surface.tsx'),
   recordItem: read('app/records/_components/record-item.tsx'),
   recordsComposerContext: read('app/records/_components/records-inline-composer-context.tsx'),
@@ -57,6 +58,15 @@ assert.equal(
 );
 
 assert.equal(
+  files.markdownEditor.includes("link: ''") &&
+    !files.markdownEditor.includes('text-accent underline') &&
+    files.markdownEditor.includes("code: 'bg-muted text-foreground") &&
+    files.markdownEditor.includes('font-medium leading-[inherit]'),
+  true,
+  'seamless editors should share read-mode prose link and inline-code tokens',
+);
+
+assert.equal(
   files.page.includes('<PostTitle') &&
     files.page.includes('titleNode=') &&
     files.page.includes('minHeightClassName="min-h-0"') &&
@@ -90,9 +100,19 @@ assert.equal(
     files.memo.includes('floatingActions={actions}') &&
     files.memo.includes('editorClassName="memo-editor-content"') &&
     files.globals.includes('.memo-editor-content ul') &&
-    files.globals.includes('list-style-type: disc'),
+    files.globals.includes('list-style-type: disc') &&
+    files.globals.includes('.memo-editor-content code') &&
+    files.globals.includes('color: var(--tw-prose-code)'),
   true,
   'memo edit controls should reuse the existing memo header action slot and match read-mode prose rhythm',
+);
+
+assert.equal(
+  files.memoTitle.includes('draftCreatedTime') &&
+    files.memoTitle.includes('actionsPortal={editorActionsPortal}') &&
+    files.memoTitle.includes('bg-border h-full w-px'),
+  true,
+  'new memo composer should reuse the timeline rail and header action slot',
 );
 
 assert.equal(
@@ -145,6 +165,8 @@ assert.equal(
     files.recordItem.includes('squareCover={isMusicTab}') &&
     files.record.includes('const hasCover = !!(coverPreviewSrc.trim() || pendingCoverFile)') &&
     files.record.includes('formatInlineDate(createdTime)') &&
+    files.record.includes('openInlineDatePicker') &&
+    files.record.includes('showPicker()') &&
     files.record.includes('opacity-0 [color-scheme:light]') &&
     files.record.includes('type="date"') &&
     files.record.includes('name="record-type-inline"') &&
@@ -153,6 +175,17 @@ assert.equal(
     !files.recordItem.includes('sidecar='),
   true,
   'record composer and editor should preserve active tab/type and cover aspect, use real date/select inputs, enable uploaded covers before final URLs, and keep controls out of public card layout',
+);
+
+assert.equal(
+  files.post.includes('metaNode={renderMeta()}') &&
+    files.post.includes('name="post-created-time"') &&
+    files.post.includes('openPostDatePicker') &&
+    files.post.includes('showPicker()') &&
+    files.post.includes('name="post-tags-inline"') &&
+    files.post.includes('createdTime: buildPostCreatedTime'),
+  true,
+  'post editing should expose date and tag metadata inline while preserving the read-mode post title shell',
 );
 
 assert.equal(

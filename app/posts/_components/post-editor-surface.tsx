@@ -1,8 +1,9 @@
 'use client';
 
-import { PinIcon, SaveIcon, SettingsIcon, XIcon } from 'lucide-react';
+import dayjs from 'dayjs';
+import { CalendarIcon, PinIcon, SaveIcon, SettingsIcon, XIcon } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 import { createPostAction, updatePostAction } from '@/app/_actions/edit-content';
@@ -12,6 +13,7 @@ import GitHubTokenDrawer from '@/components/editing/github-token-drawer';
 import MarkdownLexicalEditor from '@/components/editing/markdown-lexical-editor';
 import { uploadStagedEditorImages } from '@/components/editing/upload-staged-editor-images';
 import type { PostMeta } from '@/lib/data/data';
+import { cn } from '@/lib/utils';
 import type { StagedEditorImage } from '@/lib/utils/editor-image';
 
 interface IPostEditorSurfaceProps {
@@ -32,6 +34,22 @@ const parseTags = (value: string) =>
     .map(tag => tag.trim())
     .filter(Boolean);
 
+const formatPostDateInput = (value?: string) => {
+  if (!value) {
+    return dayjs().format('YYYY-MM-DD');
+  }
+
+  return value.slice(0, 10);
+};
+
+const buildPostCreatedTime = (dateValue: string, previousValue?: string) => {
+  const date = dateValue || formatPostDateInput(previousValue);
+  const previousTime = previousValue?.match(/\b(\d{2}:\d{2}:\d{2})\b/)?.[1];
+  const time = previousTime ?? dayjs().format('HH:mm:ss');
+
+  return `${date} ${time}`;
+};
+
 export default function PostEditorSurface({ post, onCancel }: IPostEditorSurfaceProps) {
   const router = useRouter();
   const { token } = useEditMode();
@@ -42,10 +60,12 @@ export default function PostEditorSurface({ post, onCancel }: IPostEditorSurface
   const [slug, setSlug] = useState(post?.slug ?? '');
   const [tags, setTags] = useState(post?.tags.join(', ') ?? '');
   const [pinned, setPinned] = useState(Boolean(post?.pinned));
+  const [createdTime, setCreatedTime] = useState(formatPostDateInput(post?.createdTime));
   const [content, setContent] = useState(post?.content ?? '');
   const [stagedImages, setStagedImages] = useState<StagedEditorImage[]>([]);
   const [slugTouched, setSlugTouched] = useState(Boolean(post));
   const [toolbarPortal, setToolbarPortal] = useState<HTMLElement | null>(null);
+  const postDateInputRef = useRef<HTMLInputElement>(null);
 
   const isEdit = !!post;
   const uploadEntityId = useMemo(() => slug || slugify(title) || 'post', [slug, title]);
@@ -56,6 +76,7 @@ export default function PostEditorSurface({ post, onCancel }: IPostEditorSurface
     setSlug(post?.slug ?? '');
     setTags(post?.tags.join(', ') ?? '');
     setPinned(Boolean(post?.pinned));
+    setCreatedTime(formatPostDateInput(post?.createdTime));
     setContent(post?.content ?? '');
     setStagedImages([]);
     setSlugTouched(Boolean(post));
@@ -65,6 +86,21 @@ export default function PostEditorSurface({ post, onCancel }: IPostEditorSurface
     setTitle(value);
     if (!slugTouched) {
       setSlug(slugify(value));
+    }
+  };
+
+  const openPostDatePicker = () => {
+    const input = postDateInputRef.current;
+    if (!input) {
+      return;
+    }
+
+    input.focus({ preventScroll: true });
+
+    try {
+      input.showPicker();
+    } catch {
+      input.click();
     }
   };
 
@@ -88,6 +124,7 @@ export default function PostEditorSurface({ post, onCancel }: IPostEditorSurface
         slug,
         tags: parseTags(tags),
         pinned,
+        createdTime: buildPostCreatedTime(createdTime, post?.createdTime),
         content,
         token,
       };
@@ -97,7 +134,6 @@ export default function PostEditorSurface({ post, onCancel }: IPostEditorSurface
           ? await updatePostAction({
               ...payload,
               originalSlug: post.slug,
-              createdTime: post.createdTime,
             })
           : await createPostAction(payload);
 
@@ -214,6 +250,49 @@ export default function PostEditorSurface({ post, onCancel }: IPostEditorSurface
   );
 
   const parsedTags = parseTags(tags);
+  const postTagsWidth = `${Math.min(Math.max(tags.length || 4, 4), 32)}ch`;
+  const renderMeta = () => (
+    <>
+      <div className="flex min-h-6 items-center gap-1">
+        <CalendarIcon className="size-3.5 shrink-0" />
+        <span className="relative -mx-1 inline-flex items-center">
+          <button
+            type="button"
+            onClick={openPostDatePicker}
+            className="focus-ring hover:text-foreground rounded-sm px-1 transition-colors"
+            aria-label="Edit post date"
+          >
+            {dayjs(createdTime).format('MMM DD, YYYY')}
+          </button>
+          <input
+            ref={postDateInputRef}
+            name="post-created-time"
+            aria-label="Post date"
+            type="date"
+            value={createdTime}
+            onChange={event => setCreatedTime(event.target.value)}
+            tabIndex={-1}
+            className="pointer-events-none absolute inset-0 h-full w-full opacity-0 [color-scheme:light] dark:[color-scheme:dark]"
+          />
+        </span>
+      </div>
+      <span>·</span>
+      <input
+        name="post-tags-inline"
+        aria-label="Post tags"
+        value={tags}
+        onChange={event => setTags(event.target.value)}
+        placeholder="tags"
+        style={{ width: postTagsWidth }}
+        className={cn(
+          'focus-ring border-border placeholder:text-muted-foreground/70 h-6 max-w-[18rem] min-w-14 rounded-md border bg-transparent px-2 py-0.5 text-xs font-medium outline-none transition-colors',
+          tags.trim()
+            ? 'text-muted-foreground hover:bg-muted/65 hover:text-foreground focus:text-foreground'
+            : 'text-muted-foreground/70 focus:text-foreground',
+        )}
+      />
+    </>
+  );
 
   return (
     <>
@@ -233,6 +312,7 @@ export default function PostEditorSurface({ post, onCancel }: IPostEditorSurface
         createdTime={post?.createdTime}
         updatedTime={post?.updatedTime}
         tags={parsedTags}
+        metaNode={renderMeta()}
       >
         <div ref={setToolbarPortal} className="hidden shrink-0 md:flex" />
         {renderActions()}

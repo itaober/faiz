@@ -13,6 +13,7 @@ import { cn } from '@/lib/utils';
 interface IPostTitleProps extends Partial<MDXData> {
   title: string;
   titleNode?: ReactNode;
+  metaNode?: ReactNode;
   className?: string;
   children?: ReactNode;
 }
@@ -20,6 +21,7 @@ interface IPostTitleProps extends Partial<MDXData> {
 const PostTitle = ({
   title,
   titleNode,
+  metaNode,
   createdTime,
   updatedTime,
   tags,
@@ -82,7 +84,11 @@ const PostTitle = ({
           <div className="not-prose flex shrink-0 items-center gap-1 pt-1">{children}</div>
         )}
       </div>
-      {metaList.length > 0 && (
+      {metaNode ? (
+        <div className="text-muted-foreground mt-2 flex flex-wrap items-center gap-2">
+          {metaNode}
+        </div>
+      ) : metaList.length > 0 ? (
         <div className="text-muted-foreground mt-2 flex flex-wrap items-center gap-2">
           {metaList.map((item, index, array) => (
             <Fragment key={item.id}>
@@ -94,7 +100,7 @@ const PostTitle = ({
             </Fragment>
           ))}
         </div>
-      )}
+      ) : null}
     </div>
   );
 };

@@ -135,6 +135,7 @@ export default function RecordEditorSurface({
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [toolbarPortal, setToolbarPortal] = useState<HTMLElement | null>(null);
   const coverInputRef = useRef<HTMLInputElement>(null);
+  const inlineDateInputRef = useRef<HTMLInputElement>(null);
 
   const isEdit = !!record;
   const coverEntityId = `${type}_${title.trim() || 'record-cover'}`;
@@ -161,6 +162,21 @@ export default function RecordEditorSurface({
     setPendingCoverFile(null);
     setPendingCoverImageId('');
   }, [coverPreviewUrl]);
+
+  const openInlineDatePicker = () => {
+    const input = inlineDateInputRef.current;
+    if (!input) {
+      return;
+    }
+
+    input.focus({ preventScroll: true });
+
+    try {
+      input.showPicker();
+    } catch {
+      input.click();
+    }
+  };
 
   useEffect(() => {
     setTitle(record?.title ?? '');
@@ -485,17 +501,26 @@ export default function RecordEditorSurface({
               )}
             />
             <span className="text-muted-foreground/70 shrink-0">·</span>
-            <label className="focus-within:ring-foreground/50 hover:text-foreground relative -mx-0.5 inline-flex h-5 shrink-0 cursor-pointer items-center rounded-sm px-0.5 outline-none transition-colors focus-within:ring-2">
-              <span className="pointer-events-none">{formatInlineDate(createdTime)}</span>
+            <span className="relative -mx-0.5 inline-flex h-5 shrink-0 items-center">
+              <button
+                type="button"
+                onClick={openInlineDatePicker}
+                className="focus-ring hover:text-foreground rounded-sm px-0.5 transition-colors"
+                aria-label="Edit record date"
+              >
+                {formatInlineDate(createdTime)}
+              </button>
               <input
+                ref={inlineDateInputRef}
                 name="record-created-time-inline"
                 aria-label="Record date"
                 type="date"
                 value={createdTime}
                 onChange={event => setCreatedTime(event.target.value)}
-                className="absolute inset-0 h-full w-full cursor-pointer opacity-0 [color-scheme:light] dark:[color-scheme:dark]"
+                tabIndex={-1}
+                className="pointer-events-none absolute inset-0 h-full w-full opacity-0 [color-scheme:light] dark:[color-scheme:dark]"
               />
-            </label>
+            </span>
             {showTypeInMeta && (
               <>
                 <span className="text-muted-foreground/70 shrink-0">·</span>

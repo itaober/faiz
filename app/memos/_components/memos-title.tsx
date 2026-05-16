@@ -4,6 +4,7 @@ import { PlusIcon } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 import { useConsecutiveClicks } from '@/hooks/use-consecutive-clicks';
+import dayjs from '@/lib/dayjs';
 
 import { useMemosContext } from '../_context/use-memos-context';
 import MemoEditorSurface from './memo-editor-surface';
@@ -12,6 +13,8 @@ export default function MemosTitle() {
   const { isEdit, toggleEdit } = useMemosContext();
   const [mounted, setMounted] = useState(false);
   const [isEditorOpen, setIsEditorOpen] = useState(false);
+  const [draftCreatedTime, setDraftCreatedTime] = useState('');
+  const [editorActionsPortal, setEditorActionsPortal] = useState<HTMLElement | null>(null);
 
   const handleClick = useConsecutiveClicks({
     threshold: 5,
@@ -36,6 +39,7 @@ export default function MemosTitle() {
               type="button"
               onClick={event => {
                 event.currentTarget.blur();
+                setDraftCreatedTime(dayjs().format('YYYY-MM-DD HH:mm:ss'));
                 setIsEditorOpen(true);
               }}
               className="focus-ring hover:bg-muted text-muted-foreground hover:text-foreground flex size-11 items-center justify-center rounded-md transition-colors md:size-8"
@@ -47,7 +51,36 @@ export default function MemosTitle() {
         )}
       </div>
 
-      {canEdit && isEditorOpen && <MemoEditorSurface onCancel={() => setIsEditorOpen(false)} />}
+      {canEdit && isEditorOpen && (
+        <div className="mb-6">
+          <header className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 md:gap-4">
+              <div className="border-border size-3 rounded-full border" />
+              <time
+                dateTime={draftCreatedTime}
+                className="text-muted-foreground/70 font-sans text-sm font-medium"
+              >
+                {draftCreatedTime}
+              </time>
+            </div>
+            <div
+              ref={setEditorActionsPortal}
+              className="not-prose flex shrink-0 items-center gap-1"
+            />
+          </header>
+          <div className="flex w-full gap-2 md:gap-4">
+            <div className="flex h-auto w-3 shrink-0 justify-center">
+              <div className="bg-border h-full w-px" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <MemoEditorSurface
+                actionsPortal={editorActionsPortal}
+                onCancel={() => setIsEditorOpen(false)}
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

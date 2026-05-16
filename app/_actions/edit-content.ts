@@ -39,6 +39,7 @@ interface IPostPayload {
   slug: string;
   tags: string[];
   pinned?: boolean;
+  createdTime?: string;
   content: string;
 }
 
@@ -268,7 +269,7 @@ export async function createPostAction(input: ICreatePostInput): Promise<ActionR
     const post: PostMeta = {
       slug,
       title: input.title.trim(),
-      createdTime: now,
+      createdTime: input.createdTime || now,
       updatedTime: now,
       tags: normalizeTags(input.tags),
       pinned: input.pinned || undefined,

@@ -228,11 +228,16 @@ button {
   }
 
   .memo-editor-content code {
+    color: var(--tw-prose-code);
     font-size: 0.875em;
     line-height: 1.75;
   }
 
   .site-prose-editor-content {
     line-height: 1.75;
+  }
+
+  .site-prose-editor-content code {
+    color: var(--tw-prose-code);
   }
 }
