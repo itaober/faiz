@@ -81,7 +81,14 @@ const PostTitle = ({
           {titleNode ?? title}
         </h1>
         {mounted && isEditMode && children && (
-          <div className="not-prose flex shrink-0 items-center gap-1 pt-1">{children}</div>
+          <div
+            className={cn(
+              'not-prose shrink-0 items-center gap-1 pt-1',
+              titleNode ? 'hidden md:flex' : 'flex',
+            )}
+          >
+            {children}
+          </div>
         )}
       </div>
       {metaNode ? (

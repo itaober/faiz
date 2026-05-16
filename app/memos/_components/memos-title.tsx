@@ -65,7 +65,7 @@ export default function MemosTitle() {
             </div>
             <div
               ref={setEditorActionsPortal}
-              className="not-prose flex shrink-0 items-center gap-1"
+              className="not-prose hidden shrink-0 items-center gap-1 md:flex"
             />
           </header>
           <div className="flex w-full gap-2 md:gap-4">

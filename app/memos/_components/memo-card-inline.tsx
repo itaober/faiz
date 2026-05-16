@@ -31,7 +31,7 @@ export default function MemoCardInline({ memo, children }: IMemoCardInlineProps)
         {isEditing ? (
           <div
             ref={setEditorActionsPortal}
-            className="not-prose flex shrink-0 items-center gap-1"
+            className="not-prose hidden shrink-0 items-center gap-1 md:flex"
           />
         ) : (
           <MemoCardActions memo={memo} onEdit={() => setIsEditing(true)} />

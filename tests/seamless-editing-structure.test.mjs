@@ -5,6 +5,7 @@ const read = path => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8'
 
 const files = {
   page: read('app/_components/page-mdx-editor-surface.tsx'),
+  postTitle: read('app/_components/post-title.tsx'),
   post: read('app/posts/_components/post-editor-surface.tsx'),
   postActions: read('app/posts/_components/posts-title-actions.tsx'),
   memo: read('app/memos/_components/memo-editor-surface.tsx'),
@@ -96,6 +97,7 @@ assert.equal(
 assert.equal(
   files.memoInline.includes('editorActionsPortal') &&
     files.memoInline.includes('actionsPortal={editorActionsPortal}') &&
+    files.memoInline.includes('hidden shrink-0 items-center gap-1 md:flex') &&
     files.memo.includes('createPortal(actions, actionsPortal)') &&
     files.memo.includes('floatingActions={actions}') &&
     files.memo.includes('editorClassName="memo-editor-content"') &&
@@ -112,6 +114,7 @@ assert.equal(
 assert.equal(
   files.memoTitle.includes('draftCreatedTime') &&
     files.memoTitle.includes('actionsPortal={editorActionsPortal}') &&
+    files.memoTitle.includes('hidden shrink-0 items-center gap-1 md:flex') &&
     files.memoTitle.includes('bg-border h-full w-px'),
   true,
   'new memo composer should reuse the timeline rail and header action slot',
@@ -181,6 +184,7 @@ assert.equal(
 
 assert.equal(
   files.post.includes('metaNode={renderMeta()}') &&
+    files.postTitle.includes("titleNode ? 'hidden md:flex' : 'flex'") &&
     files.post.includes('name="post-created-time"') &&
     files.post.includes('openPostDatePicker') &&
     files.post.includes('showPicker()') &&
@@ -188,6 +192,13 @@ assert.equal(
     files.post.includes('createdTime: buildPostCreatedTime'),
   true,
   'post editing should expose date and tag metadata inline while preserving the read-mode post title shell',
+);
+
+assert.equal(
+  files.globals.includes('.site-prose-editor-content blockquote code') &&
+    files.globals.includes('color: inherit'),
+  true,
+  'seamless editors should preserve inherited blockquote color for inline code',
 );
 
 assert.equal(

@@ -240,4 +240,9 @@ button {
   .site-prose-editor-content code {
     color: var(--tw-prose-code);
   }
+
+  .memo-editor-content blockquote code,
+  .site-prose-editor-content blockquote code {
+    color: inherit;
+  }
 }
