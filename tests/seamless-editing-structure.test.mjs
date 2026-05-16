@@ -74,9 +74,17 @@ assert.equal(
 );
 
 assert.equal(
-  files.memoInline.includes('isEditing ? null : <MemoCardActions'),
+  files.memoInline.includes('editorActionsPortal') &&
+    files.memoInline.includes('actionsPortal={editorActionsPortal}') &&
+    files.memo.includes('createPortal(actions, actionsPortal)'),
   true,
-  'memo edit should hide the original edit/delete actions while the inline editor is active',
+  'memo edit controls should reuse the existing memo header action slot instead of inserting an admin row into the body',
+);
+
+assert.equal(
+  !files.memoInline.includes('isEditing ? null : <MemoCardActions'),
+  true,
+  'memo edit should replace the original edit/delete actions while the inline editor is active',
 );
 
 assert.equal(
@@ -117,13 +125,24 @@ assert.equal(
 );
 
 assert.equal(
+  files.record.includes('initialType') &&
+    files.recordsList.includes("activeTab === 'all' ? undefined : activeTab") &&
+    files.recordsList.includes("squareCover={activeTab === 'music'}") &&
+    files.recordItem.includes('squareCover={isMusicTab}') &&
+    files.record.includes('const hasCover = !!(coverPreviewSrc.trim() || pendingCoverFile)'),
+  true,
+  'record composer and editor should preserve the active tab/type and cover aspect, and uploaded covers should enable save before they have final URLs',
+);
+
+assert.equal(
   files.markdownEditor.includes('toolbarPortal') &&
     files.markdownEditor.includes('createPortal') &&
     files.markdownEditor.includes('ToolbarTriggerButton') &&
     files.markdownEditor.includes('Formatting tools') &&
     files.markdownEditor.includes('toolbarPopoverRef') &&
     files.markdownEditor.includes('toolbarPlacement') &&
-    files.markdownEditor.includes('bottom: 76'),
+    files.markdownEditor.includes('bottom: 76') &&
+    files.markdownEditor.includes('dockedToolbarTriggerRef'),
   true,
   'seamless toolbar should render as an on-demand formatting popover without pushing layout or colliding with mobile corner controls',
 );

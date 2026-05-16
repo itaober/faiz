@@ -4,6 +4,7 @@ import { SaveIcon, SettingsIcon, Trash2Icon, XIcon } from 'lucide-react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { toast } from 'sonner';
 
 import { createMemoAction } from '@/app/memos/_actions/create-memo';
@@ -18,6 +19,7 @@ import { toApiImageUrl, updateStagedEditorImageCaption } from '@/lib/utils/edito
 import { useMemosContext } from '../_context/use-memos-context';
 
 interface IMemoEditorSurfaceProps {
+  actionsPortal?: HTMLElement | null;
   memo?: Memo;
   onCancel: () => void;
 }
@@ -42,7 +44,11 @@ const generateMemoDraftId = () =>
     .toString(36)
     .slice(2, 8)}`;
 
-export default function MemoEditorSurface({ memo, onCancel }: IMemoEditorSurfaceProps) {
+export default function MemoEditorSurface({
+  actionsPortal,
+  memo,
+  onCancel,
+}: IMemoEditorSurfaceProps) {
   const router = useRouter();
   const { token } = useMemosContext();
   const [content, setContent] = useState(memo?.content ?? '');
@@ -55,6 +61,7 @@ export default function MemoEditorSurface({ memo, onCancel }: IMemoEditorSurface
   const [toolbarPortal, setToolbarPortal] = useState<HTMLElement | null>(null);
 
   const isEditMode = !!memo;
+  const expectsExternalActions = actionsPortal !== undefined;
   const entityId = memo?.id || draftId;
 
   useEffect(() => {
@@ -230,38 +237,44 @@ export default function MemoEditorSurface({ memo, onCancel }: IMemoEditorSurface
         </div>
       </section>
     ) : null;
+  const actions = (
+    <>
+      <div ref={setToolbarPortal} className="hidden shrink-0 md:flex" />
+      <button
+        type="button"
+        onClick={onCancel}
+        className="focus-ring icon-button hover:bg-muted text-muted-foreground hover:text-foreground size-9"
+        aria-label="Cancel editing"
+      >
+        <XIcon className="size-4" />
+      </button>
+      <button
+        type="button"
+        onClick={() => setIsSettingsOpen(true)}
+        className="focus-ring icon-button hover:bg-muted text-muted-foreground hover:text-foreground size-9"
+        aria-label="Settings"
+      >
+        <SettingsIcon className="size-4" />
+      </button>
+      <button
+        type="button"
+        onClick={handleSubmit}
+        disabled={isDisabled}
+        className="focus-ring icon-button hover:bg-muted text-muted-foreground hover:text-foreground disabled:text-muted-foreground/50 size-9 disabled:cursor-not-allowed"
+        aria-label={isEditMode ? 'Update memo' : 'Publish memo'}
+      >
+        <SaveIcon className="size-4" />
+      </button>
+    </>
+  );
 
   return (
     <>
       <section className="not-prose mb-6">
-        <div className="mb-2 flex items-center justify-end gap-2">
-          <div ref={setToolbarPortal} className="hidden shrink-0 md:flex" />
-          <button
-            type="button"
-            onClick={onCancel}
-            className="focus-ring icon-button hover:bg-muted text-muted-foreground hover:text-foreground size-9"
-            aria-label="Cancel editing"
-          >
-            <XIcon className="size-4" />
-          </button>
-          <button
-            type="button"
-            onClick={() => setIsSettingsOpen(true)}
-            className="focus-ring icon-button hover:bg-muted text-muted-foreground hover:text-foreground size-9"
-            aria-label="Settings"
-          >
-            <SettingsIcon className="size-4" />
-          </button>
-          <button
-            type="button"
-            onClick={handleSubmit}
-            disabled={isDisabled}
-            className="focus-ring icon-button hover:bg-muted text-muted-foreground hover:text-foreground disabled:text-muted-foreground/50 size-9 disabled:cursor-not-allowed"
-            aria-label={isEditMode ? 'Update memo' : 'Publish memo'}
-          >
-            <SaveIcon className="size-4" />
-          </button>
-        </div>
+        {actionsPortal ? createPortal(actions, actionsPortal) : null}
+        {!expectsExternalActions ? (
+          <div className="mb-2 flex items-center justify-end gap-2">{actions}</div>
+        ) : null}
         <MarkdownLexicalEditor
           key={entityId}
           value={content}
@@ -274,7 +287,7 @@ export default function MemoEditorSurface({ memo, onCancel }: IMemoEditorSurface
           chrome="seamless"
           showQuickReference={false}
           toolbarPortal={toolbarPortal}
-          minHeightClassName="min-h-64"
+          minHeightClassName={isEditMode ? 'min-h-0' : 'min-h-40'}
           onRequestToken={() => setIsSettingsOpen(true)}
           insertUploadedImages={false}
           editorFooter={attachmentsFooter}

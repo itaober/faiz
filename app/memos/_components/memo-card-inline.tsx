@@ -14,6 +14,7 @@ interface IMemoCardInlineProps {
 
 export default function MemoCardInline({ memo, children }: IMemoCardInlineProps) {
   const [isEditing, setIsEditing] = useState(false);
+  const [editorActionsPortal, setEditorActionsPortal] = useState<HTMLElement | null>(null);
 
   return (
     <div>
@@ -27,7 +28,14 @@ export default function MemoCardInline({ memo, children }: IMemoCardInlineProps)
             {memo.createdTime}
           </time>
         </div>
-        {isEditing ? null : <MemoCardActions memo={memo} onEdit={() => setIsEditing(true)} />}
+        {isEditing ? (
+          <div
+            ref={setEditorActionsPortal}
+            className="not-prose flex shrink-0 items-center gap-1"
+          />
+        ) : (
+          <MemoCardActions memo={memo} onEdit={() => setIsEditing(true)} />
+        )}
       </header>
       <div className="flex w-full gap-2 md:gap-4">
         <div className="flex h-auto w-3 shrink-0 justify-center">
@@ -35,7 +43,11 @@ export default function MemoCardInline({ memo, children }: IMemoCardInlineProps)
         </div>
         <div className="min-w-0 flex-1">
           {isEditing ? (
-            <MemoEditorSurface memo={memo} onCancel={() => setIsEditing(false)} />
+            <MemoEditorSurface
+              actionsPortal={editorActionsPortal}
+              memo={memo}
+              onCancel={() => setIsEditing(false)}
+            />
           ) : (
             children
           )}

@@ -97,14 +97,18 @@ export default function RecordItem({
   if (editorOpen) {
     return (
       <motion.div
-        className="group hover:bg-muted/45 flex flex-col gap-1 rounded-md border border-transparent p-1.5 transition-colors duration-200"
+        className="group flex flex-col gap-1 rounded-md border border-transparent p-1.5 transition-colors duration-200"
         variants={{
           hidden: { opacity: 0, y: ANIMATION.distance.small },
           visible: { opacity: 1, y: 0 },
         }}
         transition={{ duration: ANIMATION.duration.normal }}
       >
-        <RecordEditorSurface record={record} onCancel={() => setEditingRecordKey(null)} />
+        <RecordEditorSurface
+          record={record}
+          squareCover={isMusicTab}
+          onCancel={() => setEditingRecordKey(null)}
+        />
       </motion.div>
     );
   }

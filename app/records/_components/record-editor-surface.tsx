@@ -1,5 +1,6 @@
 'use client';
 
+import dayjs from 'dayjs';
 import { ImagePlusIcon, MessageSquareTextIcon, SaveIcon, SettingsIcon, XIcon } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -12,6 +13,7 @@ import GitHubTokenDrawer from '@/components/editing/github-token-drawer';
 import MarkdownLexicalEditor from '@/components/editing/markdown-lexical-editor';
 import { uploadStagedEditorImages } from '@/components/editing/upload-staged-editor-images';
 import type { RecordItem } from '@/lib/data/data';
+import { cn } from '@/lib/utils';
 import {
   buildEditorImageStoragePath,
   type StagedEditorImage,
@@ -22,8 +24,10 @@ import { compressImage, MAX_IMAGE_SIZE, SUPPORTED_IMAGE_TYPES } from '@/lib/util
 const recordTypes: RecordItem['type'][] = ['book', 'movie', 'tv', 'music', 'game'];
 
 interface IRecordEditorSurfaceProps {
+  initialType?: RecordItem['type'];
   record?: RecordItem;
   onCancel: () => void;
+  squareCover?: boolean;
 }
 
 const formatDateInput = (value?: string) => {
@@ -101,13 +105,18 @@ const imageFileNameFromUrl = (url: string, fallbackTitle: string) => {
   return `${fallbackTitle || 'record-cover'}.jpg`;
 };
 
-export default function RecordEditorSurface({ record, onCancel }: IRecordEditorSurfaceProps) {
+export default function RecordEditorSurface({
+  initialType = 'movie',
+  record,
+  onCancel,
+  squareCover = false,
+}: IRecordEditorSurfaceProps) {
   const router = useRouter();
   const { token } = useEditMode();
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [title, setTitle] = useState(record?.title ?? '');
-  const [type, setType] = useState<RecordItem['type']>(record?.type ?? 'movie');
+  const [type, setType] = useState<RecordItem['type']>(record?.type ?? initialType);
   const [coverUrl, setCoverUrl] = useState(record?.coverUrl ?? '');
   const [coverPreviewUrl, setCoverPreviewUrl] = useState('');
   const [pendingCoverFile, setPendingCoverFile] = useState<File | null>(null);
@@ -134,7 +143,9 @@ export default function RecordEditorSurface({ record, onCancel }: IRecordEditorS
       : '';
   const displayedCoverUrl = pendingCoverPath ? toApiImageUrl(pendingCoverPath) : coverUrl;
   const coverPreviewSrc = coverPreviewUrl || coverUrl;
-  const isSaveDisabled = isSubmitting || !title.trim() || !link.trim() || !displayedCoverUrl.trim();
+  const hasCover = !!(coverPreviewSrc.trim() || pendingCoverFile);
+  const isSaveDisabled = isSubmitting || !title.trim() || !link.trim() || !hasCover;
+  const coverAspectClass = squareCover ? 'aspect-square' : 'aspect-[2/3]';
 
   const clearPendingCover = useCallback(() => {
     if (coverPreviewUrl) {
@@ -148,7 +159,7 @@ export default function RecordEditorSurface({ record, onCancel }: IRecordEditorS
 
   useEffect(() => {
     setTitle(record?.title ?? '');
-    setType(record?.type ?? 'movie');
+    setType(record?.type ?? initialType);
     setCoverUrl(record?.coverUrl ?? '');
     setCoverPreviewUrl('');
     setPendingCoverFile(null);
@@ -160,7 +171,7 @@ export default function RecordEditorSurface({ record, onCancel }: IRecordEditorS
     setStagedCommentImages([]);
     setIsReviewOpen(false);
     setIsDetailsOpen(false);
-  }, [record]);
+  }, [initialType, record]);
 
   useEffect(() => {
     return () => {
@@ -292,6 +303,12 @@ export default function RecordEditorSurface({ record, onCancel }: IRecordEditorS
       return;
     }
 
+    const parsedRating = rating.trim() ? Number(rating) : undefined;
+    if (parsedRating !== undefined && Number.isNaN(parsedRating)) {
+      toast.error('Invalid rating');
+      return;
+    }
+
     setIsSubmitting(true);
     const saveRecord = async () => {
       const nextCoverUrl = await uploadPendingCover();
@@ -308,7 +325,7 @@ export default function RecordEditorSurface({ record, onCancel }: IRecordEditorS
         coverUrl: nextCoverUrl,
         link,
         createdTime,
-        rating: rating.trim() ? Number(rating) : undefined,
+        rating: parsedRating,
         comment: comment.trim() || undefined,
       };
 
@@ -349,38 +366,6 @@ export default function RecordEditorSurface({ record, onCancel }: IRecordEditorS
   return (
     <>
       <section className="not-prose relative min-w-0">
-        <div className="bg-background/80 border-border/80 absolute top-2 right-2 z-20 flex items-center gap-0.5 rounded-full border p-0.5 shadow-sm backdrop-blur">
-          <button
-            type="button"
-            onClick={onCancel}
-            className="focus-ring icon-button hover:bg-muted text-muted-foreground hover:text-foreground size-8"
-            aria-label="Cancel editing"
-          >
-            <XIcon className="size-4" />
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setIsReviewOpen(false);
-              setIsDetailsOpen(open => !open);
-            }}
-            data-active={isDetailsOpen || undefined}
-            className="focus-ring icon-button hover:bg-muted data-[active=true]:bg-muted data-[active=true]:text-foreground text-muted-foreground hover:text-foreground size-8"
-            aria-label="Record details"
-          >
-            <SettingsIcon className="size-4" />
-          </button>
-          <button
-            type="button"
-            onClick={handleSubmit}
-            disabled={isSaveDisabled}
-            className="focus-ring icon-button hover:bg-muted text-muted-foreground hover:text-foreground disabled:text-muted-foreground/50 size-8 disabled:cursor-not-allowed"
-            aria-label="Save record"
-          >
-            <SaveIcon className="size-4" />
-          </button>
-        </div>
-
         <div className="flex flex-col gap-2">
           <div className="relative" onPaste={handleCoverPaste}>
             <div
@@ -388,24 +373,26 @@ export default function RecordEditorSurface({ record, onCancel }: IRecordEditorS
               aria-label="Record cover"
               onDrop={handleCoverDrop}
               onDragOver={event => event.preventDefault()}
-              className="focus-ring bg-muted/50 border-border/70 relative overflow-hidden rounded-md border"
+              className={cn(
+                'focus-ring relative overflow-hidden rounded-md',
+                coverPreviewSrc
+                  ? 'bg-transparent'
+                  : 'border-foreground/25 bg-muted border-2 border-dashed',
+              )}
             >
               {coverPreviewSrc ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={coverPreviewSrc}
                   alt={title || 'Record cover'}
-                  className={`relative w-full rounded object-cover ${
-                    type === 'music' ? 'aspect-square' : 'aspect-[2/3]'
-                  }`}
+                  className={`relative w-full rounded object-cover ${coverAspectClass}`}
                 />
               ) : (
                 <div
-                  className={`text-muted-foreground flex w-full items-center justify-center ${
-                    type === 'music' ? 'aspect-square' : 'aspect-[2/3]'
-                  }`}
+                  className={`text-foreground/65 flex w-full flex-col items-center justify-center gap-2 text-sm ${coverAspectClass}`}
                 >
-                  Cover
+                  <ImagePlusIcon className="size-5" />
+                  <span>Cover</span>
                 </div>
               )}
             </div>
@@ -428,20 +415,49 @@ export default function RecordEditorSurface({ record, onCancel }: IRecordEditorS
             className="placeholder:text-muted-foreground truncate bg-transparent text-sm font-medium leading-5 outline-none"
           />
 
-          <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-1.5">
-            <select
-              name="record-type"
-              aria-label="Record type"
-              value={type}
-              onChange={event => setType(event.target.value as RecordItem['type'])}
-              className="border-border/70 bg-background/70 focus:border-foreground/40 min-w-0 rounded-md border px-2 py-1.5 text-xs capitalize outline-none"
+          <div className="text-muted-foreground flex flex-wrap items-center gap-1 text-sm">
+            <input
+              name="record-rating"
+              aria-label="Record rating"
+              type="text"
+              inputMode="decimal"
+              value={rating}
+              onChange={event => {
+                const nextRating = event.target.value;
+                if (/^\d*(?:\.\d*)?$/.test(nextRating)) {
+                  setRating(nextRating);
+                }
+              }}
+              placeholder="Rate"
+              className="placeholder:text-muted-foreground focus:border-border w-9 border-b border-transparent bg-transparent pb-0.5 outline-none"
+            />
+            <span>·</span>
+            <button
+              type="button"
+              onClick={() => {
+                setIsReviewOpen(false);
+                setIsDetailsOpen(true);
+              }}
+              className="focus-ring hover:text-foreground rounded-sm transition-colors"
+              aria-label="Edit record date"
             >
-              {recordTypes.map(recordType => (
-                <option key={recordType} value={recordType}>
-                  {recordType}
-                </option>
-              ))}
-            </select>
+              {dayjs(createdTime).format('MMM DD')}
+            </button>
+            <span>·</span>
+            <button
+              type="button"
+              onClick={() => {
+                setIsReviewOpen(false);
+                setIsDetailsOpen(true);
+              }}
+              className="focus-ring hover:text-foreground rounded-sm capitalize transition-colors"
+              aria-label="Edit record type"
+            >
+              {type}
+            </button>
+          </div>
+
+          <div className="flex items-center justify-start gap-0.5">
             <button
               type="button"
               onClick={() => {
@@ -449,39 +465,46 @@ export default function RecordEditorSurface({ record, onCancel }: IRecordEditorS
                 setIsReviewOpen(open => !open);
               }}
               data-active={isReviewOpen || undefined}
-              className="focus-ring hover:bg-muted data-[active=true]:bg-muted data-[active=true]:text-foreground text-muted-foreground hover:text-foreground flex h-8 items-center gap-1.5 rounded-md border border-transparent px-2 text-xs transition-colors"
+              className="focus-ring pressable hover:bg-muted data-[active=true]:bg-muted data-[active=true]:text-foreground text-muted-foreground hover:text-foreground flex size-11 items-center justify-center rounded-md md:size-7"
+              aria-label="Edit review"
+              title="Review"
             >
               <MessageSquareTextIcon className="size-3.5" />
-              Review
             </button>
-          </div>
-
-          <div className="grid grid-cols-[minmax(0,1fr)_3.25rem] gap-1.5">
-            <input
-              name="record-created-time"
-              aria-label="Record date"
-              type="date"
-              value={createdTime}
-              onChange={event => setCreatedTime(event.target.value)}
-              className="border-border bg-transparent border-b pb-1 font-mono text-[11px] outline-none"
-            />
-            <input
-              name="record-rating"
-              aria-label="Record rating"
-              type="number"
-              min="0"
-              max="10"
-              step="0.5"
-              value={rating}
-              onChange={event => setRating(event.target.value)}
-              placeholder="Rate"
-              className="placeholder:text-muted-foreground border-border bg-transparent border-b pb-1 text-[11px] outline-none"
-            />
+            <button
+              type="button"
+              onClick={onCancel}
+              className="focus-ring pressable hover:bg-muted text-muted-foreground hover:text-foreground flex size-11 items-center justify-center rounded-md md:size-7"
+              aria-label="Cancel editing"
+            >
+              <XIcon className="size-3.5" />
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setIsReviewOpen(false);
+                setIsDetailsOpen(open => !open);
+              }}
+              data-active={isDetailsOpen || undefined}
+              className="focus-ring pressable hover:bg-muted data-[active=true]:bg-muted data-[active=true]:text-foreground text-muted-foreground hover:text-foreground flex size-11 items-center justify-center rounded-md md:size-7"
+              aria-label="Record details"
+            >
+              <SettingsIcon className="size-3.5" />
+            </button>
+            <button
+              type="button"
+              onClick={handleSubmit}
+              disabled={isSaveDisabled}
+              className="focus-ring pressable hover:bg-muted text-muted-foreground hover:text-foreground disabled:text-muted-foreground/50 flex size-11 items-center justify-center rounded-md disabled:cursor-not-allowed md:size-7"
+              aria-label="Save record"
+            >
+              <SaveIcon className="size-3.5" />
+            </button>
           </div>
         </div>
 
         {isDetailsOpen ? (
-          <div className="bg-background border-border absolute top-11 right-0 z-30 w-[min(20rem,calc(100vw-2rem))] rounded-lg border p-3 shadow-xl max-md:fixed max-md:inset-x-3 max-md:top-auto max-md:bottom-3 max-md:w-auto">
+          <div className="bg-background border-border absolute right-0 bottom-8 z-30 w-[min(20rem,calc(100vw-2rem))] rounded-lg border p-3 shadow-xl max-md:fixed max-md:inset-x-3 max-md:top-auto max-md:bottom-3 max-md:w-auto">
             <div className="mb-3 flex items-center justify-between gap-3">
               <p className="text-muted-foreground text-xs font-medium">Record details</p>
               <button
@@ -518,6 +541,33 @@ export default function RecordEditorSurface({ record, onCancel }: IRecordEditorS
                 placeholder="Paste source link"
                 className="border-border placeholder:text-muted-foreground focus:border-foreground/40 w-full rounded-md border bg-transparent px-2.5 py-2 font-mono text-xs outline-none"
               />
+            </label>
+            <label className="mb-3 block">
+              <span className="text-muted-foreground mb-1 block text-xs">Date</span>
+              <input
+                name="record-created-time"
+                aria-label="Record date"
+                type="date"
+                value={createdTime}
+                onChange={event => setCreatedTime(event.target.value)}
+                className="border-border focus:border-foreground/40 w-full rounded-md border bg-transparent px-2.5 py-2 text-xs outline-none"
+              />
+            </label>
+            <label className="mb-3 block">
+              <span className="text-muted-foreground mb-1 block text-xs">Type</span>
+              <select
+                name="record-type"
+                aria-label="Record type"
+                value={type}
+                onChange={event => setType(event.target.value as RecordItem['type'])}
+                className="border-border focus:border-foreground/40 w-full rounded-md border bg-transparent px-2.5 py-2 text-xs capitalize outline-none"
+              >
+                {recordTypes.map(recordType => (
+                  <option key={recordType} value={recordType}>
+                    {recordType}
+                  </option>
+                ))}
+              </select>
             </label>
             <button
               type="button"

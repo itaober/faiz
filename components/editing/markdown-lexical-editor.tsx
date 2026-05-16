@@ -169,20 +169,20 @@ interface IMarkdownLexicalEditorProps {
 }
 
 const theme = {
-  paragraph: 'mb-3 last:mb-0',
+  paragraph: '',
   heading: {
-    h1: 'mb-3 text-3xl font-bold tracking-tight',
-    h2: 'mb-2 mt-5 text-2xl font-bold tracking-tight',
-    h3: 'mb-2 mt-4 text-xl font-semibold',
+    h1: '',
+    h2: '',
+    h3: '',
   },
-  quote: 'border-l-2 border-border pl-3 text-muted-foreground',
+  quote: '',
   list: {
-    ul: 'list-disc ps-5',
-    ol: 'list-decimal ps-5',
-    listitem: 'my-1',
-    checklist: 'flex flex-col gap-1 ps-0',
-    listitemChecked: 'editor-checklist-item list-none',
-    listitemUnchecked: 'editor-checklist-item list-none',
+    ul: '',
+    ol: '',
+    listitem: '',
+    checklist: 'editor-checklist-list',
+    listitemChecked: 'editor-checklist-item',
+    listitemUnchecked: 'editor-checklist-item',
   },
   text: {
     bold: 'font-semibold',
@@ -1945,10 +1945,12 @@ export default function MarkdownLexicalEditor({
   const markdownUploadSelectionRef = useRef<{ end: number; start: number } | null>(null);
   const toolbarTriggerRef = useRef<HTMLButtonElement | null>(null);
   const mobileToolbarTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const dockedToolbarTriggerRef = useRef<HTMLButtonElement | null>(null);
   const toolbarPopoverRef = useRef<HTMLDivElement | null>(null);
   const previewSrcByImageSrcRef = useRef(new Map<string, string>());
   const stagedImageIdsRef = useRef(new Map<string, number>());
   const [isToolbarOpen, setIsToolbarOpen] = useState(false);
+  const [isToolbarAnchorVisible, setIsToolbarAnchorVisible] = useState(true);
   const [toolbarPopoverPortal, setToolbarPopoverPortal] = useState<HTMLElement | null>(null);
   const [toolbarPopoverStyle, setToolbarPopoverStyle] = useState<CSSProperties>({});
 
@@ -2135,7 +2137,11 @@ export default function MarkdownLexicalEditor({
   const shouldPortalToolbar = chrome === 'seamless' && !!toolbarPortal;
 
   const getVisibleToolbarAnchor = useCallback(() => {
-    const anchors = [toolbarTriggerRef.current, mobileToolbarTriggerRef.current];
+    const anchors = [
+      dockedToolbarTriggerRef.current,
+      toolbarTriggerRef.current,
+      mobileToolbarTriggerRef.current,
+    ];
     return (
       anchors.find(anchor => {
         if (!anchor) {
@@ -2171,11 +2177,12 @@ export default function MarkdownLexicalEditor({
     const belowTop = rect.bottom + 10;
     const aboveTop = rect.top - 50;
     const hasRoomAbove = aboveTop >= 12;
+    const top = toolbarPlacement === 'below' || !hasRoomAbove ? belowTop : aboveTop;
 
     setToolbarPopoverStyle({
       left,
       position: 'fixed',
-      top: toolbarPlacement === 'below' || !hasRoomAbove ? belowTop : aboveTop,
+      top: Math.max(12, Math.min(window.innerHeight - 54, top)),
       width,
     });
   }, [getVisibleToolbarAnchor, toolbarPlacement]);
@@ -2206,6 +2213,7 @@ export default function MarkdownLexicalEditor({
       if (
         toolbarPopoverRef.current?.contains(target) ||
         toolbarTriggerRef.current?.contains(target) ||
+        dockedToolbarTriggerRef.current?.contains(target) ||
         mobileToolbarTriggerRef.current?.contains(target)
       ) {
         return;
@@ -2232,6 +2240,33 @@ export default function MarkdownLexicalEditor({
       window.removeEventListener('scroll', updateToolbarPopoverPosition, true);
     };
   }, [isToolbarOpen, updateToolbarPopoverPosition]);
+
+  useEffect(() => {
+    if (!shouldPortalToolbar || !showMobileToolbarOverlay) {
+      setIsToolbarAnchorVisible(true);
+      return;
+    }
+
+    const updateToolbarAnchorVisibility = () => {
+      const anchor = toolbarTriggerRef.current;
+      if (!anchor) {
+        setIsToolbarAnchorVisible(true);
+        return;
+      }
+
+      const rect = anchor.getBoundingClientRect();
+      setIsToolbarAnchorVisible(rect.bottom > 0 && rect.top < window.innerHeight);
+    };
+
+    updateToolbarAnchorVisibility();
+    window.addEventListener('resize', updateToolbarAnchorVisibility);
+    window.addEventListener('scroll', updateToolbarAnchorVisibility, true);
+
+    return () => {
+      window.removeEventListener('resize', updateToolbarAnchorVisibility);
+      window.removeEventListener('scroll', updateToolbarAnchorVisibility, true);
+    };
+  }, [shouldPortalToolbar, showMobileToolbarOverlay]);
 
   const toolbarTrigger = (
     <ToolbarTriggerButton
@@ -2335,6 +2370,17 @@ export default function MarkdownLexicalEditor({
               buttonRef={mobileToolbarTriggerRef}
               onClick={toggleToolbar}
               className="bg-background/90 border-border border shadow-lg backdrop-blur"
+            />
+          </div>
+        )}
+
+        {shouldPortalToolbar && showMobileToolbarOverlay && !isToolbarAnchorVisible && (
+          <div className="pointer-events-none fixed top-3 right-3 z-50 hidden md:block">
+            <ToolbarTriggerButton
+              active={isToolbarOpen}
+              buttonRef={dockedToolbarTriggerRef}
+              onClick={toggleToolbar}
+              className="bg-background/90 border-border pointer-events-auto border shadow-lg backdrop-blur"
             />
           </div>
         )}

@@ -157,8 +157,20 @@ button {
 }
 
 @layer utilities {
+  .prose .editor-checklist-list,
+  .editor-checklist-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.125rem;
+    list-style: none;
+    margin-block: 0;
+    padding-inline-start: 0;
+  }
+
   .prose .editor-checklist-item,
   .editor-checklist-item {
+    list-style: none;
+    margin-block: 0;
     position: relative;
     padding-inline-start: 1.75rem;
     padding-left: 1.75rem;

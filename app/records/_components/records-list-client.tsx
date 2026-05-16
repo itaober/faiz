@@ -50,6 +50,7 @@ export function RecordsListClient({ records, activeTab }: RecordsListClientProps
     }
     return '';
   };
+  const composerInitialType = activeTab === 'all' ? undefined : activeTab;
 
   if (!sortedRecordsByYear.length && !isComposerOpen) {
     return (
@@ -89,7 +90,20 @@ export function RecordsListClient({ records, activeTab }: RecordsListClientProps
             <h2 className="mb-4 text-2xl font-bold">{year}</h2>
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
               {isComposerOpen && sectionIndex === 0 && (
-                <RecordEditorSurface onCancel={() => setComposerOpen(false)} />
+                <motion.div
+                  className="group flex flex-col gap-1 rounded-md border border-transparent p-1.5 transition-colors duration-200"
+                  variants={{
+                    hidden: { opacity: 0, y: ANIMATION.distance.small },
+                    visible: { opacity: 1, y: 0 },
+                  }}
+                  transition={{ duration: ANIMATION.duration.normal }}
+                >
+                  <RecordEditorSurface
+                    initialType={composerInitialType}
+                    squareCover={activeTab === 'music'}
+                    onCancel={() => setComposerOpen(false)}
+                  />
+                </motion.div>
               )}
               {recordList.map((record, recordIndex) => (
                 <RecordItem
