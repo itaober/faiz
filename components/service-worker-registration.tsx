@@ -8,6 +8,28 @@ export function ServiceWorkerRegistration() {
       return;
     }
 
+    if (process.env.NODE_ENV !== 'production') {
+      navigator.serviceWorker
+        .getRegistrations()
+        .then(registrations =>
+          Promise.all(registrations.map(registration => registration.unregister())),
+        )
+        .catch(() => undefined);
+
+      if ('caches' in window) {
+        caches
+          .keys()
+          .then(keys =>
+            Promise.all(
+              keys.filter(key => key.startsWith('faiz_taober_')).map(key => caches.delete(key)),
+            ),
+          )
+          .catch(() => undefined);
+      }
+
+      return;
+    }
+
     const register = () => {
       navigator.serviceWorker.register('/sw.js').catch(error => {
         console.error('SW registration failed:', error);

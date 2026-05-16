@@ -21,7 +21,6 @@ import { cn } from '@/lib/utils';
 
 import type { Tab } from '../_constants';
 import RecordEditorSurface from './record-editor-surface';
-import RecordPreview from './record-preview';
 import { useRecordsInlineComposer } from './use-records-inline-composer';
 
 interface IRecordItemProps extends RecordDataItem {
@@ -50,7 +49,6 @@ export default function RecordItem({
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const isMusicTab = tab === 'music';
-  const previewComment = comment?.trim();
   const recordKey = `${type}-${createdTime}-${title}`;
   const coverSizes =
     '(max-width: 640px) calc((100vw - 4rem) / 2), (max-width: 768px) calc((100vw - 5rem) / 3), 11rem';
@@ -106,6 +104,7 @@ export default function RecordItem({
       >
         <RecordEditorSurface
           record={record}
+          showTypeInMeta={tab === 'all'}
           squareCover={isMusicTab}
           onCancel={() => setEditingRecordKey(null)}
         />
@@ -115,7 +114,7 @@ export default function RecordItem({
 
   return (
     <motion.div
-      className="group hover:bg-muted/45 flex flex-col gap-1 rounded-md border border-transparent p-1.5 transition-colors duration-200"
+      className="group hover:bg-muted/45 relative flex flex-col gap-1 rounded-md border border-transparent p-1.5 transition-colors duration-200"
       variants={{
         hidden: { opacity: 0, y: ANIMATION.distance.small },
         visible: { opacity: 1, y: 0 },
@@ -146,10 +145,7 @@ export default function RecordItem({
             />
           </div>
         </PreviewTrigger>
-        <PreviewPortal
-          ariaLabel={`Record preview: ${title}`}
-          sidecar={previewComment ? <RecordPreview record={record} /> : undefined}
-        >
+        <PreviewPortal ariaLabel={`Cover preview: ${title}`}>
           <PreviewImage src={coverUrl} alt={title} />
         </PreviewPortal>
       </Preview>
@@ -162,7 +158,7 @@ export default function RecordItem({
       >
         {title}
       </Link>
-      <div className="text-muted-foreground flex flex-wrap items-center gap-1 text-sm">
+      <div className="text-muted-foreground flex items-center gap-1 text-sm">
         {rating !== undefined && <span>{rating.toFixed(1)}</span>}
         {rating !== undefined && <span>·</span>}
         <span>{dayjs(createdTime).format('MMM DD')}</span>
@@ -170,14 +166,14 @@ export default function RecordItem({
         {typeLabel && <Badge variant="outline">{typeLabel}</Badge>}
       </div>
       {canEdit && (
-        <div className="flex items-center justify-start gap-0.5">
+        <div className="bg-background/90 border-border pointer-events-auto absolute top-2 right-2 z-10 flex items-center gap-0.5 rounded-md border p-0.5 opacity-100 shadow-sm backdrop-blur transition-opacity md:pointer-events-none md:opacity-0 md:group-focus-within:pointer-events-auto md:group-focus-within:opacity-100 md:group-hover:pointer-events-auto md:group-hover:opacity-100">
           <button
             type="button"
             onClick={event => {
               event.currentTarget.blur();
               setEditingRecordKey(recordKey);
             }}
-            className="focus-ring pressable hover:bg-muted text-muted-foreground hover:text-foreground flex size-11 items-center justify-center rounded-md md:size-7"
+            className="focus-ring pressable hover:bg-muted text-muted-foreground hover:text-foreground flex size-8 items-center justify-center rounded-sm md:size-7"
             aria-label={`Edit ${title}`}
           >
             <PencilIcon className="size-3.5" />
@@ -188,7 +184,7 @@ export default function RecordItem({
               event.currentTarget.blur();
               setConfirmOpen(true);
             }}
-            className="focus-ring pressable hover:bg-danger-soft text-muted-foreground hover:text-danger flex size-11 items-center justify-center rounded-md md:size-7"
+            className="focus-ring pressable hover:bg-danger-soft text-muted-foreground hover:text-danger flex size-8 items-center justify-center rounded-sm md:size-7"
             aria-label={`Delete ${title}`}
           >
             <Trash2Icon className="size-3.5" />

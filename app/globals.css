@@ -172,35 +172,35 @@ button {
     list-style: none;
     margin-block: 0;
     position: relative;
-    padding-inline-start: 1.75rem;
-    padding-left: 1.75rem;
+    padding-inline-start: 1.5rem;
+    padding-left: 1.5rem;
   }
 
   .editor-checklist-item::before {
     position: absolute;
-    top: 0.35em;
+    top: 0.3em;
     left: 0;
     width: 1rem;
     height: 1rem;
-    border: 1px solid var(--border);
+    border: 1.5px solid var(--border);
     border-radius: 0.25rem;
     background: var(--background);
     content: '';
+    opacity: 0.6;
   }
 
   .editor-checklist-item[aria-checked='true']::before {
-    border-color: color-mix(in oklch, var(--muted-foreground) 50%, transparent);
-    background: var(--muted);
+    opacity: 1;
   }
 
   .editor-checklist-item[aria-checked='true']::after {
     position: absolute;
-    top: 0.48em;
+    top: 0.43em;
     left: 0.35rem;
     width: 0.28rem;
     height: 0.55rem;
-    border-right: 2px solid var(--muted-foreground);
-    border-bottom: 2px solid var(--muted-foreground);
+    border-right: 2px solid var(--foreground);
+    border-bottom: 2px solid var(--foreground);
     content: '';
     transform: rotate(45deg);
   }

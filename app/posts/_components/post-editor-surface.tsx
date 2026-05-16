@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 
 import { createPostAction, updatePostAction } from '@/app/_actions/edit-content';
+import PostTitle from '@/app/_components/post-title';
 import { useEditMode } from '@/components/edit-mode-context';
 import GitHubTokenDrawer from '@/components/editing/github-token-drawer';
 import MarkdownLexicalEditor from '@/components/editing/markdown-lexical-editor';
@@ -34,7 +35,8 @@ const parseTags = (value: string) =>
 export default function PostEditorSurface({ post, onCancel }: IPostEditorSurfaceProps) {
   const router = useRouter();
   const { token } = useEditMode();
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isTokenSettingsOpen, setIsTokenSettingsOpen] = useState(false);
+  const [isPostSettingsOpen, setIsPostSettingsOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [title, setTitle] = useState(post?.title ?? '');
   const [slug, setSlug] = useState(post?.slug ?? '');
@@ -68,7 +70,7 @@ export default function PostEditorSurface({ post, onCancel }: IPostEditorSurface
 
   const handleSubmit = async () => {
     if (!token) {
-      setIsSettingsOpen(true);
+      setIsTokenSettingsOpen(true);
       return;
     }
 
@@ -122,105 +124,145 @@ export default function PostEditorSurface({ post, onCancel }: IPostEditorSurface
     });
   };
 
+  const renderActions = () => (
+    <>
+      <button
+        type="button"
+        onClick={onCancel}
+        className="focus-ring icon-button hover:bg-muted text-muted-foreground hover:text-foreground size-9"
+        aria-label="Cancel editing"
+      >
+        <XIcon className="size-4" />
+      </button>
+      <div className="relative">
+        <button
+          type="button"
+          onClick={() => setIsPostSettingsOpen(open => !open)}
+          data-active={isPostSettingsOpen || undefined}
+          className="focus-ring icon-button hover:bg-muted data-[active=true]:bg-muted data-[active=true]:text-foreground text-muted-foreground hover:text-foreground size-9"
+          aria-label="Post settings"
+        >
+          <SettingsIcon className="size-4" />
+        </button>
+        {isPostSettingsOpen && (
+          <div className="bg-background border-border absolute top-full right-0 z-30 mt-2 w-[min(20rem,calc(100vw-2rem))] rounded-lg border p-3 shadow-xl">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <p className="text-muted-foreground text-xs font-medium">Post settings</p>
+              <button
+                type="button"
+                onClick={() => setIsPostSettingsOpen(false)}
+                className="focus-ring icon-button hover:bg-muted text-muted-foreground hover:text-foreground size-7"
+                aria-label="Close post settings"
+              >
+                <XIcon className="size-3.5" />
+              </button>
+            </div>
+            <label className="mb-3 block">
+              <span className="text-muted-foreground mb-1 block text-xs">Slug</span>
+              <input
+                name="post-slug"
+                aria-label="Post slug"
+                value={slug}
+                onChange={event => {
+                  setSlugTouched(true);
+                  setSlug(slugify(event.target.value));
+                }}
+                placeholder="post-slug"
+                className="border-border placeholder:text-muted-foreground focus:border-foreground/40 w-full rounded-md border bg-transparent px-2.5 py-2 font-mono text-xs outline-none"
+              />
+            </label>
+            <label className="mb-3 block">
+              <span className="text-muted-foreground mb-1 block text-xs">Tags</span>
+              <input
+                name="post-tags"
+                aria-label="Post tags"
+                value={tags}
+                onChange={event => setTags(event.target.value)}
+                placeholder="tags, separated, by comma"
+                className="border-border placeholder:text-muted-foreground focus:border-foreground/40 w-full rounded-md border bg-transparent px-2.5 py-2 text-xs outline-none"
+              />
+            </label>
+            <button
+              type="button"
+              onClick={() => setPinned(value => !value)}
+              data-active={pinned || undefined}
+              className="focus-ring hover:bg-muted data-[active=true]:text-foreground data-[active=true]:bg-muted text-muted-foreground mb-2 flex h-8 items-center gap-2 rounded-md px-2 text-xs transition-colors"
+            >
+              <PinIcon className="size-3.5" />
+              Pinned
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsTokenSettingsOpen(true)}
+              className="focus-ring hover:bg-muted text-muted-foreground hover:text-foreground flex h-8 items-center rounded-md px-2 text-xs transition-colors"
+            >
+              GitHub token settings
+            </button>
+          </div>
+        )}
+      </div>
+      <button
+        type="button"
+        onClick={handleSubmit}
+        disabled={isSaveDisabled}
+        className="focus-ring icon-button hover:bg-muted text-muted-foreground hover:text-foreground disabled:text-muted-foreground/50 size-9 disabled:cursor-not-allowed"
+        aria-label="Save post"
+      >
+        <SaveIcon className="size-4" />
+      </button>
+    </>
+  );
+
+  const parsedTags = parseTags(tags);
+
   return (
     <>
-      <div className="mb-8">
-        <div className="flex items-start justify-between gap-3">
+      <PostTitle
+        title={title || 'Post title'}
+        titleNode={
           <input
             name="post-title"
             aria-label="Post title"
             value={title}
             onChange={event => handleTitleChange(event.target.value)}
+            onClick={event => event.stopPropagation()}
             placeholder="Post title"
-            className="placeholder:text-muted-foreground min-w-0 flex-1 bg-transparent text-4xl font-bold tracking-tight outline-none"
+            className="placeholder:text-muted-foreground w-full min-w-0 bg-transparent font-[inherit] leading-[inherit] tracking-[inherit] text-[inherit] outline-none select-text"
           />
-          <div ref={setToolbarPortal} className="hidden shrink-0 md:flex" />
-          <div className="not-prose flex shrink-0 items-center gap-1 pt-1">
-            <button
-              type="button"
-              onClick={onCancel}
-              className="focus-ring icon-button hover:bg-muted text-muted-foreground hover:text-foreground size-9"
-              aria-label="Cancel editing"
-            >
-              <XIcon className="size-4" />
-            </button>
-            <button
-              type="button"
-              onClick={() => setIsSettingsOpen(true)}
-              className="focus-ring icon-button hover:bg-muted text-muted-foreground hover:text-foreground size-9"
-              aria-label="Settings"
-            >
-              <SettingsIcon className="size-4" />
-            </button>
-            <button
-              type="button"
-              onClick={handleSubmit}
-              disabled={isSaveDisabled}
-              className="focus-ring icon-button hover:bg-muted text-muted-foreground hover:text-foreground disabled:text-muted-foreground/50 size-9 disabled:cursor-not-allowed"
-              aria-label="Save post"
-            >
-              <SaveIcon className="size-4" />
-            </button>
-          </div>
-        </div>
-        <div className="text-muted-foreground mt-2 grid gap-3 md:grid-cols-[1fr_1fr_auto]">
-          <input
-            name="post-slug"
-            aria-label="Post slug"
-            value={slug}
-            onChange={event => {
-              setSlugTouched(true);
-              setSlug(slugify(event.target.value));
-            }}
-            placeholder="post-slug"
-            className="placeholder:text-muted-foreground border-border bg-transparent border-b pb-2 font-mono text-sm outline-none"
-          />
-          <input
-            name="post-tags"
-            aria-label="Post tags"
-            value={tags}
-            onChange={event => setTags(event.target.value)}
-            placeholder="tags, separated, by comma"
-            className="placeholder:text-muted-foreground border-border bg-transparent border-b pb-2 text-sm outline-none"
-          />
-          <button
-            type="button"
-            onClick={() => setPinned(value => !value)}
-            data-active={pinned || undefined}
-            className="focus-ring hover:bg-muted data-[active=true]:text-foreground data-[active=true]:bg-muted text-muted-foreground flex h-9 items-center gap-2 rounded-md px-3 text-sm transition-colors"
-          >
-            <PinIcon className="size-4" />
-            Pinned
-          </button>
-        </div>
-      </div>
+        }
+        createdTime={post?.createdTime}
+        updatedTime={post?.updatedTime}
+        tags={parsedTags}
+      >
+        <div ref={setToolbarPortal} className="hidden shrink-0 md:flex" />
+        {renderActions()}
+      </PostTitle>
 
-      <div className="mb-8">
-        <MarkdownLexicalEditor
-          key={post?.slug ?? 'new-post'}
-          value={content}
-          onChange={setContent}
-          token={token}
-          uploadScope="posts"
-          uploadEntityId={uploadEntityId}
-          revalidatePath={isEdit && post ? `/posts/${post.slug}` : '/posts'}
-          placeholder="Start writing..."
-          chrome="seamless"
-          showQuickReference={false}
-          toolbarPortal={toolbarPortal}
-          minHeightClassName="min-h-[48vh]"
-          onRequestToken={() => setIsSettingsOpen(true)}
-          onImagesStaged={images => {
-            setStagedImages(previousImages => {
-              const nextImages = new Map(previousImages.map(image => [image.path, image]));
-              images.forEach(image => nextImages.set(image.path, image));
-              return Array.from(nextImages.values());
-            });
-          }}
-        />
-      </div>
+      <MarkdownLexicalEditor
+        key={post?.slug ?? 'new-post'}
+        value={content}
+        onChange={setContent}
+        token={token}
+        uploadScope="posts"
+        uploadEntityId={uploadEntityId}
+        revalidatePath={isEdit && post ? `/posts/${post.slug}` : '/posts'}
+        placeholder="Start writing..."
+        chrome="seamless"
+        showQuickReference={false}
+        toolbarPortal={toolbarPortal}
+        floatingActions={renderActions()}
+        minHeightClassName="min-h-0"
+        onRequestToken={() => setIsTokenSettingsOpen(true)}
+        onImagesStaged={images => {
+          setStagedImages(previousImages => {
+            const nextImages = new Map(previousImages.map(image => [image.path, image]));
+            images.forEach(image => nextImages.set(image.path, image));
+            return Array.from(nextImages.values());
+          });
+        }}
+      />
 
-      <GitHubTokenDrawer open={isSettingsOpen} onOpenChange={setIsSettingsOpen} />
+      <GitHubTokenDrawer open={isTokenSettingsOpen} onOpenChange={setIsTokenSettingsOpen} />
     </>
   );
 }

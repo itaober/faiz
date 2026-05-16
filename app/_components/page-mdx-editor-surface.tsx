@@ -13,6 +13,8 @@ import { uploadStagedEditorImages } from '@/components/editing/upload-staged-edi
 import { markdownTodoListsToMdx, mdxTodoListsToMarkdown } from '@/lib/mdx-editing';
 import type { StagedEditorImage } from '@/lib/utils/editor-image';
 
+import PostTitle from './post-title';
+
 interface IPageMdxEditorSurfaceProps {
   page: 'about' | 'lines';
   title: string;
@@ -82,73 +84,79 @@ export default function PageMdxEditorSurface({
     });
   };
 
+  const renderActions = () => (
+    <>
+      <button
+        type="button"
+        onClick={onCancel}
+        className="focus-ring icon-button hover:bg-muted text-muted-foreground hover:text-foreground size-9"
+        aria-label="Cancel editing"
+      >
+        <XIcon className="size-4" />
+      </button>
+      <button
+        type="button"
+        onClick={() => setSettingsOpen(true)}
+        className="focus-ring icon-button hover:bg-muted text-muted-foreground hover:text-foreground size-9"
+        aria-label="Settings"
+      >
+        <SettingsIcon className="size-4" />
+      </button>
+      <button
+        type="button"
+        onClick={handleSubmit}
+        disabled={isSaveDisabled}
+        className="focus-ring icon-button hover:bg-muted text-muted-foreground hover:text-foreground disabled:text-muted-foreground/50 size-9 disabled:cursor-not-allowed"
+        aria-label="Save page"
+      >
+        <SaveIcon className="size-4" />
+      </button>
+    </>
+  );
+
   return (
     <>
-      <div className="mb-8">
-        <div className="flex items-start justify-between gap-3">
+      <PostTitle
+        title={draftTitle}
+        titleNode={
           <input
             name={`${page}-title`}
             aria-label="Page title"
             value={draftTitle}
             onChange={event => setDraftTitle(event.target.value)}
+            onClick={event => event.stopPropagation()}
             placeholder="Page title"
-            className="placeholder:text-muted-foreground min-w-0 flex-1 bg-transparent text-4xl font-bold tracking-tight outline-none"
+            className="placeholder:text-muted-foreground w-full min-w-0 bg-transparent font-[inherit] leading-[inherit] tracking-[inherit] text-[inherit] outline-none select-text"
           />
-          <div ref={setToolbarPortal} className="hidden shrink-0 md:flex" />
-          <div className="not-prose flex shrink-0 items-center gap-1 pt-1">
-            <button
-              type="button"
-              onClick={onCancel}
-              className="focus-ring icon-button hover:bg-muted text-muted-foreground hover:text-foreground size-9"
-              aria-label="Cancel editing"
-            >
-              <XIcon className="size-4" />
-            </button>
-            <button
-              type="button"
-              onClick={() => setSettingsOpen(true)}
-              className="focus-ring icon-button hover:bg-muted text-muted-foreground hover:text-foreground size-9"
-              aria-label="Settings"
-            >
-              <SettingsIcon className="size-4" />
-            </button>
-            <button
-              type="button"
-              onClick={handleSubmit}
-              disabled={isSaveDisabled}
-              className="focus-ring icon-button hover:bg-muted text-muted-foreground hover:text-foreground disabled:text-muted-foreground/50 size-9 disabled:cursor-not-allowed"
-              aria-label="Save page"
-            >
-              <SaveIcon className="size-4" />
-            </button>
-          </div>
-        </div>
-      </div>
+        }
+      >
+        <div ref={setToolbarPortal} className="hidden shrink-0 md:flex" />
+        {renderActions()}
+      </PostTitle>
 
-      <div className="mb-8">
-        <MarkdownLexicalEditor
-          key={page}
-          value={draftContent}
-          onChange={setDraftContent}
-          token={token}
-          uploadScope="pages"
-          uploadEntityId={page}
-          revalidatePath={page === 'about' ? '/' : `/${page}`}
-          placeholder="Edit this page..."
-          chrome="seamless"
-          showQuickReference={false}
-          toolbarPortal={toolbarPortal}
-          minHeightClassName="min-h-[48vh]"
-          onRequestToken={() => setSettingsOpen(true)}
-          onImagesStaged={images => {
-            setStagedImages(previousImages => {
-              const nextImages = new Map(previousImages.map(image => [image.path, image]));
-              images.forEach(image => nextImages.set(image.path, image));
-              return Array.from(nextImages.values());
-            });
-          }}
-        />
-      </div>
+      <MarkdownLexicalEditor
+        key={page}
+        value={draftContent}
+        onChange={setDraftContent}
+        token={token}
+        uploadScope="pages"
+        uploadEntityId={page}
+        revalidatePath={page === 'about' ? '/' : `/${page}`}
+        placeholder="Edit this page..."
+        chrome="seamless"
+        showQuickReference={false}
+        toolbarPortal={toolbarPortal}
+        floatingActions={renderActions()}
+        minHeightClassName="min-h-0"
+        onRequestToken={() => setSettingsOpen(true)}
+        onImagesStaged={images => {
+          setStagedImages(previousImages => {
+            const nextImages = new Map(previousImages.map(image => [image.path, image]));
+            images.forEach(image => nextImages.set(image.path, image));
+            return Array.from(nextImages.values());
+          });
+        }}
+      />
 
       <GitHubTokenDrawer open={settingsOpen} onOpenChange={setSettingsOpen} />
     </>

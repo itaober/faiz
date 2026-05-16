@@ -27,6 +27,7 @@ interface IRecordEditorSurfaceProps {
   initialType?: RecordItem['type'];
   record?: RecordItem;
   onCancel: () => void;
+  showTypeInMeta?: boolean;
   squareCover?: boolean;
 }
 
@@ -109,6 +110,7 @@ export default function RecordEditorSurface({
   initialType = 'movie',
   record,
   onCancel,
+  showTypeInMeta = false,
   squareCover = false,
 }: IRecordEditorSurfaceProps) {
   const router = useRouter();
@@ -377,7 +379,7 @@ export default function RecordEditorSurface({
                 'focus-ring relative overflow-hidden rounded-md',
                 coverPreviewSrc
                   ? 'bg-transparent'
-                  : 'border-foreground/25 bg-muted border-2 border-dashed',
+                  : 'border-border bg-muted/45 border border-dashed',
               )}
             >
               {coverPreviewSrc ? (
@@ -389,7 +391,7 @@ export default function RecordEditorSurface({
                 />
               ) : (
                 <div
-                  className={`text-foreground/65 flex w-full flex-col items-center justify-center gap-2 text-sm ${coverAspectClass}`}
+                  className={`text-muted-foreground flex w-full flex-col items-center justify-center gap-2 text-sm ${coverAspectClass}`}
                 >
                   <ImagePlusIcon className="size-5" />
                   <span>Cover</span>
@@ -404,6 +406,50 @@ export default function RecordEditorSurface({
             >
               <ImagePlusIcon className="size-4" />
             </button>
+            <div className="bg-background/90 border-border absolute top-2 right-2 z-10 flex items-center gap-0.5 rounded-md border p-0.5 shadow-sm backdrop-blur">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsDetailsOpen(false);
+                  setIsReviewOpen(open => !open);
+                }}
+                data-active={isReviewOpen || undefined}
+                className="focus-ring pressable hover:bg-muted data-[active=true]:bg-muted data-[active=true]:text-foreground text-muted-foreground hover:text-foreground flex size-8 items-center justify-center rounded-sm md:size-7"
+                aria-label="Edit review"
+                title="Review"
+              >
+                <MessageSquareTextIcon className="size-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={onCancel}
+                className="focus-ring pressable hover:bg-muted text-muted-foreground hover:text-foreground flex size-8 items-center justify-center rounded-sm md:size-7"
+                aria-label="Cancel editing"
+              >
+                <XIcon className="size-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsReviewOpen(false);
+                  setIsDetailsOpen(open => !open);
+                }}
+                data-active={isDetailsOpen || undefined}
+                className="focus-ring pressable hover:bg-muted data-[active=true]:bg-muted data-[active=true]:text-foreground text-muted-foreground hover:text-foreground flex size-8 items-center justify-center rounded-sm md:size-7"
+                aria-label="Record details"
+              >
+                <SettingsIcon className="size-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={handleSubmit}
+                disabled={isSaveDisabled}
+                className="focus-ring pressable hover:bg-muted text-muted-foreground hover:text-foreground disabled:text-muted-foreground/50 flex size-8 items-center justify-center rounded-sm disabled:cursor-not-allowed md:size-7"
+                aria-label="Save record"
+              >
+                <SaveIcon className="size-3.5" />
+              </button>
+            </div>
           </div>
 
           <input
@@ -415,7 +461,7 @@ export default function RecordEditorSurface({
             className="placeholder:text-muted-foreground truncate bg-transparent text-sm font-medium leading-5 outline-none"
           />
 
-          <div className="text-muted-foreground flex flex-wrap items-center gap-1 text-sm">
+          <div className="text-muted-foreground flex items-center gap-1 text-sm">
             <input
               name="record-rating"
               aria-label="Record rating"
@@ -429,7 +475,10 @@ export default function RecordEditorSurface({
                 }
               }}
               placeholder="Rate"
-              className="placeholder:text-muted-foreground focus:border-border w-9 border-b border-transparent bg-transparent pb-0.5 outline-none"
+              className={cn(
+                'placeholder:text-muted-foreground focus:border-border border-b border-transparent bg-transparent pb-0.5 outline-none',
+                rating ? 'w-[3ch]' : 'w-10',
+              )}
             />
             <span>·</span>
             <button
@@ -443,68 +492,27 @@ export default function RecordEditorSurface({
             >
               {dayjs(createdTime).format('MMM DD')}
             </button>
-            <span>·</span>
-            <button
-              type="button"
-              onClick={() => {
-                setIsReviewOpen(false);
-                setIsDetailsOpen(true);
-              }}
-              className="focus-ring hover:text-foreground rounded-sm capitalize transition-colors"
-              aria-label="Edit record type"
-            >
-              {type}
-            </button>
-          </div>
-
-          <div className="flex items-center justify-start gap-0.5">
-            <button
-              type="button"
-              onClick={() => {
-                setIsDetailsOpen(false);
-                setIsReviewOpen(open => !open);
-              }}
-              data-active={isReviewOpen || undefined}
-              className="focus-ring pressable hover:bg-muted data-[active=true]:bg-muted data-[active=true]:text-foreground text-muted-foreground hover:text-foreground flex size-11 items-center justify-center rounded-md md:size-7"
-              aria-label="Edit review"
-              title="Review"
-            >
-              <MessageSquareTextIcon className="size-3.5" />
-            </button>
-            <button
-              type="button"
-              onClick={onCancel}
-              className="focus-ring pressable hover:bg-muted text-muted-foreground hover:text-foreground flex size-11 items-center justify-center rounded-md md:size-7"
-              aria-label="Cancel editing"
-            >
-              <XIcon className="size-3.5" />
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setIsReviewOpen(false);
-                setIsDetailsOpen(open => !open);
-              }}
-              data-active={isDetailsOpen || undefined}
-              className="focus-ring pressable hover:bg-muted data-[active=true]:bg-muted data-[active=true]:text-foreground text-muted-foreground hover:text-foreground flex size-11 items-center justify-center rounded-md md:size-7"
-              aria-label="Record details"
-            >
-              <SettingsIcon className="size-3.5" />
-            </button>
-            <button
-              type="button"
-              onClick={handleSubmit}
-              disabled={isSaveDisabled}
-              className="focus-ring pressable hover:bg-muted text-muted-foreground hover:text-foreground disabled:text-muted-foreground/50 flex size-11 items-center justify-center rounded-md disabled:cursor-not-allowed md:size-7"
-              aria-label="Save record"
-            >
-              <SaveIcon className="size-3.5" />
-            </button>
+            {showTypeInMeta && (
+              <>
+                <span>·</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsReviewOpen(false);
+                    setIsDetailsOpen(true);
+                  }}
+                  className="focus-ring hover:text-foreground rounded-sm capitalize transition-colors"
+                  aria-label="Edit record type"
+                >
+                  {type}
+                </button>
+              </>
+            )}
           </div>
         </div>
 
         {isDetailsOpen ? (
-          <div className="bg-background border-border absolute right-0 bottom-8 z-30 w-[min(20rem,calc(100vw-2rem))] rounded-lg border p-3 shadow-xl max-md:fixed max-md:inset-x-3 max-md:top-auto max-md:bottom-3 max-md:w-auto">
+          <div className="bg-background border-border absolute top-2 right-2 z-30 w-[min(20rem,calc(100vw-2rem))] rounded-lg border p-3 shadow-xl max-md:fixed max-md:inset-x-3 max-md:top-auto max-md:bottom-3 max-md:w-auto">
             <div className="mb-3 flex items-center justify-between gap-3">
               <p className="text-muted-foreground text-xs font-medium">Record details</p>
               <button

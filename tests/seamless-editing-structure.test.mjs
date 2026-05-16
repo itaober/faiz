@@ -50,9 +50,19 @@ assert.equal(
 assert.equal(
   files.markdownEditor.includes('editor-checklist-item') &&
     files.globals.includes('.editor-checklist-item::before') &&
-    files.globals.includes('padding-inline-start: 1.75rem'),
+    files.globals.includes('padding-inline-start: 1.5rem') &&
+    files.globals.includes('border: 1.5px solid var(--border)'),
   true,
   'editable TodoList items should keep visible checkbox affordances in WYSIWYG mode',
+);
+
+assert.equal(
+  files.page.includes('<PostTitle') &&
+    files.page.includes('titleNode=') &&
+    files.page.includes('minHeightClassName="min-h-0"') &&
+    !files.page.includes('min-h-[48vh]'),
+  true,
+  'page edit mode should reuse the read-mode title/body rhythm instead of mounting a separate editor layout',
 );
 
 assert.equal(
@@ -129,9 +139,11 @@ assert.equal(
     files.recordsList.includes("activeTab === 'all' ? undefined : activeTab") &&
     files.recordsList.includes("squareCover={activeTab === 'music'}") &&
     files.recordItem.includes('squareCover={isMusicTab}') &&
-    files.record.includes('const hasCover = !!(coverPreviewSrc.trim() || pendingCoverFile)'),
+    files.record.includes('const hasCover = !!(coverPreviewSrc.trim() || pendingCoverFile)') &&
+    files.recordItem.includes('absolute top-2 right-2') &&
+    !files.recordItem.includes('sidecar='),
   true,
-  'record composer and editor should preserve the active tab/type and cover aspect, and uploaded covers should enable save before they have final URLs',
+  'record composer and editor should preserve the active tab/type and cover aspect, uploaded covers should enable save before final URLs, and edit controls should not alter public card layout',
 );
 
 assert.equal(

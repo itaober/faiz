@@ -12,12 +12,14 @@ import { cn } from '@/lib/utils';
 
 interface IPostTitleProps extends Partial<MDXData> {
   title: string;
+  titleNode?: ReactNode;
   className?: string;
   children?: ReactNode;
 }
 
 const PostTitle = ({
   title,
+  titleNode,
   createdTime,
   updatedTime,
   tags,
@@ -74,7 +76,7 @@ const PostTitle = ({
           className="cursor-default text-4xl font-bold tracking-tight select-none"
           onClick={handleTitleClick}
         >
-          {title}
+          {titleNode ?? title}
         </h1>
         {mounted && isEditMode && children && (
           <div className="not-prose flex shrink-0 items-center gap-1 pt-1">{children}</div>

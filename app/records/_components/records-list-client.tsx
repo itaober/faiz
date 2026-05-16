@@ -92,14 +92,13 @@ export function RecordsListClient({ records, activeTab }: RecordsListClientProps
               {isComposerOpen && sectionIndex === 0 && (
                 <motion.div
                   className="group flex flex-col gap-1 rounded-md border border-transparent p-1.5 transition-colors duration-200"
-                  variants={{
-                    hidden: { opacity: 0, y: ANIMATION.distance.small },
-                    visible: { opacity: 1, y: 0 },
-                  }}
+                  initial={{ opacity: 0, y: ANIMATION.distance.small }}
+                  animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: ANIMATION.duration.normal }}
                 >
                   <RecordEditorSurface
                     initialType={composerInitialType}
+                    showTypeInMeta={activeTab === 'all'}
                     squareCover={activeTab === 'music'}
                     onCancel={() => setComposerOpen(false)}
                   />

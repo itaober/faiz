@@ -162,6 +162,7 @@ interface IMarkdownLexicalEditorProps {
   showMobileToolbarOverlay?: boolean;
   toolbarPlacement?: 'auto' | 'below';
   toolbarPortal?: HTMLElement | null;
+  floatingActions?: ReactNode;
   onRequestToken?: () => void;
   insertUploadedImages?: boolean;
   onImagesStaged?: (images: StagedEditorImage[]) => void;
@@ -1934,6 +1935,7 @@ export default function MarkdownLexicalEditor({
   showMobileToolbarOverlay = true,
   toolbarPlacement = 'auto',
   toolbarPortal,
+  floatingActions,
   insertUploadedImages = true,
   onImagesStaged,
 }: IMarkdownLexicalEditorProps) {
@@ -2375,13 +2377,15 @@ export default function MarkdownLexicalEditor({
         )}
 
         {shouldPortalToolbar && showMobileToolbarOverlay && !isToolbarAnchorVisible && (
-          <div className="pointer-events-none fixed top-3 right-3 z-50 hidden md:block">
-            <ToolbarTriggerButton
-              active={isToolbarOpen}
-              buttonRef={dockedToolbarTriggerRef}
-              onClick={toggleToolbar}
-              className="bg-background/90 border-border pointer-events-auto border shadow-lg backdrop-blur"
-            />
+          <div className="pointer-events-none fixed top-3 right-3 z-50 hidden md:flex">
+            <div className="bg-background/90 border-border pointer-events-auto flex items-center gap-1 rounded-lg border p-1 shadow-lg backdrop-blur">
+              <ToolbarTriggerButton
+                active={isToolbarOpen}
+                buttonRef={dockedToolbarTriggerRef}
+                onClick={toggleToolbar}
+              />
+              {floatingActions}
+            </div>
           </div>
         )}
 
