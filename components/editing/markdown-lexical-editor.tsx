@@ -1158,7 +1158,7 @@ function ToolbarTriggerButton({
       title="Formatting tools"
       aria-label={active ? 'Hide formatting tools' : 'Show formatting tools'}
       className={cn(
-        'focus-ring icon-button hover:bg-muted data-[active=true]:bg-muted data-[active=true]:text-foreground text-muted-foreground hover:text-foreground size-9',
+        'focus-ring icon-button hover:bg-muted data-[active=true]:bg-muted data-[active=true]:text-foreground text-muted-foreground hover:text-foreground size-8',
         className,
       )}
     >
@@ -2298,12 +2298,17 @@ export default function MarkdownLexicalEditor({
                   <ContentEditable
                     aria-placeholder={placeholder}
                     placeholder={
-                      <div className="text-muted-foreground pointer-events-none absolute top-4 left-4">
+                      <div
+                        className={cn(
+                          'text-muted-foreground pointer-events-none absolute',
+                          chrome === 'panel' ? 'top-4 left-4' : 'top-0 left-0',
+                        )}
+                      >
                         {placeholder}
                       </div>
                     }
                     className={cn(
-                      'prose dark:prose-invert text-base leading-relaxed outline-none',
+                      'prose dark:prose-invert text-base leading-7 outline-none',
                       chrome === 'panel' ? 'max-w-none px-4 py-4' : 'px-0 py-0',
                       minHeightClassName,
                       editorClassName,

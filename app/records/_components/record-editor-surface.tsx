@@ -1,5 +1,6 @@
 'use client';
 
+import dayjs from 'dayjs';
 import { ImagePlusIcon, MessageSquareTextIcon, SaveIcon, SettingsIcon, XIcon } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -22,7 +23,8 @@ import { compressImage, MAX_IMAGE_SIZE, SUPPORTED_IMAGE_TYPES } from '@/lib/util
 
 const recordTypes: RecordItem['type'][] = ['book', 'movie', 'tv', 'music', 'game'];
 const inlineMetaControlClass =
-  'focus-ring hover:border-border focus:border-border focus:bg-background h-7 rounded-sm border border-transparent bg-transparent px-1 text-sm text-muted-foreground outline-none transition-colors';
+  'focus-ring hover:border-border focus:border-border min-w-0 border-0 border-b border-transparent bg-transparent px-0 py-0 text-sm leading-5 text-muted-foreground outline-none transition-colors';
+const formatInlineDate = (value: string) => dayjs(value).format('MMM DD');
 
 interface IRecordEditorSurfaceProps {
   initialType?: RecordItem['type'];
@@ -369,7 +371,7 @@ export default function RecordEditorSurface({
   return (
     <>
       <section className="not-prose relative min-w-0">
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-1">
           <div className="relative" onPaste={handleCoverPaste}>
             <div
               tabIndex={0}
@@ -462,7 +464,7 @@ export default function RecordEditorSurface({
             className="placeholder:text-muted-foreground truncate bg-transparent text-sm font-medium leading-5 outline-none"
           />
 
-          <div className="text-muted-foreground flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
+          <div className="text-muted-foreground flex min-h-5 min-w-0 items-center gap-0.5 overflow-hidden text-sm leading-5">
             <input
               name="record-rating"
               aria-label="Record rating"
@@ -477,32 +479,40 @@ export default function RecordEditorSurface({
               }}
               placeholder="Rate"
               className={cn(
-                'placeholder:text-muted-foreground focus:border-border border-b border-transparent bg-transparent pb-0.5 outline-none',
-                rating ? 'w-[3ch]' : 'w-10',
+                inlineMetaControlClass,
+                'placeholder:text-muted-foreground shrink-0',
+                rating ? 'w-[3ch]' : 'w-8',
               )}
             />
-            <input
-              name="record-created-time-inline"
-              aria-label="Record date"
-              type="date"
-              value={createdTime}
-              onChange={event => setCreatedTime(event.target.value)}
-              className={cn(inlineMetaControlClass, 'w-[7.25rem]')}
-            />
+            <span className="text-muted-foreground/70 shrink-0">·</span>
+            <label className="focus-within:ring-foreground/50 hover:text-foreground relative -mx-0.5 inline-flex h-5 shrink-0 cursor-pointer items-center rounded-sm px-0.5 outline-none transition-colors focus-within:ring-2">
+              <span className="pointer-events-none">{formatInlineDate(createdTime)}</span>
+              <input
+                name="record-created-time-inline"
+                aria-label="Record date"
+                type="date"
+                value={createdTime}
+                onChange={event => setCreatedTime(event.target.value)}
+                className="absolute inset-0 h-full w-full cursor-pointer opacity-0 [color-scheme:light] dark:[color-scheme:dark]"
+              />
+            </label>
             {showTypeInMeta && (
-              <select
-                name="record-type-inline"
-                aria-label="Record type"
-                value={type}
-                onChange={event => setType(event.target.value as RecordItem['type'])}
-                className={cn(inlineMetaControlClass, 'w-[5.5rem] capitalize')}
-              >
-                {recordTypes.map(recordType => (
-                  <option key={recordType} value={recordType}>
-                    {recordType}
-                  </option>
-                ))}
-              </select>
+              <>
+                <span className="text-muted-foreground/70 shrink-0">·</span>
+                <select
+                  name="record-type-inline"
+                  aria-label="Record type"
+                  value={type}
+                  onChange={event => setType(event.target.value as RecordItem['type'])}
+                  className="focus-ring border-border bg-background text-muted-foreground hover:bg-muted/65 hover:text-foreground h-[1.375rem] w-[3.25rem] shrink-0 appearance-none rounded-md border px-1.5 py-0 text-center text-xs font-medium capitalize outline-none transition-colors"
+                >
+                  {recordTypes.map(recordType => (
+                    <option key={recordType} value={recordType}>
+                      {recordType}
+                    </option>
+                  ))}
+                </select>
+              </>
             )}
           </div>
         </div>

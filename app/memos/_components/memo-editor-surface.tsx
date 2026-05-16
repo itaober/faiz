@@ -243,7 +243,7 @@ export default function MemoEditorSurface({
       <button
         type="button"
         onClick={onCancel}
-        className="focus-ring icon-button hover:bg-muted text-muted-foreground hover:text-foreground size-9"
+        className="focus-ring icon-button hover:bg-muted text-muted-foreground hover:text-foreground size-8"
         aria-label="Cancel editing"
       >
         <XIcon className="size-4" />
@@ -251,7 +251,7 @@ export default function MemoEditorSurface({
       <button
         type="button"
         onClick={() => setIsSettingsOpen(true)}
-        className="focus-ring icon-button hover:bg-muted text-muted-foreground hover:text-foreground size-9"
+        className="focus-ring icon-button hover:bg-muted text-muted-foreground hover:text-foreground size-8"
         aria-label="Settings"
       >
         <SettingsIcon className="size-4" />
@@ -260,7 +260,7 @@ export default function MemoEditorSurface({
         type="button"
         onClick={handleSubmit}
         disabled={isDisabled}
-        className="focus-ring icon-button hover:bg-muted text-muted-foreground hover:text-foreground disabled:text-muted-foreground/50 size-9 disabled:cursor-not-allowed"
+        className="focus-ring icon-button hover:bg-muted text-muted-foreground hover:text-foreground disabled:text-muted-foreground/50 size-8 disabled:cursor-not-allowed"
         aria-label={isEditMode ? 'Update memo' : 'Publish memo'}
       >
         <SaveIcon className="size-4" />
@@ -287,6 +287,7 @@ export default function MemoEditorSurface({
           chrome="seamless"
           showQuickReference={false}
           toolbarPortal={toolbarPortal}
+          floatingActions={actions}
           editorClassName="memo-editor-content"
           minHeightClassName={isEditMode ? 'min-h-0' : 'min-h-40'}
           onRequestToken={() => setIsSettingsOpen(true)}

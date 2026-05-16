@@ -231,4 +231,8 @@ button {
     font-size: 0.875em;
     line-height: 1.75;
   }
+
+  .site-prose-editor-content {
+    line-height: 1.75;
+  }
 }

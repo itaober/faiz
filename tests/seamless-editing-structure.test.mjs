@@ -87,6 +87,7 @@ assert.equal(
   files.memoInline.includes('editorActionsPortal') &&
     files.memoInline.includes('actionsPortal={editorActionsPortal}') &&
     files.memo.includes('createPortal(actions, actionsPortal)') &&
+    files.memo.includes('floatingActions={actions}') &&
     files.memo.includes('editorClassName="memo-editor-content"') &&
     files.globals.includes('.memo-editor-content ul') &&
     files.globals.includes('list-style-type: disc'),
@@ -143,8 +144,11 @@ assert.equal(
     files.recordsList.includes("squareCover={activeTab === 'music'}") &&
     files.recordItem.includes('squareCover={isMusicTab}') &&
     files.record.includes('const hasCover = !!(coverPreviewSrc.trim() || pendingCoverFile)') &&
+    files.record.includes('formatInlineDate(createdTime)') &&
+    files.record.includes('opacity-0 [color-scheme:light]') &&
     files.record.includes('type="date"') &&
     files.record.includes('name="record-type-inline"') &&
+    files.record.includes('appearance-none') &&
     files.recordItem.includes('absolute top-2 right-2') &&
     !files.recordItem.includes('sidecar='),
   true,
@@ -160,7 +164,9 @@ assert.equal(
     files.markdownEditor.includes('toolbarPlacement') &&
     files.markdownEditor.includes('bottom: 76') &&
     files.markdownEditor.includes('dockedToolbarTriggerRef') &&
-    files.markdownEditor.includes('floatingActions'),
+    files.markdownEditor.includes('floatingActions') &&
+    files.markdownEditor.includes('leading-7') &&
+    files.markdownEditor.includes("chrome === 'panel' ? 'top-4 left-4' : 'top-0 left-0'"),
   true,
   'seamless toolbar should render as an on-demand formatting popover with persistent page actions on long desktop and mobile editors',
 );

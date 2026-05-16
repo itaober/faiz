@@ -129,7 +129,7 @@ export default function PostEditorSurface({ post, onCancel }: IPostEditorSurface
       <button
         type="button"
         onClick={onCancel}
-        className="focus-ring icon-button hover:bg-muted text-muted-foreground hover:text-foreground size-9"
+        className="focus-ring icon-button hover:bg-muted text-muted-foreground hover:text-foreground size-8"
         aria-label="Cancel editing"
       >
         <XIcon className="size-4" />
@@ -139,7 +139,7 @@ export default function PostEditorSurface({ post, onCancel }: IPostEditorSurface
           type="button"
           onClick={() => setIsPostSettingsOpen(open => !open)}
           data-active={isPostSettingsOpen || undefined}
-          className="focus-ring icon-button hover:bg-muted data-[active=true]:bg-muted data-[active=true]:text-foreground text-muted-foreground hover:text-foreground size-9"
+          className="focus-ring icon-button hover:bg-muted data-[active=true]:bg-muted data-[active=true]:text-foreground text-muted-foreground hover:text-foreground size-8"
           aria-label="Post settings"
         >
           <SettingsIcon className="size-4" />
@@ -205,7 +205,7 @@ export default function PostEditorSurface({ post, onCancel }: IPostEditorSurface
         type="button"
         onClick={handleSubmit}
         disabled={isSaveDisabled}
-        className="focus-ring icon-button hover:bg-muted text-muted-foreground hover:text-foreground disabled:text-muted-foreground/50 size-9 disabled:cursor-not-allowed"
+        className="focus-ring icon-button hover:bg-muted text-muted-foreground hover:text-foreground disabled:text-muted-foreground/50 size-8 disabled:cursor-not-allowed"
         aria-label="Save post"
       >
         <SaveIcon className="size-4" />
@@ -251,7 +251,8 @@ export default function PostEditorSurface({ post, onCancel }: IPostEditorSurface
         showQuickReference={false}
         toolbarPortal={toolbarPortal}
         floatingActions={renderActions()}
-        minHeightClassName="min-h-0"
+        editorClassName="site-prose-editor-content"
+        minHeightClassName={content.trim() ? 'min-h-0' : 'min-h-40'}
         onRequestToken={() => setIsTokenSettingsOpen(true)}
         onImagesStaged={images => {
           setStagedImages(previousImages => {

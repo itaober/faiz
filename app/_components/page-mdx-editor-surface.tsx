@@ -89,7 +89,7 @@ export default function PageMdxEditorSurface({
       <button
         type="button"
         onClick={onCancel}
-        className="focus-ring icon-button hover:bg-muted text-muted-foreground hover:text-foreground size-9"
+        className="focus-ring icon-button hover:bg-muted text-muted-foreground hover:text-foreground size-8"
         aria-label="Cancel editing"
       >
         <XIcon className="size-4" />
@@ -97,7 +97,7 @@ export default function PageMdxEditorSurface({
       <button
         type="button"
         onClick={() => setSettingsOpen(true)}
-        className="focus-ring icon-button hover:bg-muted text-muted-foreground hover:text-foreground size-9"
+        className="focus-ring icon-button hover:bg-muted text-muted-foreground hover:text-foreground size-8"
         aria-label="Settings"
       >
         <SettingsIcon className="size-4" />
@@ -106,7 +106,7 @@ export default function PageMdxEditorSurface({
         type="button"
         onClick={handleSubmit}
         disabled={isSaveDisabled}
-        className="focus-ring icon-button hover:bg-muted text-muted-foreground hover:text-foreground disabled:text-muted-foreground/50 size-9 disabled:cursor-not-allowed"
+        className="focus-ring icon-button hover:bg-muted text-muted-foreground hover:text-foreground disabled:text-muted-foreground/50 size-8 disabled:cursor-not-allowed"
         aria-label="Save page"
       >
         <SaveIcon className="size-4" />
@@ -147,6 +147,7 @@ export default function PageMdxEditorSurface({
         showQuickReference={false}
         toolbarPortal={toolbarPortal}
         floatingActions={renderActions()}
+        editorClassName="site-prose-editor-content"
         minHeightClassName="min-h-0"
         onRequestToken={() => setSettingsOpen(true)}
         onImagesStaged={images => {
