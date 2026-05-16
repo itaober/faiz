@@ -1,10 +1,14 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import { type ReactNode, useState } from 'react';
 
 import PageMdxActions from '@/app/_components/page-mdx-actions';
-import PageMdxEditorSurface from '@/app/_components/page-mdx-editor-surface';
 import PostTitle from '@/app/_components/post-title';
+
+const PageMdxEditorSurface = dynamic(() => import('@/app/_components/page-mdx-editor-surface'), {
+  ssr: false,
+});
 
 interface IPageMdxInlineSectionProps {
   page: 'about' | 'lines';

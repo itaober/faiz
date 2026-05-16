@@ -1,13 +1,15 @@
 'use client';
 
 import { PlusIcon } from 'lucide-react';
+import dynamic from 'next/dynamic';
 import { useEffect, useState } from 'react';
 
 import { useConsecutiveClicks } from '@/hooks/use-consecutive-clicks';
 import dayjs from '@/lib/dayjs';
 
 import { useMemosContext } from '../_context/use-memos-context';
-import MemoEditorSurface from './memo-editor-surface';
+
+const MemoEditorSurface = dynamic(() => import('./memo-editor-surface'), { ssr: false });
 
 export default function MemosTitle() {
   const { isEdit, toggleEdit } = useMemosContext();

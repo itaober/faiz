@@ -5,9 +5,11 @@ const read = path => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8'
 
 const files = {
   page: read('app/_components/page-mdx-editor-surface.tsx'),
+  pageInline: read('app/_components/page-mdx-inline-section.tsx'),
   postTitle: read('app/_components/post-title.tsx'),
   post: read('app/posts/_components/post-editor-surface.tsx'),
   postActions: read('app/posts/_components/posts-title-actions.tsx'),
+  postInline: read('app/posts/_components/post-detail-inline-section.tsx'),
   memo: read('app/memos/_components/memo-editor-surface.tsx'),
   memoInline: read('app/memos/_components/memo-card-inline.tsx'),
   memoTitle: read('app/memos/_components/memos-title.tsx'),
@@ -74,6 +76,17 @@ assert.equal(
     !files.page.includes('min-h-[48vh]'),
   true,
   'page edit mode should reuse the read-mode title/body rhythm instead of mounting a separate editor layout',
+);
+
+assert.equal(
+  files.pageInline.includes("dynamic(() => import('@/app/_components/page-mdx-editor-surface')") &&
+    files.postInline.includes("dynamic(() => import('./post-editor-surface')") &&
+    files.memoInline.includes("dynamic(() => import('./memo-editor-surface')") &&
+    files.memoTitle.includes("dynamic(() => import('./memo-editor-surface')") &&
+    files.recordItem.includes("dynamic(() => import('./record-editor-surface')") &&
+    files.recordsList.includes("dynamic(() => import('./record-editor-surface')"),
+  true,
+  'read-mode client wrappers should lazy-load heavy editor surfaces instead of shipping Lexical in the initial page bundle',
 );
 
 assert.equal(

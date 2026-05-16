@@ -1,11 +1,13 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import { type ReactNode, useState } from 'react';
 
 import type { Memo } from '@/lib/data/memos';
 
 import MemoCardActions from './memo-card-actions';
-import MemoEditorSurface from './memo-editor-surface';
+
+const MemoEditorSurface = dynamic(() => import('./memo-editor-surface'), { ssr: false });
 
 interface IMemoCardInlineProps {
   memo: Memo;

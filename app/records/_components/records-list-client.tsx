@@ -1,6 +1,7 @@
 'use client';
 import dayjs from 'dayjs';
 import { motion } from 'motion/react';
+import dynamic from 'next/dynamic';
 import { useMemo } from 'react';
 
 import MotionWrapper from '@/components/motion-wrapper';
@@ -8,9 +9,10 @@ import { ANIMATION } from '@/lib/constants/animation';
 import type { Records } from '@/lib/data/data';
 
 import { type Tab, tabList } from '../_constants';
-import RecordEditorSurface from './record-editor-surface';
 import RecordItem from './record-item';
 import { useRecordsInlineComposer } from './use-records-inline-composer';
+
+const RecordEditorSurface = dynamic(() => import('./record-editor-surface'), { ssr: false });
 
 interface RecordsListClientProps {
   records: Records | null;

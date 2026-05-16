@@ -3,6 +3,7 @@
 import dayjs from 'dayjs';
 import { PencilIcon, Trash2Icon } from 'lucide-react';
 import { motion } from 'motion/react';
+import dynamic from 'next/dynamic';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -20,8 +21,9 @@ import type { RecordItem as RecordDataItem } from '@/lib/data/data';
 import { cn } from '@/lib/utils';
 
 import type { Tab } from '../_constants';
-import RecordEditorSurface from './record-editor-surface';
 import { useRecordsInlineComposer } from './use-records-inline-composer';
+
+const RecordEditorSurface = dynamic(() => import('./record-editor-surface'), { ssr: false });
 
 interface IRecordItemProps extends RecordDataItem {
   tab: Tab;

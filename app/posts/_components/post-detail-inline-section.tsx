@@ -1,12 +1,14 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import { type ReactNode, useState } from 'react';
 
 import PostTitle from '@/app/_components/post-title';
 import type { PostMeta } from '@/lib/data/data';
 
 import PostDetailActions from './post-detail-actions';
-import PostEditorSurface from './post-editor-surface';
+
+const PostEditorSurface = dynamic(() => import('./post-editor-surface'), { ssr: false });
 
 interface IPostDetailInlineSectionProps {
   post: PostMeta & { content: string };
