@@ -1,6 +1,6 @@
 'use client';
 
-import { SaveIcon, SettingsIcon, Trash2Icon, XIcon } from 'lucide-react';
+import { ImagePlusIcon, SaveIcon, SettingsIcon, Trash2Icon, XIcon } from 'lucide-react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
@@ -59,6 +59,7 @@ export default function MemoEditorSurface({
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [draftId, setDraftId] = useState(generateMemoDraftId);
   const [toolbarPortal, setToolbarPortal] = useState<HTMLElement | null>(null);
+  const [imageUploadRequestId, setImageUploadRequestId] = useState(0);
 
   const isEditMode = !!memo;
   const expectsExternalActions = actionsPortal !== undefined;
@@ -242,6 +243,15 @@ export default function MemoEditorSurface({
       <div ref={setToolbarPortal} className="hidden shrink-0 md:flex" />
       <button
         type="button"
+        onClick={() => setImageUploadRequestId(requestId => requestId + 1)}
+        className="focus-ring icon-button hover:bg-muted text-muted-foreground hover:text-foreground size-8"
+        aria-label="Attach image"
+        title="Attach image"
+      >
+        <ImagePlusIcon className="size-4" />
+      </button>
+      <button
+        type="button"
         onClick={onCancel}
         className="focus-ring icon-button hover:bg-muted text-muted-foreground hover:text-foreground size-8"
         aria-label="Cancel editing"
@@ -287,6 +297,7 @@ export default function MemoEditorSurface({
           chrome="seamless"
           showQuickReference={false}
           toolbarPortal={toolbarPortal}
+          imageUploadRequestId={imageUploadRequestId}
           floatingActions={actions}
           editorClassName="memo-editor-content"
           minHeightClassName={isEditMode ? 'min-h-0' : 'min-h-40'}

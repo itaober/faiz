@@ -162,6 +162,7 @@ interface IMarkdownLexicalEditorProps {
   showMobileToolbarOverlay?: boolean;
   toolbarPlacement?: 'auto' | 'below';
   toolbarPortal?: HTMLElement | null;
+  imageUploadRequestId?: number;
   floatingActions?: ReactNode;
   onRequestToken?: () => void;
   insertUploadedImages?: boolean;
@@ -1168,10 +1169,12 @@ function ToolbarTriggerButton({
 }
 
 function SelectionBubbleButton({
+  active,
   label,
   onClick,
   children,
 }: {
+  active?: boolean;
   label: string;
   onClick: () => void;
   children: ReactNode;
@@ -1183,7 +1186,8 @@ function SelectionBubbleButton({
       aria-label={label}
       onClick={onClick}
       onMouseDown={event => event.preventDefault()}
-      className="focus-ring-overlay hover:bg-background/10 text-background/75 hover:text-background flex size-7 items-center justify-center rounded-full transition-[transform,color,background-color] duration-150 ease-(--ease-out) active:scale-[0.97]"
+      data-active={active || undefined}
+      className="focus-ring-overlay hover:bg-background/10 data-[active=true]:bg-background/14 data-[active=true]:text-background text-background/75 hover:text-background flex size-7 items-center justify-center rounded-full transition-[transform,color,background-color] duration-150 ease-(--ease-out) active:scale-[0.97]"
     >
       {children}
     </button>
@@ -1868,21 +1872,54 @@ function SlashMenuPlugin() {
 function SelectionBubblePlugin() {
   const [editor] = useLexicalComposerContext();
   const [rect, setRect] = useState<DOMRect | null>(null);
+  const [formats, setFormats] = useState({
+    bold: false,
+    code: false,
+    italic: false,
+  });
+  const [isLinkPanelOpen, setIsLinkPanelOpen] = useState(false);
+  const [linkUrl, setLinkUrl] = useState('');
+  const bubbleRef = useRef<HTMLDivElement | null>(null);
+  const linkPanelRef = useRef<HTMLFormElement | null>(null);
+  const linkInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     const update = () => {
       const root = editor.getRootElement();
       const selection = window.getSelection();
+      const activeElement = document.activeElement;
+
+      if (
+        isLinkPanelOpen &&
+        activeElement instanceof Node &&
+        linkPanelRef.current?.contains(activeElement)
+      ) {
+        return;
+      }
+
       if (!root || !selection || selection.isCollapsed || !selection.anchorNode) {
         setRect(null);
+        setIsLinkPanelOpen(false);
         return;
       }
       if (!root.contains(selection.anchorNode)) {
         setRect(null);
+        setIsLinkPanelOpen(false);
         return;
       }
       const range = selection.getRangeAt(0);
       setRect(range.getBoundingClientRect());
+      editor.getEditorState().read(() => {
+        const lexicalSelection = $getSelection();
+        if (!$isRangeSelection(lexicalSelection)) {
+          return;
+        }
+        setFormats({
+          bold: lexicalSelection.hasFormat('bold'),
+          code: lexicalSelection.hasFormat('code'),
+          italic: lexicalSelection.hasFormat('italic'),
+        });
+      });
     };
 
     document.addEventListener('selectionchange', update);
@@ -1891,32 +1928,141 @@ function SelectionBubblePlugin() {
       document.removeEventListener('selectionchange', update);
       window.removeEventListener('resize', update);
     };
-  }, [editor]);
+  }, [editor, isLinkPanelOpen]);
+
+  useEffect(() => {
+    if (!isLinkPanelOpen) {
+      return;
+    }
+
+    const handlePointerDown = (event: PointerEvent) => {
+      const target = event.target;
+      if (!(target instanceof Node)) {
+        return;
+      }
+
+      if (bubbleRef.current?.contains(target) || linkPanelRef.current?.contains(target)) {
+        return;
+      }
+
+      setIsLinkPanelOpen(false);
+      setLinkUrl('');
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') {
+        return;
+      }
+
+      event.preventDefault();
+      event.stopPropagation();
+      setIsLinkPanelOpen(false);
+      setLinkUrl('');
+    };
+
+    document.addEventListener('pointerdown', handlePointerDown, true);
+    document.addEventListener('keydown', handleKeyDown, true);
+    window.setTimeout(() => linkInputRef.current?.focus(), 0);
+
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown, true);
+      document.removeEventListener('keydown', handleKeyDown, true);
+    };
+  }, [isLinkPanelOpen]);
 
   if (!rect) {
     return null;
   }
 
   const top = Math.max(12, rect.top - 44);
-  const bubbleWidth = 68;
+  const bubbleWidth = 128;
   const maxLeft = Math.max(12, window.innerWidth - bubbleWidth - 12);
   const left = Math.max(12, Math.min(maxLeft, rect.left + rect.width / 2 - bubbleWidth / 2));
+  const linkPanelWidth = Math.min(320, window.innerWidth - 24);
+  const linkPanelLeft = Math.max(
+    12,
+    Math.min(
+      window.innerWidth - linkPanelWidth - 12,
+      rect.left + rect.width / 2 - linkPanelWidth / 2,
+    ),
+  );
+  const linkPanelTop = Math.min(window.innerHeight - 54, rect.bottom + 10);
+  const openLinkPanel = () => setIsLinkPanelOpen(true);
+  const closeLinkPanel = () => {
+    setIsLinkPanelOpen(false);
+    setLinkUrl('');
+  };
+  const submitLink = () => {
+    if (!linkUrl.trim()) {
+      return;
+    }
+
+    insertOrToggleLink(editor, linkUrl);
+    closeLinkPanel();
+  };
 
   return (
-    <div
-      className="bg-foreground/95 text-background fixed z-50 flex items-center gap-0.5 rounded-full p-1 shadow-lg"
-      style={{ top, left }}
-    >
-      <SelectionBubbleButton label="Bold" onClick={() => applyTextFormatCommand(editor, 'bold')}>
-        <BoldIcon className="size-4" />
-      </SelectionBubbleButton>
-      <SelectionBubbleButton
-        label="Italic"
-        onClick={() => applyTextFormatCommand(editor, 'italic')}
+    <>
+      <div
+        ref={bubbleRef}
+        className="bg-foreground/95 text-background fixed z-50 flex items-center gap-0.5 rounded-full p-1 shadow-lg"
+        style={{ top, left }}
       >
-        <ItalicIcon className="size-4" />
-      </SelectionBubbleButton>
-    </div>
+        <SelectionBubbleButton
+          active={formats.bold}
+          label="Bold"
+          onClick={() => applyTextFormatCommand(editor, 'bold')}
+        >
+          <BoldIcon className="size-4" />
+        </SelectionBubbleButton>
+        <SelectionBubbleButton
+          active={formats.italic}
+          label="Italic"
+          onClick={() => applyTextFormatCommand(editor, 'italic')}
+        >
+          <ItalicIcon className="size-4" />
+        </SelectionBubbleButton>
+        <SelectionBubbleButton label="Link" onClick={openLinkPanel}>
+          <LinkIcon className="size-4" />
+        </SelectionBubbleButton>
+        <SelectionBubbleButton
+          active={formats.code}
+          label="Inline code"
+          onClick={() => applyTextFormatCommand(editor, 'code')}
+        >
+          <CodeIcon className="size-4" />
+        </SelectionBubbleButton>
+      </div>
+      {isLinkPanelOpen ? (
+        <form
+          ref={linkPanelRef}
+          className="bg-background border-border fixed z-[80] flex items-center gap-1.5 rounded-lg border p-1.5 shadow-lg"
+          style={{ left: linkPanelLeft, top: linkPanelTop, width: linkPanelWidth }}
+          onSubmit={event => {
+            event.preventDefault();
+            submitLink();
+          }}
+        >
+          <input
+            ref={linkInputRef}
+            name="selection-link-url"
+            aria-label="Link URL"
+            value={linkUrl}
+            onChange={event => setLinkUrl(event.target.value)}
+            placeholder="Paste link"
+            className="border-border bg-background placeholder:text-muted-foreground min-w-0 flex-1 rounded-md border px-2.5 py-1.5 text-sm outline-none focus:border-current"
+          />
+          <button
+            type="submit"
+            disabled={!linkUrl.trim()}
+            className="focus-ring pressable bg-foreground text-background disabled:bg-muted disabled:text-muted-foreground flex size-8 shrink-0 items-center justify-center rounded-md disabled:cursor-not-allowed"
+            aria-label="Apply link"
+          >
+            <CheckIcon className="size-4" />
+          </button>
+        </form>
+      ) : null}
+    </>
   );
 }
 
@@ -1935,6 +2081,7 @@ export default function MarkdownLexicalEditor({
   showMobileToolbarOverlay = true,
   toolbarPlacement = 'auto',
   toolbarPortal,
+  imageUploadRequestId = 0,
   floatingActions,
   insertUploadedImages = true,
   onImagesStaged,
@@ -2097,12 +2244,23 @@ export default function MarkdownLexicalEditor({
     [insertUploadedImages, mode, onChange, onImagesStaged, uploadEntityId, uploadScope, value],
   );
 
-  const handleUploadClick = () => {
+  const handleUploadClick = useCallback(() => {
     if (mode === 'markdown') {
       markdownUploadSelectionRef.current = getTextareaSelection(markdownTextareaRef, value);
     }
     fileInputRef.current?.click();
-  };
+  }, [mode, value]);
+
+  const imageUploadRequestIdRef = useRef(imageUploadRequestId);
+
+  useEffect(() => {
+    if (!imageUploadRequestId || imageUploadRequestId === imageUploadRequestIdRef.current) {
+      return;
+    }
+
+    imageUploadRequestIdRef.current = imageUploadRequestId;
+    handleUploadClick();
+  }, [handleUploadClick, imageUploadRequestId]);
 
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files ?? []);

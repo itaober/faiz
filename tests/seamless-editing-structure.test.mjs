@@ -99,6 +99,8 @@ assert.equal(
     files.memo.includes('createPortal(actions, actionsPortal)') &&
     files.memo.includes('floatingActions={actions}') &&
     files.memo.includes('editorClassName="memo-editor-content"') &&
+    files.memo.includes('aria-label="Attach image"') &&
+    files.memo.includes('imageUploadRequestId={imageUploadRequestId}') &&
     files.globals.includes('.memo-editor-content ul') &&
     files.globals.includes('list-style-type: disc') &&
     files.globals.includes('.memo-editor-content code') &&
@@ -197,11 +199,21 @@ assert.equal(
     files.markdownEditor.includes('toolbarPlacement') &&
     files.markdownEditor.includes('bottom: 76') &&
     files.markdownEditor.includes('dockedToolbarTriggerRef') &&
+    files.markdownEditor.includes('imageUploadRequestId') &&
     files.markdownEditor.includes('floatingActions') &&
     files.markdownEditor.includes('leading-7') &&
     files.markdownEditor.includes("chrome === 'panel' ? 'top-4 left-4' : 'top-0 left-0'"),
   true,
   'seamless toolbar should render as an on-demand formatting popover with persistent page actions on long desktop and mobile editors',
+);
+
+assert.equal(
+  files.markdownEditor.includes('name="selection-link-url"') &&
+    files.markdownEditor.includes('label="Link"') &&
+    files.markdownEditor.includes('label="Inline code"') &&
+    files.markdownEditor.includes('lexicalSelection.hasFormat'),
+  true,
+  'selection bubble should expose only high-frequency inline controls with active-state awareness',
 );
 
 assert.equal(
