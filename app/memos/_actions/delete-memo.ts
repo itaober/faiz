@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache';
 
 import { deleteMemoWithImages } from '@/lib/data/memos';
-import { resolveContentEditToken } from '@/lib/server/content-edit-token';
+import { requireAuth } from '@/lib/server/content-edit-token';
 import { type ActionResult, createActionError } from '@/lib/types/action-result';
 
 interface IDeleteMemoInput {
@@ -13,6 +13,11 @@ interface IDeleteMemoInput {
 }
 
 export async function deleteMemoAction(input: IDeleteMemoInput): Promise<ActionResult> {
+  const token = await requireAuth(input.token);
+  if (typeof token !== 'string') {
+    return token;
+  }
+
   if (!input.id?.trim()) {
     return {
       success: false,
@@ -27,17 +32,6 @@ export async function deleteMemoAction(input: IDeleteMemoInput): Promise<ActionR
       success: false,
       error: 'Memo createdTime is required',
       code: 'VALIDATION',
-      retryable: false,
-    };
-  }
-
-  const token = await resolveContentEditToken(input.token);
-
-  if (!token.trim()) {
-    return {
-      success: false,
-      error: 'GitHub token is required',
-      code: 'AUTH_INVALID',
       retryable: false,
     };
   }

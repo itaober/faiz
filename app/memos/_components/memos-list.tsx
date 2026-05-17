@@ -48,8 +48,7 @@ const clampLimit = (value: number, total: number) => {
 };
 
 export default async function MemosList({ searchParams }: MemosListProps) {
-  const resolvedSearchParams = await searchParams;
-  const monthsIndex = await getMemosIndex();
+  const [resolvedSearchParams, monthsIndex] = await Promise.all([searchParams, getMemosIndex()]);
   const totalMonths = monthsIndex.length;
   const monthIndexMap = new Map(monthsIndex.map((month, index) => [month, index]));
   const endMonth = normalizeEnd(resolvedSearchParams?.end, monthsIndex);

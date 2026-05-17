@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 
-import { CONTENT_EDIT_TOKEN_CONFIGURED_VALUE } from '@/lib/content-edit-token';
+import { CONTENT_EDIT_CONFIGURED_SENTINEL } from '@/lib/content-edit-token';
 
 const LEGACY_STORAGE_KEY = 'FAIZ_GITHUB_TOKEN';
 
@@ -32,7 +32,7 @@ export function useGitHubToken() {
 
         localStorage.removeItem(LEGACY_STORAGE_KEY);
         if (!cancelled) {
-          setToken(CONTENT_EDIT_TOKEN_CONFIGURED_VALUE);
+          setToken(CONTENT_EDIT_CONFIGURED_SENTINEL);
         }
         return;
       }
@@ -40,7 +40,7 @@ export function useGitHubToken() {
       const response = await fetch('/api/edit-token', { cache: 'no-store' });
       const data = (await response.json()) as { configured?: boolean };
       if (!cancelled) {
-        setToken(data.configured ? CONTENT_EDIT_TOKEN_CONFIGURED_VALUE : null);
+        setToken(data.configured ? CONTENT_EDIT_CONFIGURED_SENTINEL : null);
       }
     };
 
@@ -73,7 +73,7 @@ export function useGitHubToken() {
     }
 
     localStorage.removeItem(LEGACY_STORAGE_KEY);
-    setToken(CONTENT_EDIT_TOKEN_CONFIGURED_VALUE);
+    setToken(CONTENT_EDIT_CONFIGURED_SENTINEL);
   }, []);
 
   const clearToken = useCallback(async () => {

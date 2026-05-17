@@ -5,7 +5,7 @@ import { revalidatePath } from 'next/cache';
 import { MAX_IMAGE_SIZE } from '@/lib/constants/image';
 import { getImageExtensionFromMimeType } from '@/lib/content-editing-validation';
 import { uploadImage } from '@/lib/data/images';
-import { resolveContentEditToken } from '@/lib/server/content-edit-token';
+import { requireAuth } from '@/lib/server/content-edit-token';
 import { type ActionResult, createActionError } from '@/lib/types/action-result';
 import {
   buildEditorImageStoragePath,
@@ -13,7 +13,7 @@ import {
   generateEditorImageId,
 } from '@/lib/utils/editor-image';
 
-const ALLOWED_SCOPES = new Set(['memos', 'posts', 'pages', 'records']);
+const ALLOWED_SCOPES = ['memos', 'posts', 'pages', 'records'] as const;
 
 interface IUploadEditorImageInput {
   imageBase64: string;
@@ -41,22 +41,8 @@ const createUploadValidationError = (error: string): ActionResult<string> => ({
   retryable: false,
 });
 
-const requireUploadToken = async (providedToken: string) => {
-  const token = await resolveContentEditToken(providedToken);
-
-  if (!token.trim()) {
-    return {
-      success: false,
-      error: 'GitHub token is required',
-      code: 'AUTH_INVALID',
-      retryable: false,
-    } satisfies ActionResult<string>;
-  }
-
-  return token;
-};
-
-const isAllowedScope = (scope: string): scope is EditorImageScope => ALLOWED_SCOPES.has(scope);
+const isAllowedScope = (scope: string): scope is EditorImageScope =>
+  ALLOWED_SCOPES.includes(scope as EditorImageScope);
 
 const isPrivateIpv4Host = (hostname: string) => {
   const parts = hostname.split('.').map(part => Number(part));
@@ -116,7 +102,7 @@ const normalizeRemoteImageUrl = (value: string) => {
 export async function uploadEditorImageAction(
   input: IUploadEditorImageInput,
 ): Promise<ActionResult<string>> {
-  const token = await requireUploadToken(input.token);
+  const token = await requireAuth(input.token);
   if (typeof token !== 'string') {
     return token;
   }
@@ -153,7 +139,7 @@ export async function uploadEditorImageAction(
 export async function uploadRemoteEditorImageAction(
   input: IUploadRemoteEditorImageInput,
 ): Promise<ActionResult<string>> {
-  const token = await requireUploadToken(input.token);
+  const token = await requireAuth(input.token);
   if (typeof token !== 'string') {
     return token;
   }

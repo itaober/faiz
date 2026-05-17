@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache';
 
 import { uploadImage } from '@/lib/data/images';
-import { resolveContentEditToken } from '@/lib/server/content-edit-token';
+import { requireAuth } from '@/lib/server/content-edit-token';
 import { type ActionResult, createActionError } from '@/lib/types/action-result';
 import { buildEditorImageStoragePath } from '@/lib/utils/editor-image';
 
@@ -18,15 +18,9 @@ interface IUploadImageInput {
 }
 
 export async function uploadImageAction(input: IUploadImageInput): Promise<ActionResult<string>> {
-  const token = await resolveContentEditToken(input.token);
-
-  if (!token.trim()) {
-    return {
-      success: false,
-      error: 'GitHub token is required',
-      code: 'AUTH_INVALID',
-      retryable: false,
-    };
+  const token = await requireAuth(input.token);
+  if (typeof token !== 'string') {
+    return token;
   }
 
   try {
@@ -64,8 +58,15 @@ export async function uploadImagesAction(
   memoId: string,
   token: string,
 ): Promise<ActionResult<IUploadImagesResult>> {
+  const resolvedToken = await requireAuth(token);
+  if (typeof resolvedToken !== 'string') {
+    return resolvedToken;
+  }
+
   const results = await Promise.all(
-    images.map(img => uploadImageAction({ ...img, memoId, token, skipRevalidate: true })),
+    images.map(img =>
+      uploadImageAction({ ...img, memoId, token: resolvedToken, skipRevalidate: true }),
+    ),
   );
   const paths: string[] = [];
   const errors: string[] = [];

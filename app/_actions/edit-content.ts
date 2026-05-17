@@ -20,14 +20,13 @@ import {
   RecordsSchema,
 } from '@/lib/data/data';
 import dayjs, { formatTime } from '@/lib/dayjs';
-import { resolveContentEditToken } from '@/lib/server/content-edit-token';
+import { requireAuth } from '@/lib/server/content-edit-token';
 import { type ActionError, type ActionResult, createActionError } from '@/lib/types/action-result';
 import { normalizeEditorImageMarkup } from '@/lib/utils/editor-image';
 
 const POSTS_INDEX_PATH = 'data/posts.json';
 const RECORDS_PATH = 'data/records.json';
 const POST_CONTENT_DIR = 'data/posts';
-const MUTATION_FETCH_INIT: RequestInit = { cache: 'no-store' };
 const PAGE_PATHS = {
   about: 'pages/about.mdx',
   lines: 'pages/lines.mdx',
@@ -86,13 +85,15 @@ interface IDeleteRecordInput {
   token: string;
 }
 
-const EMPTY_RECORDS: Records = {
+const createMutationFetchInit = (): RequestInit => ({ cache: 'no-store' });
+
+const createEmptyRecords = (): Records => ({
   book: [],
   movie: [],
   tv: [],
   music: [],
   game: [],
-};
+});
 
 const buildPostPath = (slug: string) => `${POST_CONTENT_DIR}/${slug}.mdx`;
 
@@ -125,21 +126,6 @@ const normalizeSlug = (slug: unknown) =>
 
 const normalizeOptionalString = (value: unknown) =>
   typeof value === 'string' && value.trim() ? value.trim() : '';
-
-const requireEditToken = async (token?: string | null): Promise<string | ActionError> => {
-  const resolvedToken = await resolveContentEditToken(token);
-
-  if (!resolvedToken.trim()) {
-    return {
-      success: false,
-      error: 'GitHub token is required',
-      code: 'AUTH_INVALID',
-      retryable: false,
-    };
-  }
-
-  return resolvedToken;
-};
 
 const validatePostPayload = (input: IPostPayload): ActionError | null => {
   if (!normalizeOptionalString(input.title)) {
@@ -206,17 +192,19 @@ const writeMdx = async (
 };
 
 const fetchPostList = async (token: string): Promise<PostList> => {
-  const raw = await fetchGitHubJson<unknown>(POSTS_INDEX_PATH, MUTATION_FETCH_INIT, token).catch(
-    () => [],
-  );
+  const raw = await fetchGitHubJson<unknown>(
+    POSTS_INDEX_PATH,
+    createMutationFetchInit(),
+    token,
+  ).catch(() => []);
   return PostListSchema.parse(raw ?? []);
 };
 
 const fetchRecords = async (token: string): Promise<Records> => {
-  const raw = await fetchGitHubJson<unknown>(RECORDS_PATH, MUTATION_FETCH_INIT, token).catch(
-    () => EMPTY_RECORDS,
+  const raw = await fetchGitHubJson<unknown>(RECORDS_PATH, createMutationFetchInit(), token).catch(
+    () => createEmptyRecords(),
   );
-  return RecordsSchema.parse({ ...EMPTY_RECORDS, ...(raw ?? {}) });
+  return RecordsSchema.parse({ ...createEmptyRecords(), ...(raw ?? {}) });
 };
 
 const sortPosts = (posts: PostList) =>
@@ -246,7 +234,7 @@ const revalidatePosts = (slug?: string, previousSlug?: string) => {
 };
 
 export async function createPostAction(input: ICreatePostInput): Promise<ActionResult<PostMeta>> {
-  const token = await requireEditToken(input.token);
+  const token = await requireAuth(input.token);
   if (typeof token !== 'string') {
     return token;
   }
@@ -295,7 +283,7 @@ export async function createPostAction(input: ICreatePostInput): Promise<ActionR
 }
 
 export async function updatePostAction(input: IUpdatePostInput): Promise<ActionResult<PostMeta>> {
-  const token = await requireEditToken(input.token);
+  const token = await requireAuth(input.token);
   if (typeof token !== 'string') {
     return token;
   }
@@ -365,7 +353,7 @@ export async function updatePostAction(input: IUpdatePostInput): Promise<ActionR
 }
 
 export async function deletePostAction(input: IDeletePostInput): Promise<ActionResult> {
-  const token = await requireEditToken(input.token);
+  const token = await requireAuth(input.token);
   if (typeof token !== 'string') {
     return token;
   }
@@ -405,7 +393,7 @@ export async function deletePostAction(input: IDeletePostInput): Promise<ActionR
 }
 
 export async function updatePageAction(input: IUpdatePageInput): Promise<ActionResult> {
-  const token = await requireEditToken(input.token);
+  const token = await requireAuth(input.token);
   if (typeof token !== 'string') {
     return token;
   }
@@ -424,7 +412,7 @@ export async function updatePageAction(input: IUpdatePageInput): Promise<ActionR
 
   try {
     const path = PAGE_PATHS[input.page];
-    const raw = await fetchGitHubText(path, MUTATION_FETCH_INIT, token).catch(() => '');
+    const raw = await fetchGitHubText(path, createMutationFetchInit(), token).catch(() => '');
     const parsed = matter(raw);
     const now = formatTime();
     const data = {
@@ -520,7 +508,7 @@ const writeRecords = async (records: Records, token: string) => {
 };
 
 export async function createRecordAction(input: IRecordInput): Promise<ActionResult<RecordItem>> {
-  const token = await requireEditToken(input.token);
+  const token = await requireAuth(input.token);
   if (typeof token !== 'string') {
     return token;
   }
@@ -536,8 +524,13 @@ export async function createRecordAction(input: IRecordInput): Promise<ActionRes
     }
 
     const records = await fetchRecords(token);
-    records[record.type] = [record, ...records[record.type]];
-    await writeRecords(records, token);
+    await writeRecords(
+      {
+        ...records,
+        [record.type]: [record, ...records[record.type]],
+      },
+      token,
+    );
 
     return { success: true, data: record };
   } catch (error) {
@@ -549,7 +542,7 @@ export async function createRecordAction(input: IRecordInput): Promise<ActionRes
 export async function updateRecordAction(
   input: IUpdateRecordInput,
 ): Promise<ActionResult<RecordItem>> {
-  const token = await requireEditToken(input.token);
+  const token = await requireAuth(input.token);
   if (typeof token !== 'string') {
     return token;
   }
@@ -593,7 +586,7 @@ export async function updateRecordAction(
 }
 
 export async function deleteRecordAction(input: IDeleteRecordInput): Promise<ActionResult> {
-  const token = await requireEditToken(input.token);
+  const token = await requireAuth(input.token);
   if (typeof token !== 'string') {
     return token;
   }

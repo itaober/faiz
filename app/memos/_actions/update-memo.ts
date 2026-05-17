@@ -5,7 +5,7 @@ import { revalidatePath } from 'next/cache';
 import { normalizeImagePathList } from '@/lib/content-editing-validation';
 import type { Memo } from '@/lib/data/memos';
 import { updateMemoWithImages } from '@/lib/data/memos';
-import { resolveContentEditToken } from '@/lib/server/content-edit-token';
+import { requireAuth } from '@/lib/server/content-edit-token';
 import { type ActionResult, createActionError } from '@/lib/types/action-result';
 
 interface IUpdateMemoInput {
@@ -19,6 +19,11 @@ interface IUpdateMemoInput {
 const MAX_CONTENT_LENGTH = 10000;
 
 export async function updateMemoAction(input: IUpdateMemoInput): Promise<ActionResult<Memo>> {
+  const token = await requireAuth(input.token);
+  if (typeof token !== 'string') {
+    return token;
+  }
+
   const content = typeof input.content === 'string' ? input.content : '';
   const normalizedImages =
     input.images === undefined ? null : normalizeImagePathList(input.images, 'memos');
@@ -64,17 +69,6 @@ export async function updateMemoAction(input: IUpdateMemoInput): Promise<ActionR
       success: false,
       error: `Content too long (max ${MAX_CONTENT_LENGTH} characters)`,
       code: 'VALIDATION',
-      retryable: false,
-    };
-  }
-
-  const token = await resolveContentEditToken(input.token);
-
-  if (!token.trim()) {
-    return {
-      success: false,
-      error: 'GitHub token is required',
-      code: 'AUTH_INVALID',
       retryable: false,
     };
   }
