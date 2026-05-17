@@ -7,7 +7,7 @@ import dynamic from 'next/dynamic';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
 import { deleteRecordAction } from '@/app/_actions/edit-content';
@@ -21,9 +21,10 @@ import type { RecordItem as RecordDataItem } from '@/lib/data/data';
 import { cn } from '@/lib/utils';
 
 import type { Tab } from '../_constants';
+import { loadRecordEditorSurface, recordEditorPreloader } from './record-editor-loader';
 import { useRecordsInlineComposer } from './use-records-inline-composer';
 
-const RecordEditorSurface = dynamic(() => import('./record-editor-surface'), { ssr: false });
+const RecordEditorSurface = dynamic(loadRecordEditorSurface, { ssr: false });
 
 interface IRecordItemProps extends RecordDataItem {
   tab: Tab;
@@ -57,6 +58,14 @@ export default function RecordItem({
   const record = { title, link, coverUrl, createdTime, rating, comment, type };
   const canEdit = mounted && isEditMode;
   const editorOpen = editingRecordKey === recordKey;
+  const preloadEditor = useCallback(() => {
+    recordEditorPreloader.preload().catch(() => undefined);
+  }, []);
+  const openEditor = useCallback(() => {
+    recordEditorPreloader
+      .openAfterPreload(() => setEditingRecordKey(recordKey))
+      .catch(() => undefined);
+  }, [recordKey, setEditingRecordKey]);
 
   useEffect(() => {
     setMounted(true);
@@ -171,10 +180,12 @@ export default function RecordItem({
         <div className="bg-background/90 border-border pointer-events-auto absolute top-2 right-2 z-10 flex items-center gap-0.5 rounded-md border p-0.5 opacity-100 shadow-sm backdrop-blur transition-opacity md:pointer-events-none md:opacity-0 md:group-focus-within:pointer-events-auto md:group-focus-within:opacity-100 md:group-hover:pointer-events-auto md:group-hover:opacity-100">
           <button
             type="button"
+            onFocus={preloadEditor}
             onClick={event => {
               event.currentTarget.blur();
-              setEditingRecordKey(recordKey);
+              openEditor();
             }}
+            onPointerEnter={preloadEditor}
             className="focus-ring pressable hover:bg-muted text-muted-foreground hover:text-foreground flex size-8 items-center justify-center rounded-sm md:size-7"
             aria-label={`Edit ${title}`}
           >

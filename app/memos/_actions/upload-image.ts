@@ -5,9 +5,7 @@ import { revalidatePath } from 'next/cache';
 import { uploadImage } from '@/lib/data/images';
 import { resolveContentEditToken } from '@/lib/server/content-edit-token';
 import { type ActionResult, createActionError } from '@/lib/types/action-result';
-import { getImageStoragePath } from '@/lib/utils/image';
-
-const MEMOS_IMAGE_DIR = 'assets/memos';
+import { buildEditorImageStoragePath } from '@/lib/utils/editor-image';
 
 const generateShortRandom = () => Math.random().toString(36).slice(2, 6);
 
@@ -32,8 +30,11 @@ export async function uploadImageAction(input: IUploadImageInput): Promise<Actio
   }
 
   try {
-    const filename = `${input.memoId}_${generateShortRandom()}.webp`;
-    const storagePath = getImageStoragePath(filename, MEMOS_IMAGE_DIR);
+    const storagePath = buildEditorImageStoragePath({
+      entityId: input.memoId,
+      imageId: generateShortRandom(),
+      scope: 'memos',
+    });
 
     const result = await uploadImage({
       imageBase64: input.imageBase64,

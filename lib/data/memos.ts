@@ -230,7 +230,7 @@ export const deleteMemoWithImages = async (input: IDeleteMemoInput): Promise<Mem
   const deletedMemo = await deleteMemo(input);
 
   if (deletedMemo.images.length > 0 && input.token) {
-    await deleteImages(deletedMemo.images, input.token);
+    await deleteImages(deletedMemo.images, input.token, 'memos');
   }
 
   return deletedMemo;
@@ -243,7 +243,7 @@ export const updateMemoWithImages = async (
   const result = await updateMemo(input);
 
   if (result.removedImages.length > 0 && input.token) {
-    await deleteImages(result.removedImages, input.token);
+    await deleteImages(result.removedImages, input.token, 'memos');
   }
 
   return result;

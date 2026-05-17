@@ -14,6 +14,8 @@ export interface StagedEditorImage {
   uploadEntityId: string;
 }
 
+type EditorImageExtension = 'webp' | 'jpg' | 'jpeg' | 'png' | 'gif';
+
 export const sanitizeImageSegment = (value: string) =>
   Array.from(
     value
@@ -33,17 +35,19 @@ export const generateEditorImageId = () => Math.random().toString(36).slice(2, 8
 
 export const buildEditorImageStoragePath = ({
   entityId,
+  extension = 'webp',
   imageId,
   scope,
 }: {
   entityId: string;
+  extension?: EditorImageExtension;
   imageId: string;
   scope: EditorImageScope;
 }) => {
   const safeEntityId = sanitizeImageSegment(entityId) || 'content';
   const safeImageId = sanitizeImageSegment(imageId) || generateEditorImageId();
 
-  return `assets/${scope}/${safeEntityId}_${safeImageId}.webp`;
+  return `assets/${scope}/${safeEntityId}_${safeImageId}.${extension}`;
 };
 
 export const toApiImageUrl = (storagePath: string) => `/api/image/${storagePath}`;

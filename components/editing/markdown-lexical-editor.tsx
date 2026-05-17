@@ -633,6 +633,15 @@ const registerStagedImagePreviews = (
   });
 };
 
+const clearStagedImagePreviews = (
+  previewSrcByImageSrcRef: MutableRefObject<Map<string, string>>,
+) => {
+  previewSrcByImageSrcRef.current.forEach((_, key) => {
+    stagedImagePreviewSrcBySrc.delete(key);
+  });
+  previewSrcByImageSrcRef.current.clear();
+};
+
 const applyStagedImagePreviews = (
   node: LexicalNode,
   previewSrcByImageSrc: ReadonlyMap<string, string>,
@@ -2106,6 +2115,8 @@ export default function MarkdownLexicalEditor({
   useEffect(() => {
     setToolbarPopoverPortal(document.body);
   }, []);
+
+  useEffect(() => () => clearStagedImagePreviews(previewSrcByImageSrcRef), []);
 
   const handleModeChange = useCallback(
     (nextMode: EditorMode) => {

@@ -7,7 +7,10 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 import { createRecordAction, updateRecordAction } from '@/app/_actions/edit-content';
-import { uploadEditorImageAction } from '@/app/_actions/upload-editor-image';
+import {
+  uploadEditorImageAction,
+  uploadRemoteEditorImageAction,
+} from '@/app/_actions/upload-editor-image';
 import { useEditMode } from '@/components/edit-mode-context';
 import GitHubTokenDrawer from '@/components/editing/github-token-drawer';
 import MarkdownLexicalEditor from '@/components/editing/markdown-lexical-editor';
@@ -95,20 +98,6 @@ const getClipboardImageUrl = (clipboardData: DataTransfer) => {
   return isLikelyImageUrl(plainText) ? plainText : '';
 };
 
-const imageFileNameFromUrl = (url: string, fallbackTitle: string) => {
-  try {
-    const pathname = new URL(url).pathname;
-    const filename = pathname.split('/').filter(Boolean).pop();
-    if (filename && /\.[a-z0-9]+$/i.test(filename)) {
-      return filename;
-    }
-  } catch {
-    // Fall back to title-based filename below.
-  }
-
-  return `${fallbackTitle || 'record-cover'}.jpg`;
-};
-
 export default function RecordEditorSurface({
   initialType = 'movie',
   record,
@@ -124,6 +113,7 @@ export default function RecordEditorSurface({
   const [type, setType] = useState<RecordItem['type']>(record?.type ?? initialType);
   const [coverUrl, setCoverUrl] = useState(record?.coverUrl ?? '');
   const [coverPreviewUrl, setCoverPreviewUrl] = useState('');
+  const [pendingCoverRemoteUrl, setPendingCoverRemoteUrl] = useState('');
   const [pendingCoverFile, setPendingCoverFile] = useState<File | null>(null);
   const [pendingCoverImageId, setPendingCoverImageId] = useState('');
   const [link, setLink] = useState(record?.link ?? '');
@@ -147,8 +137,9 @@ export default function RecordEditorSurface({
           scope: 'records',
         })
       : '';
-  const displayedCoverUrl = pendingCoverPath ? toApiImageUrl(pendingCoverPath) : coverUrl;
-  const coverPreviewSrc = coverPreviewUrl || coverUrl;
+  const displayedCoverUrl =
+    pendingCoverRemoteUrl || (pendingCoverPath ? toApiImageUrl(pendingCoverPath) : coverUrl);
+  const coverPreviewSrc = coverPreviewUrl || pendingCoverRemoteUrl || coverUrl;
   const hasCover = !!(coverPreviewSrc.trim() || pendingCoverFile);
   const isSaveDisabled = isSubmitting || !title.trim() || !link.trim() || !hasCover;
   const coverAspectClass = squareCover ? 'aspect-square' : 'aspect-[2/3]';
@@ -159,6 +150,7 @@ export default function RecordEditorSurface({
     }
 
     setCoverPreviewUrl('');
+    setPendingCoverRemoteUrl('');
     setPendingCoverFile(null);
     setPendingCoverImageId('');
   }, [coverPreviewUrl]);
@@ -183,6 +175,7 @@ export default function RecordEditorSurface({
     setType(record?.type ?? initialType);
     setCoverUrl(record?.coverUrl ?? '');
     setCoverPreviewUrl('');
+    setPendingCoverRemoteUrl('');
     setPendingCoverFile(null);
     setPendingCoverImageId('');
     setLink(record?.link ?? '');
@@ -230,32 +223,18 @@ export default function RecordEditorSurface({
   const stageCoverUrl = useCallback(
     (url: string) => {
       clearPendingCover();
-      setCoverUrl(url);
+      setPendingCoverRemoteUrl(url.trim());
+      setPendingCoverImageId('cover');
     },
     [clearPendingCover],
   );
 
   const stageCoverFromUrl = useCallback(
     async (url: string) => {
-      try {
-        const response = await fetch(url);
-        if (!response.ok) {
-          throw new Error('Remote image is not readable');
-        }
-
-        const blob = await response.blob();
-        if (!blob.type.startsWith('image/')) {
-          throw new Error('Remote URL is not an image');
-        }
-
-        const file = new File([blob], imageFileNameFromUrl(url, title), { type: blob.type });
-        stageCoverFile(file);
-      } catch {
-        stageCoverUrl(url);
-        toast.success('Cover URL set');
-      }
+      stageCoverUrl(url);
+      toast.success('Cover URL ready');
     },
-    [stageCoverFile, stageCoverUrl, title],
+    [stageCoverUrl],
   );
 
   const handleCoverSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -295,6 +274,27 @@ export default function RecordEditorSurface({
   };
 
   const uploadPendingCover = async () => {
+    if (!pendingCoverFile && !pendingCoverRemoteUrl.trim()) {
+      return coverUrl;
+    }
+
+    if (pendingCoverRemoteUrl.trim()) {
+      const result = await uploadRemoteEditorImageAction({
+        imageUrl: pendingCoverRemoteUrl,
+        scope: 'records',
+        entityId: coverEntityId,
+        imageId: pendingCoverImageId || 'cover',
+        token: token || '',
+        revalidate: '/records',
+      });
+
+      if (!result.success || !result.data) {
+        throw new Error(result.success ? 'Upload failed' : result.error);
+      }
+
+      return toApiImageUrl(result.data);
+    }
+
     if (!pendingCoverFile || !pendingCoverImageId) {
       return coverUrl;
     }
@@ -562,8 +562,14 @@ export default function RecordEditorSurface({
                 aria-label="Record cover URL"
                 value={displayedCoverUrl}
                 onChange={event => {
+                  const nextValue = event.target.value;
                   clearPendingCover();
-                  setCoverUrl(event.target.value);
+                  if (nextValue.trim()) {
+                    setPendingCoverRemoteUrl(nextValue);
+                    setPendingCoverImageId('cover');
+                  } else {
+                    setCoverUrl('');
+                  }
                 }}
                 onPaste={handleCoverPaste}
                 placeholder="Paste cover URL"

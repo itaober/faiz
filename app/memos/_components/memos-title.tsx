@@ -2,14 +2,15 @@
 
 import { PlusIcon } from 'lucide-react';
 import dynamic from 'next/dynamic';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 import { useConsecutiveClicks } from '@/hooks/use-consecutive-clicks';
 import dayjs from '@/lib/dayjs';
 
 import { useMemosContext } from '../_context/use-memos-context';
+import { loadMemoEditorSurface, memoEditorPreloader } from './memo-editor-loader';
 
-const MemoEditorSurface = dynamic(() => import('./memo-editor-surface'), { ssr: false });
+const MemoEditorSurface = dynamic(loadMemoEditorSurface, { ssr: false });
 
 export default function MemosTitle() {
   const { isEdit, toggleEdit } = useMemosContext();
@@ -17,6 +18,12 @@ export default function MemosTitle() {
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [draftCreatedTime, setDraftCreatedTime] = useState('');
   const [editorActionsPortal, setEditorActionsPortal] = useState<HTMLElement | null>(null);
+  const preloadEditor = useCallback(() => {
+    memoEditorPreloader.preload().catch(() => undefined);
+  }, []);
+  const openEditor = useCallback(() => {
+    memoEditorPreloader.openAfterPreload(() => setIsEditorOpen(true)).catch(() => undefined);
+  }, []);
 
   const handleClick = useConsecutiveClicks({
     threshold: 5,
@@ -29,6 +36,12 @@ export default function MemosTitle() {
 
   const canEdit = mounted && isEdit;
 
+  useEffect(() => {
+    if (canEdit) {
+      preloadEditor();
+    }
+  }, [canEdit, preloadEditor]);
+
   return (
     <>
       <div className="mb-4 flex items-center justify-between gap-4">
@@ -39,11 +52,13 @@ export default function MemosTitle() {
           <div className="flex items-center gap-2">
             <button
               type="button"
+              onFocus={preloadEditor}
               onClick={event => {
                 event.currentTarget.blur();
                 setDraftCreatedTime(dayjs().format('YYYY-MM-DD HH:mm:ss'));
-                setIsEditorOpen(true);
+                openEditor();
               }}
+              onPointerEnter={preloadEditor}
               className="focus-ring hover:bg-muted text-muted-foreground hover:text-foreground flex size-11 items-center justify-center rounded-md transition-colors md:size-8"
               aria-label="Add Memo"
             >

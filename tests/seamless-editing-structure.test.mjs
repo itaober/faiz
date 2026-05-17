@@ -12,9 +12,11 @@ const files = {
   postInline: read('app/posts/_components/post-detail-inline-section.tsx'),
   memo: read('app/memos/_components/memo-editor-surface.tsx'),
   memoInline: read('app/memos/_components/memo-card-inline.tsx'),
+  memoLoader: read('app/memos/_components/memo-editor-loader.ts'),
   memoTitle: read('app/memos/_components/memos-title.tsx'),
   record: read('app/records/_components/record-editor-surface.tsx'),
   recordItem: read('app/records/_components/record-item.tsx'),
+  recordLoader: read('app/records/_components/record-editor-loader.ts'),
   recordsComposerContext: read('app/records/_components/records-inline-composer-context.tsx'),
   recordsComposerState: read('app/records/_components/records-inline-composer-state.ts'),
   recordsList: read('app/records/_components/records-list-client.tsx'),
@@ -79,14 +81,28 @@ assert.equal(
 );
 
 assert.equal(
-  files.pageInline.includes("dynamic(() => import('@/app/_components/page-mdx-editor-surface')") &&
-    files.postInline.includes("dynamic(() => import('./post-editor-surface')") &&
-    files.memoInline.includes("dynamic(() => import('./memo-editor-surface')") &&
-    files.memoTitle.includes("dynamic(() => import('./memo-editor-surface')") &&
-    files.recordItem.includes("dynamic(() => import('./record-editor-surface')") &&
-    files.recordsList.includes("dynamic(() => import('./record-editor-surface')"),
+  files.pageInline.includes('dynamic(loadPageMdxEditorSurface') &&
+    files.pageInline.includes("import('@/app/_components/page-mdx-editor-surface')") &&
+    files.postInline.includes('dynamic(loadPostEditorSurface') &&
+    files.postInline.includes("import('./post-editor-surface')") &&
+    files.memoInline.includes('dynamic(loadMemoEditorSurface') &&
+    files.memoTitle.includes('dynamic(loadMemoEditorSurface') &&
+    files.memoLoader.includes("import('./memo-editor-surface')") &&
+    files.recordItem.includes('dynamic(loadRecordEditorSurface') &&
+    files.recordsList.includes('dynamic(loadRecordEditorSurface') &&
+    files.recordLoader.includes("import('./record-editor-surface')"),
   true,
   'read-mode client wrappers should lazy-load heavy editor surfaces instead of shipping Lexical in the initial page bundle',
+);
+
+assert.equal(
+  files.pageInline.includes('openAfterPreload') &&
+    files.postInline.includes('openAfterPreload') &&
+    files.memoInline.includes('openAfterPreload') &&
+    files.memoTitle.includes('openAfterPreload') &&
+    files.recordItem.includes('openAfterPreload'),
+  true,
+  'edit actions should keep read-mode content mounted until the editor chunk is ready',
 );
 
 assert.equal(

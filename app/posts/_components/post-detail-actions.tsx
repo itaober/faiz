@@ -14,9 +14,10 @@ import type { PostMeta } from '@/lib/data/data';
 interface IPostDetailActionsProps {
   post: PostMeta & { content: string };
   onEdit: () => void;
+  onEditIntent?: () => void;
 }
 
-export default function PostDetailActions({ post, onEdit }: IPostDetailActionsProps) {
+export default function PostDetailActions({ post, onEdit, onEditIntent }: IPostDetailActionsProps) {
   const router = useRouter();
   const { token } = useEditMode();
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -57,10 +58,12 @@ export default function PostDetailActions({ post, onEdit }: IPostDetailActionsPr
     <>
       <button
         type="button"
+        onFocus={onEditIntent}
         onClick={event => {
           event.currentTarget.blur();
           onEdit();
         }}
+        onPointerEnter={onEditIntent}
         className="focus-ring hover:bg-muted text-muted-foreground hover:text-foreground flex size-8 items-center justify-center rounded-md transition-colors"
         aria-label="Edit post"
       >

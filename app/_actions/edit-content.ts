@@ -3,6 +3,7 @@
 import matter from 'gray-matter';
 import { revalidatePath } from 'next/cache';
 
+import { isEditablePage, isRecordType } from '@/lib/content-editing-validation';
 import {
   deleteGitHubFile,
   fetchGitHubJson,
@@ -95,22 +96,35 @@ const EMPTY_RECORDS: Records = {
 
 const buildPostPath = (slug: string) => `${POST_CONTENT_DIR}/${slug}.mdx`;
 
-const normalizeTags = (tags: string[]) =>
+const createValidationError = (error: string): ActionError => ({
+  success: false,
+  error,
+  code: 'VALIDATION',
+  retryable: false,
+});
+
+const normalizeTags = (tags: unknown) =>
   Array.from(
     new Set(
-      tags
+      (Array.isArray(tags) ? tags : [])
+        .filter((tag): tag is string => typeof tag === 'string')
         .map(tag => tag.trim())
         .filter(Boolean)
         .map(tag => tag.replace(/\s+/g, '-')),
     ),
   );
 
-const normalizeSlug = (slug: string) =>
-  slug
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
+const normalizeSlug = (slug: unknown) =>
+  typeof slug === 'string'
+    ? slug
+        .toLowerCase()
+        .trim()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '')
+    : '';
+
+const normalizeOptionalString = (value: unknown) =>
+  typeof value === 'string' && value.trim() ? value.trim() : '';
 
 const requireEditToken = async (token?: string | null): Promise<string | ActionError> => {
   const resolvedToken = await resolveContentEditToken(token);
@@ -128,31 +142,20 @@ const requireEditToken = async (token?: string | null): Promise<string | ActionE
 };
 
 const validatePostPayload = (input: IPostPayload): ActionError | null => {
-  if (!input.title.trim()) {
-    return {
-      success: false,
-      error: 'Title is required',
-      code: 'VALIDATION',
-      retryable: false,
-    };
+  if (!normalizeOptionalString(input.title)) {
+    return createValidationError('Title is required');
   }
 
   if (!normalizeSlug(input.slug)) {
-    return {
-      success: false,
-      error: 'Slug is required',
-      code: 'VALIDATION',
-      retryable: false,
-    };
+    return createValidationError('Slug is required');
   }
 
-  if (!input.content.trim()) {
-    return {
-      success: false,
-      error: 'Content is required',
-      code: 'VALIDATION',
-      retryable: false,
-    };
+  if (!normalizeOptionalString(input.content)) {
+    return createValidationError('Content is required');
+  }
+
+  if (input.tags !== undefined && !Array.isArray(input.tags)) {
+    return createValidationError('Invalid tags');
   }
 
   return null;
@@ -268,11 +271,11 @@ export async function createPostAction(input: ICreatePostInput): Promise<ActionR
     const now = formatTime();
     const post: PostMeta = {
       slug,
-      title: input.title.trim(),
-      createdTime: input.createdTime || now,
+      title: normalizeOptionalString(input.title),
+      createdTime: normalizeOptionalString(input.createdTime) || now,
       updatedTime: now,
       tags: normalizeTags(input.tags),
-      pinned: input.pinned || undefined,
+      pinned: input.pinned === true || undefined,
     };
 
     await writeMdx(buildPostPath(slug), post, input.content, `docs: add post ${slug}`, token);
@@ -328,11 +331,11 @@ export async function updatePostAction(input: IUpdatePostInput): Promise<ActionR
 
     const post: PostMeta = {
       slug,
-      title: input.title.trim(),
-      createdTime: input.createdTime || existingPost.createdTime,
+      title: normalizeOptionalString(input.title),
+      createdTime: normalizeOptionalString(input.createdTime) || existingPost.createdTime,
       updatedTime: formatTime(),
       tags: normalizeTags(input.tags),
-      pinned: input.pinned || undefined,
+      pinned: input.pinned === true || undefined,
     };
 
     await writeMdx(buildPostPath(slug), post, input.content, `docs: update post ${slug}`, token);
@@ -369,6 +372,10 @@ export async function deletePostAction(input: IDeletePostInput): Promise<ActionR
 
   try {
     const slug = normalizeSlug(input.slug);
+    if (!slug) {
+      return createValidationError('Slug is required');
+    }
+
     const posts = await fetchPostList(token);
     const nextPosts = posts.filter(post => post.slug !== slug);
 
@@ -403,13 +410,16 @@ export async function updatePageAction(input: IUpdatePageInput): Promise<ActionR
     return token;
   }
 
-  if (!input.title.trim()) {
-    return {
-      success: false,
-      error: 'Title is required',
-      code: 'VALIDATION',
-      retryable: false,
-    };
+  if (!normalizeOptionalString(input.title)) {
+    return createValidationError('Title is required');
+  }
+
+  if (typeof input.content !== 'string') {
+    return createValidationError('Content is required');
+  }
+
+  if (!isEditablePage(input.page)) {
+    return createValidationError('Invalid editable page');
   }
 
   try {
@@ -422,7 +432,7 @@ export async function updatePageAction(input: IUpdatePageInput): Promise<ActionR
       createdTime: parsed.data.createdTime || now,
       tags: parsed.data.tags || [],
       ...parsed.data,
-      title: input.title.trim(),
+      title: normalizeOptionalString(input.title),
       updatedTime: now,
     };
 
@@ -440,27 +450,61 @@ export async function updatePageAction(input: IUpdatePageInput): Promise<ActionR
   }
 }
 
-const findRecord = (records: Records, key: IRecordKey) =>
-  records[key.type].find(
+const validateRecordKey = (key: IRecordKey): ActionError | null => {
+  if (!key?.title?.trim()) {
+    return createValidationError('Record title is required');
+  }
+
+  if (!key?.createdTime?.trim()) {
+    return createValidationError('Record createdTime is required');
+  }
+
+  if (!isRecordType(key?.type)) {
+    return createValidationError('Invalid record type');
+  }
+
+  return null;
+};
+
+const findRecord = (records: Records, key: IRecordKey) => {
+  if (!isRecordType(key.type)) {
+    return undefined;
+  }
+
+  return records[key.type].find(
     record => record.title === key.title && record.createdTime === key.createdTime,
   );
+};
 
 const removeRecord = (records: Records, key: IRecordKey): Records => ({
   ...records,
-  [key.type]: records[key.type].filter(
-    record => !(record.title === key.title && record.createdTime === key.createdTime),
-  ),
+  ...(isRecordType(key.type)
+    ? {
+        [key.type]: records[key.type].filter(
+          record => !(record.title === key.title && record.createdTime === key.createdTime),
+        ),
+      }
+    : {}),
 });
 
-const normalizeRecord = (record: RecordItem): RecordItem => ({
-  title: record.title.trim(),
-  link: record.link.trim(),
-  coverUrl: record.coverUrl.trim(),
-  createdTime: record.createdTime.trim() || formatTime(),
-  rating: typeof record.rating === 'number' && record.rating > 0 ? record.rating : undefined,
-  comment: record.comment?.trim() || undefined,
-  type: record.type,
-});
+const normalizeRecord = (record: RecordItem): RecordItem | ActionError => {
+  if (!isRecordType(record?.type)) {
+    return createValidationError('Invalid record type');
+  }
+
+  return {
+    title: typeof record.title === 'string' ? record.title.trim() : '',
+    link: typeof record.link === 'string' ? record.link.trim() : '',
+    coverUrl: typeof record.coverUrl === 'string' ? record.coverUrl.trim() : '',
+    createdTime:
+      typeof record.createdTime === 'string' && record.createdTime.trim()
+        ? record.createdTime.trim()
+        : formatTime(),
+    rating: typeof record.rating === 'number' && record.rating > 0 ? record.rating : undefined,
+    comment: typeof record.comment === 'string' ? record.comment.trim() || undefined : undefined,
+    type: record.type,
+  };
+};
 
 const writeRecords = async (records: Records, token: string) => {
   const sorted: Records = {
@@ -483,13 +527,12 @@ export async function createRecordAction(input: IRecordInput): Promise<ActionRes
 
   try {
     const record = normalizeRecord(input.record);
+    if ('success' in record) {
+      return record;
+    }
+
     if (!record.title || !record.link || !record.coverUrl) {
-      return {
-        success: false,
-        error: 'Title, link, and cover are required',
-        code: 'VALIDATION',
-        retryable: false,
-      };
+      return createValidationError('Title, link, and cover are required');
     }
 
     const records = await fetchRecords(token);
@@ -512,14 +555,18 @@ export async function updateRecordAction(
   }
 
   try {
+    const originalValidationError = validateRecordKey(input.original);
+    if (originalValidationError) {
+      return originalValidationError;
+    }
+
     const record = normalizeRecord(input.record);
+    if ('success' in record) {
+      return record;
+    }
+
     if (!record.title || !record.link || !record.coverUrl) {
-      return {
-        success: false,
-        error: 'Title, link, and cover are required',
-        code: 'VALIDATION',
-        retryable: false,
-      };
+      return createValidationError('Title, link, and cover are required');
     }
 
     const records = await fetchRecords(token);
@@ -552,6 +599,11 @@ export async function deleteRecordAction(input: IDeleteRecordInput): Promise<Act
   }
 
   try {
+    const originalValidationError = validateRecordKey(input.original);
+    if (originalValidationError) {
+      return originalValidationError;
+    }
+
     const records = await fetchRecords(token);
     const existing = findRecord(records, input.original);
 

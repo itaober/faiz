@@ -1,13 +1,14 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { type ReactNode, useState } from 'react';
+import { type ReactNode, useCallback, useState } from 'react';
 
 import type { Memo } from '@/lib/data/memos';
 
 import MemoCardActions from './memo-card-actions';
+import { loadMemoEditorSurface, memoEditorPreloader } from './memo-editor-loader';
 
-const MemoEditorSurface = dynamic(() => import('./memo-editor-surface'), { ssr: false });
+const MemoEditorSurface = dynamic(loadMemoEditorSurface, { ssr: false });
 
 interface IMemoCardInlineProps {
   memo: Memo;
@@ -17,6 +18,12 @@ interface IMemoCardInlineProps {
 export default function MemoCardInline({ memo, children }: IMemoCardInlineProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editorActionsPortal, setEditorActionsPortal] = useState<HTMLElement | null>(null);
+  const preloadEditor = useCallback(() => {
+    memoEditorPreloader.preload().catch(() => undefined);
+  }, []);
+  const openEditor = useCallback(() => {
+    memoEditorPreloader.openAfterPreload(() => setIsEditing(true)).catch(() => undefined);
+  }, []);
 
   return (
     <div>
@@ -36,7 +43,7 @@ export default function MemoCardInline({ memo, children }: IMemoCardInlineProps)
             className="not-prose hidden shrink-0 items-center gap-1 md:flex"
           />
         ) : (
-          <MemoCardActions memo={memo} onEdit={() => setIsEditing(true)} />
+          <MemoCardActions memo={memo} onEdit={openEditor} onEditIntent={preloadEditor} />
         )}
       </header>
       <div className="flex w-full gap-2 md:gap-4">

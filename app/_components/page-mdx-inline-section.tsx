@@ -1,12 +1,16 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { type ReactNode, useState } from 'react';
+import { type ReactNode, useCallback, useEffect, useState } from 'react';
 
 import PageMdxActions from '@/app/_components/page-mdx-actions';
 import PostTitle from '@/app/_components/post-title';
+import { useEditMode } from '@/components/edit-mode-context';
+import { createEditorPreloader } from '@/components/editing/preload-editor';
 
-const PageMdxEditorSurface = dynamic(() => import('@/app/_components/page-mdx-editor-surface'), {
+const loadPageMdxEditorSurface = () => import('@/app/_components/page-mdx-editor-surface');
+const pageMdxEditorPreloader = createEditorPreloader(loadPageMdxEditorSurface);
+const PageMdxEditorSurface = dynamic(loadPageMdxEditorSurface, {
   ssr: false,
 });
 
@@ -23,7 +27,20 @@ export default function PageMdxInlineSection({
   content,
   children,
 }: IPageMdxInlineSectionProps) {
+  const { isEditMode } = useEditMode();
   const [isEditing, setIsEditing] = useState(false);
+  const preloadEditor = useCallback(() => {
+    pageMdxEditorPreloader.preload().catch(() => undefined);
+  }, []);
+  const openEditor = useCallback(() => {
+    pageMdxEditorPreloader.openAfterPreload(() => setIsEditing(true)).catch(() => undefined);
+  }, []);
+
+  useEffect(() => {
+    if (isEditMode) {
+      preloadEditor();
+    }
+  }, [isEditMode, preloadEditor]);
 
   if (isEditing) {
     return (
@@ -39,7 +56,7 @@ export default function PageMdxInlineSection({
   return (
     <>
       <PostTitle title={title}>
-        <PageMdxActions page={page} onEdit={() => setIsEditing(true)} />
+        <PageMdxActions page={page} onEdit={openEditor} onEditIntent={preloadEditor} />
       </PostTitle>
       {children}
     </>

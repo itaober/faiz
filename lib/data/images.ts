@@ -1,4 +1,9 @@
 import { isSupportedImageType, MAX_IMAGE_SIZE } from '@/lib/constants/image';
+import {
+  type ContentImageScope,
+  isSafeContentImagePath,
+  normalizeContentImagePath,
+} from '@/lib/content-editing-validation';
 import { deleteGitHubFile, putGitHubFile } from '@/lib/data/common';
 
 interface IUploadImageInput {
@@ -38,17 +43,27 @@ export async function uploadImage(input: IUploadImageInput): Promise<IUploadImag
 }
 
 /** Delete images from GitHub storage (sequential, silent failure) */
-export async function deleteImages(paths: string[], token: string): Promise<void> {
+export async function deleteImages(
+  paths: string[],
+  token: string,
+  scope?: ContentImageScope,
+): Promise<void> {
   if (!paths.length) {
     return;
   }
 
   // Sequential deletion to avoid GitHub API conflicts
   for (const path of paths) {
+    const normalizedPath = normalizeContentImagePath(path);
+    if (!isSafeContentImagePath(normalizedPath, scope)) {
+      console.warn(`Skipping unsafe image delete path: ${path}`);
+      continue;
+    }
+
     try {
-      await deleteGitHubFile(path, `docs: delete image ${path}`, token);
+      await deleteGitHubFile(normalizedPath, `docs: delete image ${normalizedPath}`, token);
     } catch (error) {
-      console.warn(`Failed to delete image ${path}:`, error);
+      console.warn(`Failed to delete image ${normalizedPath}:`, error);
     }
   }
 }

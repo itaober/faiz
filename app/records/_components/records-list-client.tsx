@@ -9,10 +9,11 @@ import { ANIMATION } from '@/lib/constants/animation';
 import type { Records } from '@/lib/data/data';
 
 import { type Tab, tabList } from '../_constants';
+import { loadRecordEditorSurface } from './record-editor-loader';
 import RecordItem from './record-item';
 import { useRecordsInlineComposer } from './use-records-inline-composer';
 
-const RecordEditorSurface = dynamic(() => import('./record-editor-surface'), { ssr: false });
+const RecordEditorSurface = dynamic(loadRecordEditorSurface, { ssr: false });
 
 interface RecordsListClientProps {
   records: Records | null;

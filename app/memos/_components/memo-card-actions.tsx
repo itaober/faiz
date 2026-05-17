@@ -15,9 +15,10 @@ import { useMemosContext } from '../_context/use-memos-context';
 interface MemoCardActionsProps {
   memo: Memo;
   onEdit: () => void;
+  onEditIntent?: () => void;
 }
 
-export default function MemoCardActions({ memo, onEdit }: MemoCardActionsProps) {
+export default function MemoCardActions({ memo, onEdit, onEditIntent }: MemoCardActionsProps) {
   const router = useRouter();
   const { isEdit, token } = useMemosContext();
   const [mounted, setMounted] = useState(false);
@@ -71,10 +72,12 @@ export default function MemoCardActions({ memo, onEdit }: MemoCardActionsProps) 
       <div className="flex items-center gap-1">
         <button
           type="button"
+          onFocus={onEditIntent}
           onClick={event => {
             event.currentTarget.blur();
             onEdit();
           }}
+          onPointerEnter={onEditIntent}
           className="focus-ring hover:bg-muted text-muted-foreground hover:text-foreground flex size-8 items-center justify-center rounded-md transition-colors"
           aria-label="Edit memo"
         >

@@ -27,7 +27,7 @@ const expectations = [
   {
     file: 'app/memos/_components/memos-title.tsx',
     forbidden: ['memo-editor-drawer'],
-    required: ['memo-editor-surface'],
+    required: ['memo-editor-loader'],
   },
   {
     file: 'app/memos/_components/memo-card-actions.tsx',
@@ -37,7 +37,7 @@ const expectations = [
   {
     file: 'app/memos/_components/memo-card-inline.tsx',
     forbidden: ['memo-editor-drawer'],
-    required: ['memo-editor-surface'],
+    required: ['memo-editor-loader'],
   },
   {
     file: 'app/records/_components/records-title-actions.tsx',
@@ -47,12 +47,12 @@ const expectations = [
   {
     file: 'app/records/_components/records-list-client.tsx',
     forbidden: ['record-editor-drawer'],
-    required: ['record-editor-surface'],
+    required: ['record-editor-loader'],
   },
   {
     file: 'app/records/_components/record-item.tsx',
     forbidden: ['record-editor-drawer'],
-    required: ['record-editor-surface'],
+    required: ['record-editor-loader'],
   },
   {
     file: 'app/_components/page-mdx-actions.tsx',
