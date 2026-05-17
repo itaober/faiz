@@ -43,9 +43,7 @@ interface IGitHubApiOptions {
 }
 
 const CONTENT_BRANCH =
-  process.env.GITHUB_CONTENT_BRANCH ||
-  process.env.NEXT_PUBLIC_GITHUB_CONTENT_BRANCH ||
-  'content-dev';
+  process.env.GITHUB_CONTENT_BRANCH || process.env.NEXT_PUBLIC_GITHUB_CONTENT_BRANCH || 'content';
 const GITHUB_CONTENT_CACHE_TAG = 'github-content';
 const GITHUB_CONTENT_TAG_PREFIX = `${GITHUB_CONTENT_CACHE_TAG}:`;
 
