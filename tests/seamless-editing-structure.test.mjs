@@ -237,7 +237,8 @@ assert.equal(
     files.markdownEditor.includes('Formatting tools') &&
     files.markdownEditor.includes('toolbarPopoverRef') &&
     files.markdownEditor.includes('toolbarPlacement') &&
-    files.markdownEditor.includes('bottom: 76') &&
+    files.markdownEditor.includes('visualViewport') &&
+    files.markdownEditor.includes('updateMobileToolbarPosition') &&
     files.markdownEditor.includes('dockedToolbarTriggerRef') &&
     files.markdownEditor.includes('imageUploadRequestId') &&
     files.markdownEditor.includes('floatingActions') &&

@@ -214,6 +214,81 @@ const markdownHelp = [
   ['<Image />', 'Image'],
 ];
 
+const MOBILE_FLOATING_MARGIN = 12;
+const MOBILE_FLOATING_GAP = 10;
+const MOBILE_FLOATING_FALLBACK_HEIGHT = 46;
+const MOBILE_FLOATING_FALLBACK_WIDTH = 260;
+const MOBILE_KEYBOARD_HEIGHT_THRESHOLD = 96;
+
+const clampValue = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
+
+const getVisualViewportBounds = () => {
+  const viewport = window.visualViewport;
+  const left = viewport?.offsetLeft ?? 0;
+  const top = viewport?.offsetTop ?? 0;
+  const width = viewport?.width ?? window.innerWidth;
+  const height = viewport?.height ?? window.innerHeight;
+
+  return {
+    bottom: top + height,
+    height,
+    left,
+    right: left + width,
+    top,
+    width,
+  };
+};
+
+const isKeyboardLikelyOpen = () => {
+  const viewport = window.visualViewport;
+  return Boolean(
+    viewport && window.innerHeight - viewport.height > MOBILE_KEYBOARD_HEIGHT_THRESHOLD,
+  );
+};
+
+const hasVisibleRect = (rect: DOMRect | DOMRectReadOnly) => rect.height > 0;
+
+const intersectsViewport = (
+  rect: DOMRect | DOMRectReadOnly,
+  viewport: ReturnType<typeof getVisualViewportBounds>,
+) =>
+  rect.bottom > viewport.top &&
+  rect.top < viewport.bottom &&
+  rect.right > viewport.left &&
+  rect.left < viewport.right;
+
+const getSelectionAnchorRect = (root: HTMLElement | null, textarea: HTMLTextAreaElement | null) => {
+  if (textarea && document.activeElement === textarea) {
+    const rect = textarea.getBoundingClientRect();
+    return hasVisibleRect(rect) ? rect : null;
+  }
+
+  const selection = window.getSelection();
+  if (!root || !selection || selection.rangeCount === 0 || !selection.anchorNode) {
+    return null;
+  }
+
+  if (!root.contains(selection.anchorNode)) {
+    return null;
+  }
+
+  const range = selection.getRangeAt(0).cloneRange();
+  if (
+    selection.isCollapsed &&
+    selection.anchorNode.nodeType === Node.TEXT_NODE &&
+    selection.anchorOffset > 0
+  ) {
+    range.setStart(selection.anchorNode, selection.anchorOffset - 1);
+  }
+
+  const rect = range.getBoundingClientRect();
+  if (hasVisibleRect(rect)) {
+    return rect;
+  }
+
+  return Array.from(range.getClientRects()).find(hasVisibleRect) ?? null;
+};
+
 const slashMenuItems: { label: string; command: ToolbarCommand }[] = [
   { label: 'Heading 1', command: 'h1' },
   { label: 'Heading 2', command: 'h2' },
@@ -2103,6 +2178,7 @@ export default function MarkdownLexicalEditor({
   const markdownUploadSelectionRef = useRef<{ end: number; start: number } | null>(null);
   const toolbarTriggerRef = useRef<HTMLButtonElement | null>(null);
   const mobileToolbarTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const mobileToolbarRef = useRef<HTMLDivElement | null>(null);
   const dockedToolbarTriggerRef = useRef<HTMLButtonElement | null>(null);
   const toolbarPopoverRef = useRef<HTMLDivElement | null>(null);
   const previewSrcByImageSrcRef = useRef(new Map<string, string>());
@@ -2111,6 +2187,11 @@ export default function MarkdownLexicalEditor({
   const [isToolbarAnchorVisible, setIsToolbarAnchorVisible] = useState(true);
   const [toolbarPopoverPortal, setToolbarPopoverPortal] = useState<HTMLElement | null>(null);
   const [toolbarPopoverStyle, setToolbarPopoverStyle] = useState<CSSProperties>({});
+  const [mobileToolbarStyle, setMobileToolbarStyle] = useState<CSSProperties>({
+    bottom: MOBILE_FLOATING_MARGIN,
+    position: 'fixed',
+    right: MOBILE_FLOATING_MARGIN,
+  });
 
   useEffect(() => {
     setToolbarPopoverPortal(document.body);
@@ -2325,6 +2406,64 @@ export default function MarkdownLexicalEditor({
     );
   }, []);
 
+  const getMobileToolbarAnchorRect = useCallback(() => {
+    const root = editorRef.current?.getRootElement();
+    return getSelectionAnchorRect(root ?? null, markdownTextareaRef.current);
+  }, []);
+
+  const updateMobileToolbarPosition = useCallback(() => {
+    if (window.innerWidth >= 768) {
+      return;
+    }
+
+    const viewport = getVisualViewportBounds();
+    const toolbarRect = mobileToolbarRef.current?.getBoundingClientRect();
+    const toolbarWidth = Math.min(
+      toolbarRect?.width || MOBILE_FLOATING_FALLBACK_WIDTH,
+      viewport.width - MOBILE_FLOATING_MARGIN * 2,
+    );
+    const toolbarHeight = toolbarRect?.height || MOBILE_FLOATING_FALLBACK_HEIGHT;
+    const fallbackLeft = viewport.right - toolbarWidth - MOBILE_FLOATING_MARGIN;
+    const fallbackTop = viewport.bottom - toolbarHeight - MOBILE_FLOATING_MARGIN;
+    const anchorRect = isKeyboardLikelyOpen() ? getMobileToolbarAnchorRect() : null;
+    let left = fallbackLeft;
+    let top = fallbackTop;
+
+    if (anchorRect && intersectsViewport(anchorRect, viewport)) {
+      left = clampValue(
+        anchorRect.left + anchorRect.width / 2 - toolbarWidth / 2,
+        viewport.left + MOBILE_FLOATING_MARGIN,
+        viewport.right - toolbarWidth - MOBILE_FLOATING_MARGIN,
+      );
+
+      const aboveTop = anchorRect.top - toolbarHeight - MOBILE_FLOATING_GAP;
+      const belowTop = anchorRect.bottom + MOBILE_FLOATING_GAP;
+      const hasRoomAbove = aboveTop >= viewport.top + MOBILE_FLOATING_MARGIN;
+      const hasRoomBelow = belowTop + toolbarHeight <= viewport.bottom - MOBILE_FLOATING_MARGIN;
+
+      if (hasRoomAbove) {
+        top = aboveTop;
+      } else if (hasRoomBelow) {
+        top = belowTop;
+      }
+    }
+
+    const nextStyle: CSSProperties = {
+      left: Math.round(left),
+      maxWidth: `calc(100vw - ${MOBILE_FLOATING_MARGIN * 2}px)`,
+      position: 'fixed',
+      top: Math.round(top),
+    };
+
+    setMobileToolbarStyle(previous =>
+      previous.left === nextStyle.left &&
+      previous.top === nextStyle.top &&
+      previous.maxWidth === nextStyle.maxWidth
+        ? previous
+        : nextStyle,
+    );
+  }, [getMobileToolbarAnchorRect]);
+
   const updateToolbarPopoverPosition = useCallback(() => {
     const anchor = getVisibleToolbarAnchor();
 
@@ -2333,11 +2472,27 @@ export default function MarkdownLexicalEditor({
     }
 
     if (window.innerWidth < 768) {
+      const viewport = getVisualViewportBounds();
+      const anchorRect = anchor.getBoundingClientRect();
+      const popoverHeight =
+        toolbarPopoverRef.current?.getBoundingClientRect().height ||
+        MOBILE_FLOATING_FALLBACK_HEIGHT;
+      const aboveTop = anchorRect.top - popoverHeight - MOBILE_FLOATING_GAP;
+      const belowTop = anchorRect.bottom + MOBILE_FLOATING_GAP;
+      const hasRoomAbove = aboveTop >= viewport.top + MOBILE_FLOATING_MARGIN;
+      const hasRoomBelow = belowTop + popoverHeight <= viewport.bottom - MOBILE_FLOATING_MARGIN;
+
       setToolbarPopoverStyle({
-        bottom: 76,
-        left: 12,
+        left: viewport.left + MOBILE_FLOATING_MARGIN,
         position: 'fixed',
-        right: 12,
+        top: Math.round(
+          clampValue(
+            hasRoomAbove ? aboveTop : hasRoomBelow ? belowTop : aboveTop,
+            viewport.top + MOBILE_FLOATING_MARGIN,
+            viewport.bottom - popoverHeight - MOBILE_FLOATING_MARGIN,
+          ),
+        ),
+        width: viewport.width - MOBILE_FLOATING_MARGIN * 2,
       });
       return;
     }
@@ -2362,11 +2517,14 @@ export default function MarkdownLexicalEditor({
     setIsToolbarOpen(open => {
       const nextOpen = !open;
       if (nextOpen) {
-        window.requestAnimationFrame(updateToolbarPopoverPosition);
+        window.requestAnimationFrame(() => {
+          updateMobileToolbarPosition();
+          updateToolbarPopoverPosition();
+        });
       }
       return nextOpen;
     });
-  }, [updateToolbarPopoverPosition]);
+  }, [updateMobileToolbarPosition, updateToolbarPopoverPosition]);
 
   useEffect(() => {
     if (!isToolbarOpen) {
@@ -2403,14 +2561,61 @@ export default function MarkdownLexicalEditor({
     document.addEventListener('keydown', handleKeyDown, true);
     window.addEventListener('resize', updateToolbarPopoverPosition);
     window.addEventListener('scroll', updateToolbarPopoverPosition, true);
+    window.visualViewport?.addEventListener('resize', updateToolbarPopoverPosition);
+    window.visualViewport?.addEventListener('scroll', updateToolbarPopoverPosition);
 
     return () => {
       document.removeEventListener('pointerdown', handlePointerDown, true);
       document.removeEventListener('keydown', handleKeyDown, true);
       window.removeEventListener('resize', updateToolbarPopoverPosition);
       window.removeEventListener('scroll', updateToolbarPopoverPosition, true);
+      window.visualViewport?.removeEventListener('resize', updateToolbarPopoverPosition);
+      window.visualViewport?.removeEventListener('scroll', updateToolbarPopoverPosition);
     };
   }, [isToolbarOpen, updateToolbarPopoverPosition]);
+
+  useEffect(() => {
+    if (!shouldPortalToolbar || !showMobileToolbarOverlay) {
+      return;
+    }
+
+    let animationFrame = 0;
+    const scheduleUpdate = () => {
+      window.cancelAnimationFrame(animationFrame);
+      animationFrame = window.requestAnimationFrame(() => {
+        updateMobileToolbarPosition();
+        if (isToolbarOpen) {
+          updateToolbarPopoverPosition();
+        }
+      });
+    };
+
+    scheduleUpdate();
+    document.addEventListener('focusin', scheduleUpdate);
+    document.addEventListener('focusout', scheduleUpdate);
+    document.addEventListener('selectionchange', scheduleUpdate);
+    window.addEventListener('resize', scheduleUpdate);
+    window.addEventListener('scroll', scheduleUpdate, true);
+    window.visualViewport?.addEventListener('resize', scheduleUpdate);
+    window.visualViewport?.addEventListener('scroll', scheduleUpdate);
+
+    return () => {
+      window.cancelAnimationFrame(animationFrame);
+      document.removeEventListener('focusin', scheduleUpdate);
+      document.removeEventListener('focusout', scheduleUpdate);
+      document.removeEventListener('selectionchange', scheduleUpdate);
+      window.removeEventListener('resize', scheduleUpdate);
+      window.removeEventListener('scroll', scheduleUpdate, true);
+      window.visualViewport?.removeEventListener('resize', scheduleUpdate);
+      window.visualViewport?.removeEventListener('scroll', scheduleUpdate);
+    };
+  }, [
+    isToolbarOpen,
+    shouldPortalToolbar,
+    showMobileToolbarOverlay,
+    updateMobileToolbarPosition,
+    updateToolbarPopoverPosition,
+  ]);
 
   useEffect(() => {
     if (!shouldPortalToolbar || !showMobileToolbarOverlay) {
@@ -2540,7 +2745,7 @@ export default function MarkdownLexicalEditor({
         )}
 
         {shouldPortalToolbar && showMobileToolbarOverlay && (
-          <div className="fixed right-3 bottom-3 z-50 md:hidden">
+          <div ref={mobileToolbarRef} className="z-50 md:hidden" style={mobileToolbarStyle}>
             <div className="bg-background/90 border-border flex max-w-[calc(100vw-1.5rem)] items-center gap-1 rounded-lg border p-1 shadow-lg backdrop-blur">
               <ToolbarTriggerButton
                 active={isToolbarOpen}
