@@ -239,6 +239,8 @@ assert.equal(
     files.markdownEditor.includes('toolbarPlacement') &&
     files.markdownEditor.includes('visualViewport') &&
     files.markdownEditor.includes('updateMobileToolbarPosition') &&
+    files.markdownEditor.includes('window.innerWidth < 768') &&
+    files.markdownEditor.includes('mobileToolbarTriggerRef.current') &&
     files.markdownEditor.includes('dockedToolbarTriggerRef') &&
     files.markdownEditor.includes('imageUploadRequestId') &&
     files.markdownEditor.includes('floatingActions') &&

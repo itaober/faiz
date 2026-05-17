@@ -2389,21 +2389,27 @@ export default function MarkdownLexicalEditor({
   const shouldPortalToolbar = chrome === 'seamless' && !!toolbarPortal;
 
   const getVisibleToolbarAnchor = useCallback(() => {
+    const isMeasurableAnchor = (anchor: HTMLButtonElement | null) => {
+      if (!anchor) {
+        return false;
+      }
+
+      const rect = anchor.getBoundingClientRect();
+      return rect.width > 0 && rect.height > 0;
+    };
+
+    if (window.innerWidth < 768) {
+      return isMeasurableAnchor(mobileToolbarTriggerRef.current)
+        ? mobileToolbarTriggerRef.current
+        : null;
+    }
+
     const anchors = [
       dockedToolbarTriggerRef.current,
       toolbarTriggerRef.current,
       mobileToolbarTriggerRef.current,
     ];
-    return (
-      anchors.find(anchor => {
-        if (!anchor) {
-          return false;
-        }
-
-        const rect = anchor.getBoundingClientRect();
-        return rect.width > 0 && rect.height > 0;
-      }) ?? null
-    );
+    return anchors.find(isMeasurableAnchor) ?? null;
   }, []);
 
   const getMobileToolbarAnchorRect = useCallback(() => {
