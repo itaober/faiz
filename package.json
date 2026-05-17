@@ -9,7 +9,8 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "prepare": "simple-git-hooks",
-    "start": "next start"
+    "start": "next start",
+    "test": "for test in tests/*.test.mjs; do node \"$test\"; done"
   },
   "simple-git-hooks": {
     "pre-commit": "pnpm lint-staged",
@@ -26,6 +27,15 @@
     "@jsquash/png": "^3.1.1",
     "@jsquash/resize": "^2.1.1",
     "@jsquash/webp": "^1.5.0",
+    "@lexical/code": "^0.44.0",
+    "@lexical/link": "^0.44.0",
+    "@lexical/list": "^0.44.0",
+    "@lexical/markdown": "^0.44.0",
+    "@lexical/react": "^0.44.0",
+    "@lexical/rich-text": "^0.44.0",
+    "@lexical/selection": "^0.44.0",
+    "@lexical/table": "^0.44.0",
+    "@lexical/utils": "^0.44.0",
     "@mdx-js/loader": "^3.1.0",
     "@mdx-js/react": "^3.1.0",
     "@next/mdx": "^16.2.2",
@@ -38,6 +48,7 @@
     "dayjs": "^1.11.19",
     "feed": "^5.1.0",
     "gray-matter": "^4.0.3",
+    "lexical": "^0.44.0",
     "lucide-react": "^0.539.0",
     "marked": "^16.3.0",
     "motion": "^12.26.2",
@@ -66,6 +77,8 @@
     "eslint-config-next": "16.2.2",
     "lint-staged": "^16.1.4",
     "prettier": "^3.6.2",
+    "prettier-plugin-packagejson": "^3.0.2",
+    "react-doctor": "^0.1.6",
     "simple-git-hooks": "^2.13.1",
     "tailwindcss": "^4",
     "typescript": "^5"

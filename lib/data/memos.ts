@@ -33,6 +33,7 @@ const MEMOS_FETCH_INIT: RequestInit = {
     revalidate: MEMOS_REVALIDATE_SECONDS,
   },
 };
+const MEMOS_MUTATION_FETCH_INIT: RequestInit = { cache: 'no-store' };
 
 const buildMemosPath = (month: string) =>
   `${MEMOS_DIR}/${MEMOS_FILE_PREFIX}${month}${MEMOS_FILE_SUFFIX}`;
@@ -120,7 +121,9 @@ export const prependMemo = async (input: ICreateMemoInput): Promise<Memo> => {
   }
 
   const memosPath = buildMemosPath(memoMonth);
-  const rawText = await fetchGitHubText(memosPath, undefined, input.token).catch(() => '[]');
+  const rawText = await fetchGitHubText(memosPath, MEMOS_MUTATION_FETCH_INIT, input.token).catch(
+    () => '[]',
+  );
   const raw = JSON.parse(rawText);
   const list = MemoListSchema.parse(raw ?? []);
 
@@ -158,7 +161,11 @@ export const updateMemo = async (input: IUpdateMemoInput): Promise<IUpdateMemoRe
   }
 
   const memosPath = buildMemosPath(memoMonth);
-  const raw = await fetchGitHubJson<unknown>(memosPath, undefined, input.token).catch(() => []);
+  const raw = await fetchGitHubJson<unknown>(
+    memosPath,
+    MEMOS_MUTATION_FETCH_INIT,
+    input.token,
+  ).catch(() => []);
   const list = MemoListSchema.parse(raw ?? []);
 
   const memoIndex = list.findIndex(m => m.id === input.id);
@@ -199,7 +206,11 @@ export const deleteMemo = async (input: IDeleteMemoInput): Promise<Memo> => {
   }
 
   const memosPath = buildMemosPath(memoMonth);
-  const raw = await fetchGitHubJson<unknown>(memosPath, undefined, input.token).catch(() => []);
+  const raw = await fetchGitHubJson<unknown>(
+    memosPath,
+    MEMOS_MUTATION_FETCH_INIT,
+    input.token,
+  ).catch(() => []);
   const list = MemoListSchema.parse(raw ?? []);
 
   const memoToDelete = list.find(m => m.id === input.id);
@@ -219,7 +230,7 @@ export const deleteMemoWithImages = async (input: IDeleteMemoInput): Promise<Mem
   const deletedMemo = await deleteMemo(input);
 
   if (deletedMemo.images.length > 0 && input.token) {
-    await deleteImages(deletedMemo.images, input.token);
+    await deleteImages(deletedMemo.images, input.token, 'memos');
   }
 
   return deletedMemo;
@@ -232,7 +243,7 @@ export const updateMemoWithImages = async (
   const result = await updateMemo(input);
 
   if (result.removedImages.length > 0 && input.token) {
-    await deleteImages(result.removedImages, input.token);
+    await deleteImages(result.removedImages, input.token, 'memos');
   }
 
   return result;

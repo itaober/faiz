@@ -1,24 +1,30 @@
 'use client';
 
-import { MoreHorizontal } from 'lucide-react';
-import dynamic from 'next/dynamic';
+import { PencilIcon, Trash2Icon } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { toast } from 'sonner';
 
+import { deleteMemoAction } from '@/app/memos/_actions/delete-memo';
+import ConfirmDrawer from '@/components/editing/confirm-drawer';
+import GitHubTokenDrawer from '@/components/editing/github-token-drawer';
 import type { Memo } from '@/lib/data/memos';
 
 import { useMemosContext } from '../_context/use-memos-context';
-import MemoActionsDrawer from './memo-actions-drawer';
-const MemoEditorDrawer = dynamic(() => import('./memo-editor-drawer'), { ssr: false });
 
 interface MemoCardActionsProps {
   memo: Memo;
+  onEdit: () => void;
+  onEditIntent?: () => void;
 }
 
-export default function MemoCardActions({ memo }: MemoCardActionsProps) {
-  const { isEdit } = useMemosContext();
+export default function MemoCardActions({ memo, onEdit, onEditIntent }: MemoCardActionsProps) {
+  const router = useRouter();
+  const { isEdit, token } = useMemosContext();
   const [mounted, setMounted] = useState(false);
-  const [showActions, setShowActions] = useState(false);
-  const [showEditor, setShowEditor] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -28,28 +34,77 @@ export default function MemoCardActions({ memo }: MemoCardActionsProps) {
     return null;
   }
 
+  const handleDelete = async () => {
+    if (!token) {
+      setShowDeleteConfirm(false);
+      setSettingsOpen(true);
+      toast.error('Token not configured');
+      return;
+    }
+
+    setIsDeleting(true);
+    const deleteMemo = async () => {
+      const result = await deleteMemoAction({
+        id: memo.id,
+        createdTime: memo.createdTime,
+        token,
+      });
+      if (!result.success) {
+        throw new Error(result.error || 'Delete failed');
+      }
+      return result;
+    };
+
+    toast.promise(deleteMemo(), {
+      loading: 'Deleting...',
+      success: () => {
+        setShowDeleteConfirm(false);
+        router.refresh();
+        return 'Memo deleted';
+      },
+      error: error => error.message || 'Delete failed',
+      finally: () => setIsDeleting(false),
+    });
+  };
+
   return (
     <>
-      <button
-        type="button"
-        onClick={() => setShowActions(true)}
-        className="focus-visible:ring-foreground/40 flex size-5 items-center justify-center rounded transition-opacity focus-visible:ring-2 focus-visible:outline-none"
-        aria-label="More actions"
-      >
-        <MoreHorizontal className="size-5 opacity-70 transition-opacity hover:opacity-100" />
-      </button>
+      <div className="flex items-center gap-1">
+        <button
+          type="button"
+          onFocus={onEditIntent}
+          onClick={event => {
+            event.currentTarget.blur();
+            onEdit();
+          }}
+          onPointerEnter={onEditIntent}
+          className="focus-ring hover:bg-muted text-muted-foreground hover:text-foreground flex size-8 items-center justify-center rounded-md transition-colors"
+          aria-label="Edit memo"
+        >
+          <PencilIcon className="size-4" />
+        </button>
+        <button
+          type="button"
+          onClick={event => {
+            event.currentTarget.blur();
+            setShowDeleteConfirm(true);
+          }}
+          className="focus-ring hover:bg-danger-soft text-muted-foreground hover:text-danger flex size-8 items-center justify-center rounded-md transition-colors"
+          aria-label="Delete memo"
+        >
+          <Trash2Icon className="size-4" />
+        </button>
+      </div>
 
-      <MemoActionsDrawer
-        open={showActions}
-        onOpenChange={setShowActions}
-        memoId={memo.id}
-        memoCreatedTime={memo.createdTime}
-        onEdit={() => setShowEditor(true)}
+      <ConfirmDrawer
+        open={showDeleteConfirm}
+        onOpenChange={setShowDeleteConfirm}
+        title="Delete memo?"
+        description="This removes the memo from the content branch."
+        isLoading={isDeleting}
+        onConfirm={handleDelete}
       />
-
-      {showEditor && (
-        <MemoEditorDrawer open={showEditor} onOpenChange={setShowEditor} memo={memo} />
-      )}
+      <GitHubTokenDrawer open={settingsOpen} onOpenChange={setSettingsOpen} />
     </>
   );
 }

@@ -6,12 +6,12 @@ export interface IMemosContext {
   isEdit: boolean;
   toggleEdit: () => void;
   token: string | null;
-  saveToken: (token: string) => void;
+  saveToken: (token: string) => Promise<void>;
 }
 
 export const MemosContext = createContext<IMemosContext>({
   isEdit: false,
   toggleEdit: () => {},
   token: null,
-  saveToken: () => {},
+  saveToken: async () => {},
 });

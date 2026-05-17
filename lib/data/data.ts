@@ -34,6 +34,7 @@ export const RecordItemSchema = z.object({
   coverUrl: z.string(),
   createdTime: z.string(),
   rating: z.number().optional(),
+  comment: z.string().optional(),
   type: z.enum(['book', 'movie', 'tv', 'music', 'game']),
 });
 export const RecordsSchema = z.object({

@@ -23,6 +23,7 @@ Use `pnpm` (preferred by hooks and scripts).
 - `pnpm lint` — run Next.js ESLint checks.
 - `pnpm lint:fix` — auto-fix lint issues.
 - `pnpm format` — format code with Prettier.
+- `pnpm test` — run the lightweight Node assertion tests in `tests/*.test.mjs`.
 
 ## Coding Style & Naming Conventions
 
@@ -34,7 +35,7 @@ Use `pnpm` (preferred by hooks and scripts).
 
 ## Testing Guidelines
 
-There is no test runner configured yet (no `test` script or test files). If you add tests, document the command in this file and keep naming consistent (e.g., `*.test.tsx`).
+Lightweight regression tests live in `tests/*.test.mjs` and run with `pnpm test`. If you add a broader test runner later, document the command here and keep naming consistent (e.g., `*.test.tsx`).
 
 ## Commit & Pull Request Guidelines
 

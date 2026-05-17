@@ -2,8 +2,10 @@
 
 import { revalidatePath } from 'next/cache';
 
+import { normalizeImagePathList } from '@/lib/content-editing-validation';
 import type { Memo } from '@/lib/data/memos';
 import { updateMemoWithImages } from '@/lib/data/memos';
+import { requireAuth } from '@/lib/server/content-edit-token';
 import { type ActionResult, createActionError } from '@/lib/types/action-result';
 
 interface IUpdateMemoInput {
@@ -17,6 +19,24 @@ interface IUpdateMemoInput {
 const MAX_CONTENT_LENGTH = 10000;
 
 export async function updateMemoAction(input: IUpdateMemoInput): Promise<ActionResult<Memo>> {
+  const token = await requireAuth(input.token);
+  if (typeof token !== 'string') {
+    return token;
+  }
+
+  const content = typeof input.content === 'string' ? input.content : '';
+  const normalizedImages =
+    input.images === undefined ? null : normalizeImagePathList(input.images, 'memos');
+
+  if (normalizedImages && normalizedImages.invalid.length > 0) {
+    return {
+      success: false,
+      error: 'Invalid memo image path',
+      code: 'VALIDATION',
+      retryable: false,
+    };
+  }
+
   if (!input.id?.trim()) {
     return {
       success: false,
@@ -35,7 +55,7 @@ export async function updateMemoAction(input: IUpdateMemoInput): Promise<ActionR
     };
   }
 
-  if (!input.content?.trim() && (!input.images || input.images.length === 0)) {
+  if (!content.trim() && (!normalizedImages || normalizedImages.paths.length === 0)) {
     return {
       success: false,
       error: 'Content or images cannot be empty',
@@ -44,7 +64,7 @@ export async function updateMemoAction(input: IUpdateMemoInput): Promise<ActionR
     };
   }
 
-  if (input.content && input.content.length > MAX_CONTENT_LENGTH) {
+  if (content.length > MAX_CONTENT_LENGTH) {
     return {
       success: false,
       error: `Content too long (max ${MAX_CONTENT_LENGTH} characters)`,
@@ -53,22 +73,13 @@ export async function updateMemoAction(input: IUpdateMemoInput): Promise<ActionR
     };
   }
 
-  if (!input.token?.trim()) {
-    return {
-      success: false,
-      error: 'GitHub token is required',
-      code: 'AUTH_INVALID',
-      retryable: false,
-    };
-  }
-
   try {
     const { memo } = await updateMemoWithImages({
       id: input.id,
-      content: input.content?.trim() || '',
-      images: input.images,
+      content: content.trim(),
+      images: normalizedImages?.paths,
       createdTime: input.createdTime,
-      token: input.token,
+      token,
     });
 
     revalidatePath('/memos');

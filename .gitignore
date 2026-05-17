@@ -23,6 +23,13 @@
 # misc
 .DS_Store
 *.pem
+skills-lock.json
+.agents/
+.claude/
+.codex/
+.playwright-cli/
+Design/
+output/
 
 # debug
 npm-debug.log*

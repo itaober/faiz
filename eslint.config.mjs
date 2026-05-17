@@ -23,7 +23,15 @@ const customConfig = filterDuplicatePlugins(getESLintConfig(), DUPLICATE_PLUGIN_
 const eslintConfig = [
   ...nextConfig,
   {
-    ignores: ['.worktrees/**'],
+    ignores: [
+      '.worktrees/**',
+      '.claude/**',
+      '.agents/**',
+      '.playwright-cli/**',
+      'Design/**',
+      'output/**',
+      'skills-lock.json',
+    ],
   },
   ...customConfig,
   {

@@ -6,7 +6,7 @@ import { PAGE_META } from '@/lib/constants/seo';
 import { getAboutMDX } from '@/lib/data/mdx';
 import { buildDescription, buildPageMetadata } from '@/lib/utils/seo';
 
-import PostTitle from '../_components/post-title';
+import PageMdxInlineSection from '../_components/page-mdx-inline-section';
 
 export async function generateMetadata() {
   const aboutMDX = await getAboutMDX();
@@ -32,10 +32,11 @@ export default async function AboutPage() {
 
   return (
     <MotionWrapper className="overflow-y-hidden">
-      <PostTitle title={data.title} />
-      <article className="prose dark:prose-invert">
-        <MDX source={content} />
-      </article>
+      <PageMdxInlineSection page="about" title={data.title} content={content}>
+        <article className="prose dark:prose-invert">
+          <MDX source={content} />
+        </article>
+      </PageMdxInlineSection>
     </MotionWrapper>
   );
 }

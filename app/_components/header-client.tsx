@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cloneElement, isValidElement, type ReactElement, type ReactNode } from 'react';
 
+import { useEditMode } from '@/components/edit-mode-context';
 import { ANIMATION } from '@/lib/constants/animation';
 import { cn } from '@/lib/utils';
 
@@ -39,6 +40,7 @@ interface IHeaderClientProps {
 
 export default function HeaderClient({ avatar, avatarAlt, navNodes }: IHeaderClientProps) {
   const pathname = usePathname();
+  const { isEditMode, isEditModeLoaded } = useEditMode();
 
   const isActive = (key: string): boolean => {
     const href = getHref(key);
@@ -53,6 +55,7 @@ export default function HeaderClient({ avatar, avatarAlt, navNodes }: IHeaderCli
       <div className="mx-auto flex max-w-4xl items-center justify-between px-4 py-3 md:px-6 md:py-4">
         <Link href="/">
           <motion.div
+            className="relative"
             initial={{ scale: 0.96, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             transition={{ duration: ANIMATION.duration.slow, ease: ANIMATION.ease.out }}
@@ -66,6 +69,12 @@ export default function HeaderClient({ avatar, avatarAlt, navNodes }: IHeaderCli
               height={48}
               className="rounded-full select-none"
             />
+            {isEditModeLoaded && isEditMode && (
+              <span
+                className="bg-accent border-background absolute right-0 bottom-0 size-3 rounded-full border-2"
+                title="Edit mode active"
+              />
+            )}
           </motion.div>
         </Link>
         <nav aria-label="Primary navigation">

@@ -1,18 +1,44 @@
+'use client';
+
 import dayjs from 'dayjs';
 import { CalendarIcon, HistoryIcon } from 'lucide-react';
-import { Fragment } from 'react';
+import { Fragment, type ReactNode, useEffect, useState } from 'react';
 
 import { Badge } from '@/components/badge';
+import { useEditMode } from '@/components/edit-mode-context';
+import { useConsecutiveClicks } from '@/hooks/use-consecutive-clicks';
 import type { MDXData } from '@/lib/data/mdx';
 import { cn } from '@/lib/utils';
 
 interface IPostTitleProps extends Partial<MDXData> {
   title: string;
+  titleNode?: ReactNode;
+  metaNode?: ReactNode;
   className?: string;
+  children?: ReactNode;
 }
 
-const PostTitle = ({ title, createdTime, updatedTime, tags, className }: IPostTitleProps) => {
+const PostTitle = ({
+  title,
+  titleNode,
+  metaNode,
+  createdTime,
+  updatedTime,
+  tags,
+  className,
+  children,
+}: IPostTitleProps) => {
+  const { isEditMode, toggleEditMode } = useEditMode();
+  const [mounted, setMounted] = useState(false);
   const metaList = [];
+  const handleTitleClick = useConsecutiveClicks({
+    threshold: 5,
+    onTrigger: toggleEditMode,
+  });
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   if (createdTime) {
     metaList.push({
@@ -47,8 +73,29 @@ const PostTitle = ({ title, createdTime, updatedTime, tags, className }: IPostTi
 
   return (
     <div className={cn('mb-8', className)}>
-      <h1 className="text-4xl font-bold tracking-tight">{title}</h1>
-      {metaList.length > 0 && (
+      <div className="flex items-start justify-between gap-4">
+        <h1
+          className="cursor-default text-4xl font-bold tracking-tight select-none"
+          onClick={handleTitleClick}
+        >
+          {titleNode ?? title}
+        </h1>
+        {mounted && isEditMode && children && (
+          <div
+            className={cn(
+              'not-prose shrink-0 items-center gap-1 pt-1',
+              titleNode ? 'hidden md:flex' : 'flex',
+            )}
+          >
+            {children}
+          </div>
+        )}
+      </div>
+      {metaNode ? (
+        <div className="text-muted-foreground mt-2 flex flex-wrap items-center gap-2">
+          {metaNode}
+        </div>
+      ) : metaList.length > 0 ? (
         <div className="text-muted-foreground mt-2 flex flex-wrap items-center gap-2">
           {metaList.map((item, index, array) => (
             <Fragment key={item.id}>
@@ -60,7 +107,7 @@ const PostTitle = ({ title, createdTime, updatedTime, tags, className }: IPostTi
             </Fragment>
           ))}
         </div>
-      )}
+      ) : null}
     </div>
   );
 };

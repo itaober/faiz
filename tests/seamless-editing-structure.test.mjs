@@ -1,0 +1,266 @@
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+
+const read = path => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
+
+const files = {
+  page: read('app/_components/page-mdx-editor-surface.tsx'),
+  pageInline: read('app/_components/page-mdx-inline-section.tsx'),
+  postTitle: read('app/_components/post-title.tsx'),
+  post: read('app/posts/_components/post-editor-surface.tsx'),
+  postActions: read('app/posts/_components/posts-title-actions.tsx'),
+  postInline: read('app/posts/_components/post-detail-inline-section.tsx'),
+  memo: read('app/memos/_components/memo-editor-surface.tsx'),
+  memoInline: read('app/memos/_components/memo-card-inline.tsx'),
+  memoLoader: read('app/memos/_components/memo-editor-loader.ts'),
+  memoTitle: read('app/memos/_components/memos-title.tsx'),
+  record: read('app/records/_components/record-editor-surface.tsx'),
+  recordItem: read('app/records/_components/record-item.tsx'),
+  recordLoader: read('app/records/_components/record-editor-loader.ts'),
+  recordsComposerContext: read('app/records/_components/records-inline-composer-context.tsx'),
+  recordsComposerState: read('app/records/_components/records-inline-composer-state.ts'),
+  recordsList: read('app/records/_components/records-list-client.tsx'),
+  markdownEditor: read('components/editing/markdown-lexical-editor.tsx'),
+  globals: read('app/globals.css'),
+};
+
+for (const [name, source] of Object.entries({
+  page: files.page,
+  post: files.post,
+  memo: files.memo,
+  record: files.record,
+})) {
+  assert.equal(
+    source.includes('chrome="seamless"'),
+    true,
+    `${name} editor should use the seamless editor chrome`,
+  );
+  assert.equal(
+    source.includes('toolbarPortal'),
+    true,
+    `${name} editor should portal the formatting trigger into the page action row`,
+  );
+  assert.equal(
+    /Editing (about|post|memo|record|\$\{page\})|New (post|memo|record)/.test(source),
+    false,
+    `${name} editor should not render admin-style editing labels`,
+  );
+}
+
+assert.equal(
+  files.page.includes('mdxTodoListsToMarkdown') && files.page.includes('markdownTodoListsToMdx'),
+  true,
+  'page editor should transform TodoList MDX into editable checklists and back',
+);
+
+assert.equal(
+  files.markdownEditor.includes('editor-checklist-item') &&
+    files.globals.includes('.editor-checklist-item::before') &&
+    files.globals.includes('padding-inline-start: 1.5rem') &&
+    files.globals.includes('border: 1.5px solid var(--border)'),
+  true,
+  'editable TodoList items should keep visible checkbox affordances in WYSIWYG mode',
+);
+
+assert.equal(
+  files.markdownEditor.includes("link: ''") &&
+    !files.markdownEditor.includes('text-accent underline') &&
+    files.markdownEditor.includes("code: 'bg-muted text-foreground") &&
+    files.markdownEditor.includes('font-medium leading-[inherit]'),
+  true,
+  'seamless editors should share read-mode prose link and inline-code tokens',
+);
+
+assert.equal(
+  files.page.includes('<PostTitle') &&
+    files.page.includes('titleNode=') &&
+    files.page.includes('minHeightClassName="min-h-0"') &&
+    !files.page.includes('min-h-[48vh]'),
+  true,
+  'page edit mode should reuse the read-mode title/body rhythm instead of mounting a separate editor layout',
+);
+
+assert.equal(
+  files.pageInline.includes('dynamic(loadPageMdxEditorSurface') &&
+    files.pageInline.includes("import('@/app/_components/page-mdx-editor-surface')") &&
+    files.postInline.includes('dynamic(loadPostEditorSurface') &&
+    files.postInline.includes("import('./post-editor-surface')") &&
+    files.memoInline.includes('dynamic(loadMemoEditorSurface') &&
+    files.memoTitle.includes('dynamic(loadMemoEditorSurface') &&
+    files.memoLoader.includes("import('./memo-editor-surface')") &&
+    files.recordItem.includes('dynamic(loadRecordEditorSurface') &&
+    files.recordsList.includes('dynamic(loadRecordEditorSurface') &&
+    files.recordLoader.includes("import('./record-editor-surface')"),
+  true,
+  'read-mode client wrappers should lazy-load heavy editor surfaces instead of shipping Lexical in the initial page bundle',
+);
+
+assert.equal(
+  files.pageInline.includes('openAfterPreload') &&
+    files.postInline.includes('openAfterPreload') &&
+    files.memoInline.includes('openAfterPreload') &&
+    files.memoTitle.includes('openAfterPreload') &&
+    files.recordItem.includes('openAfterPreload'),
+  true,
+  'edit actions should keep read-mode content mounted until the editor chunk is ready',
+);
+
+assert.equal(
+  /listitemChecked:\s*'[^']*line-through/.test(files.markdownEditor),
+  false,
+  'checked TodoList items should stay visually aligned with the read-only page instead of becoming struck-through admin UI',
+);
+
+assert.equal(
+  files.postActions.includes("router.push('/posts/new')"),
+  true,
+  'post add action should navigate to the blank post page',
+);
+
+assert.equal(
+  files.memoInline.includes('<MemoEditorSurface') && files.memoInline.includes('children'),
+  true,
+  'memo edit should keep the timeline/card wrapper and replace only the memo body',
+);
+
+assert.equal(
+  files.memoInline.includes('editorActionsPortal') &&
+    files.memoInline.includes('actionsPortal={editorActionsPortal}') &&
+    files.memoInline.includes('hidden shrink-0 items-center gap-1 md:flex') &&
+    files.memo.includes('createPortal(actions, actionsPortal)') &&
+    files.memo.includes('floatingActions={actions}') &&
+    files.memo.includes('editorClassName="memo-editor-content"') &&
+    files.memo.includes('aria-label="Attach image"') &&
+    files.memo.includes('imageUploadRequestId={imageUploadRequestId}') &&
+    files.globals.includes('.memo-editor-content ul') &&
+    files.globals.includes('list-style-type: disc') &&
+    files.globals.includes('.memo-editor-content code') &&
+    files.globals.includes('color: var(--tw-prose-code)'),
+  true,
+  'memo edit controls should reuse the existing memo header action slot and match read-mode prose rhythm',
+);
+
+assert.equal(
+  files.memoTitle.includes('draftCreatedTime') &&
+    files.memoTitle.includes('actionsPortal={editorActionsPortal}') &&
+    files.memoTitle.includes('hidden shrink-0 items-center gap-1 md:flex') &&
+    files.memoTitle.includes('bg-border h-full w-px'),
+  true,
+  'new memo composer should reuse the timeline rail and header action slot',
+);
+
+assert.equal(
+  !files.memoInline.includes('isEditing ? null : <MemoCardActions'),
+  true,
+  'memo edit should replace the original edit/delete actions while the inline editor is active',
+);
+
+assert.equal(
+  files.recordItem.includes('RecordEditorSurface') && files.recordItem.includes('motion.div'),
+  true,
+  'record edit should keep the original record card shell editable in place',
+);
+
+assert.equal(
+  files.recordsComposerState.includes('editingRecordKey') &&
+    files.recordsComposerContext.includes('setEditingRecordKeyState(null)') &&
+    files.recordsComposerContext.includes('setComposerOpen(false)') &&
+    files.recordItem.includes('editingRecordKey === recordKey'),
+  true,
+  'record add and edit surfaces should be mutually exclusive',
+);
+
+assert.equal(
+  files.recordsList.includes('{isComposerOpen &&') &&
+    files.recordsList.lastIndexOf('RecordEditorSurface') >
+      files.recordsList.indexOf('grid grid-cols-2 gap-4'),
+  true,
+  'record add composer should be inserted as the first grid item',
+);
+
+assert.equal(
+  files.record.includes('Review') &&
+    files.record.includes('absolute') &&
+    files.record.includes('isReviewOpen'),
+  true,
+  'record review editing should use a floating layer that does not resize the grid item',
+);
+
+assert.equal(
+  files.record.includes('Record details') && !files.record.includes('useState(!record)'),
+  true,
+  'record maintenance fields should live behind an explicit details popover, not open by default',
+);
+
+assert.equal(
+  files.record.includes('initialType') &&
+    files.recordsList.includes("activeTab === 'all' ? undefined : activeTab") &&
+    files.recordsList.includes("squareCover={activeTab === 'music'}") &&
+    files.recordItem.includes('squareCover={isMusicTab}') &&
+    files.record.includes('const hasCover = !!(coverPreviewSrc.trim() || pendingCoverFile)') &&
+    files.record.includes('formatInlineDate(createdTime)') &&
+    files.record.includes('openInlineDatePicker') &&
+    files.record.includes('showPicker()') &&
+    files.record.includes('opacity-0 [color-scheme:light]') &&
+    files.record.includes('type="date"') &&
+    files.record.includes('name="record-type-inline"') &&
+    files.record.includes('appearance-none') &&
+    files.recordItem.includes('absolute top-2 right-2') &&
+    !files.recordItem.includes('sidecar='),
+  true,
+  'record composer and editor should preserve active tab/type and cover aspect, use real date/select inputs, enable uploaded covers before final URLs, and keep controls out of public card layout',
+);
+
+assert.equal(
+  files.post.includes('metaNode={renderMeta()}') &&
+    files.postTitle.includes("titleNode ? 'hidden md:flex' : 'flex'") &&
+    files.post.includes('name="post-created-time"') &&
+    files.post.includes('openPostDatePicker') &&
+    files.post.includes('showPicker()') &&
+    files.post.includes('name="post-tags-inline"') &&
+    files.post.includes('createdTime: buildPostCreatedTime'),
+  true,
+  'post editing should expose date and tag metadata inline while preserving the read-mode post title shell',
+);
+
+assert.equal(
+  files.globals.includes('.site-prose-editor-content blockquote code') &&
+    files.globals.includes('color: inherit'),
+  true,
+  'seamless editors should preserve inherited blockquote color for inline code',
+);
+
+assert.equal(
+  files.markdownEditor.includes('toolbarPortal') &&
+    files.markdownEditor.includes('createPortal') &&
+    files.markdownEditor.includes('ToolbarTriggerButton') &&
+    files.markdownEditor.includes('Formatting tools') &&
+    files.markdownEditor.includes('toolbarPopoverRef') &&
+    files.markdownEditor.includes('toolbarPlacement') &&
+    files.markdownEditor.includes('visualViewport') &&
+    files.markdownEditor.includes('updateMobileToolbarPosition') &&
+    files.markdownEditor.includes('window.innerWidth < 768') &&
+    files.markdownEditor.includes('mobileToolbarTriggerRef.current') &&
+    files.markdownEditor.includes('dockedToolbarTriggerRef') &&
+    files.markdownEditor.includes('imageUploadRequestId') &&
+    files.markdownEditor.includes('floatingActions') &&
+    files.markdownEditor.includes('leading-7') &&
+    files.markdownEditor.includes("chrome === 'panel' ? 'top-4 left-4' : 'top-0 left-0'"),
+  true,
+  'seamless toolbar should render as an on-demand formatting popover with persistent page actions on long desktop and mobile editors',
+);
+
+assert.equal(
+  files.markdownEditor.includes('name="selection-link-url"') &&
+    files.markdownEditor.includes('label="Link"') &&
+    files.markdownEditor.includes('label="Inline code"') &&
+    files.markdownEditor.includes('lexicalSelection.hasFormat'),
+  true,
+  'selection bubble should expose only high-frequency inline controls with active-state awareness',
+);
+
+assert.equal(
+  files.record.includes('toolbarPlacement="below"'),
+  true,
+  'record review editors should keep the formatting popover inside the floating review surface',
+);
