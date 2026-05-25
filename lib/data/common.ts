@@ -1,4 +1,4 @@
-import { revalidateTag } from 'next/cache';
+import { updateTag } from 'next/cache';
 
 import { formatTimeForId } from '@/lib/dayjs';
 
@@ -58,8 +58,8 @@ const getGitHubFetchTags = (path: string, existingTags?: string[]) =>
   );
 
 const revalidateGitHubContent = (path: string) => {
-  revalidateTag(GITHUB_CONTENT_CACHE_TAG, { expire: 0 });
-  revalidateTag(getGitHubContentTag(path), { expire: 0 });
+  updateTag(GITHUB_CONTENT_CACHE_TAG);
+  updateTag(getGitHubContentTag(path));
 };
 
 /** Default GitHub API configuration */
