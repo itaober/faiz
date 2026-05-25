@@ -111,6 +111,14 @@
   ],
   "music": [
     {
+      "title": "民歌蔡琴",
+      "link": "https://music.douban.com/subject/1404442/",
+      "coverUrl": "/api/image/assets/records/music_民歌蔡琴_cover.webp",
+      "createdTime": "2026-05-25",
+      "rating": 8.2,
+      "type": "music"
+    },
+    {
       "title": "小宇宙",
       "link": "https://music.douban.com/subject/1900796/",
       "coverUrl": "/api/image/assets/records/music_小宇宙.webp",
