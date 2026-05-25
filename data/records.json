@@ -89,7 +89,7 @@
       "link": "https://movie.douban.com/subject/3134607/",
       "coverUrl": "/api/image/assets/records/tv_学警狙击.webp",
       "createdTime": "2025-05-22",
-      "rating": 8.0,
+      "rating": 8,
       "type": "tv"
     },
     {
@@ -115,96 +115,96 @@
       "link": "https://music.douban.com/subject/1900796/",
       "coverUrl": "/api/image/assets/records/music_小宇宙.webp",
       "createdTime": "2026-03-15",
-      "type": "music",
-      "rating": 7.8
+      "rating": 7.8,
+      "type": "music"
     },
     {
       "title": "无与伦比的美丽",
       "link": "https://music.douban.com/subject/3717116/",
       "coverUrl": "/api/image/assets/records/music_无与伦比的美丽.webp",
       "createdTime": "2026-03-09",
-      "type": "music",
-      "rating": 7.9
+      "rating": 7.9,
+      "type": "music"
     },
     {
       "title": "昨日情歌",
       "link": "https://music.douban.com/subject/5314299/",
       "coverUrl": "/api/image/assets/records/music_昨日情歌.webp",
       "createdTime": "2026-03-06",
-      "type": "music",
-      "rating": 9.5
+      "rating": 9.5,
+      "type": "music"
     },
     {
       "title": "JUNGLE +",
       "link": "https://music.douban.com/subject/37840532/",
       "coverUrl": "/api/image/assets/records/music_jungle.webp",
       "createdTime": "2026-03-05",
-      "type": "music",
-      "rating": 5.5
+      "rating": 5.5,
+      "type": "music"
     },
     {
       "title": "感官/世界",
       "link": "https://music.douban.com/subject/4738592/",
       "coverUrl": "/api/image/assets/records/music_感官世界.webp",
       "createdTime": "2026-02-27",
-      "type": "music",
-      "rating": 7.8
+      "rating": 7.8,
+      "type": "music"
     },
     {
       "title": "如果每天都可以 happy happy 誰想要sad:)) – 一起去度假",
       "link": "https://music.douban.com/subject/37225280/",
       "coverUrl": "/api/image/assets/records/music_一起去度假.webp",
       "createdTime": "2026-02-13",
-      "type": "music",
-      "rating": 5
+      "rating": 5,
+      "type": "music"
     },
     {
       "title": "钱专",
       "link": "https://music.douban.com/subject/37506974/",
       "coverUrl": "/api/image/assets/records/music_钱专.webp",
       "createdTime": "2026-02-06",
-      "type": "music",
-      "rating": 8.0
+      "rating": 8.2,
+      "type": "music"
     },
     {
       "title": "跟着感觉走",
       "link": "https://music.douban.com/subject/37448993/",
       "coverUrl": "/api/image/assets/records/music_跟着感觉走.webp",
       "createdTime": "2026-01-16",
-      "type": "music",
-      "rating": 8.2
+      "rating": 8.2,
+      "type": "music"
     },
     {
       "title": "人人都爱嘻哈乐",
       "link": "https://music.douban.com/subject/37518523/",
       "coverUrl": "/api/image/assets/records/music_人人都爱嘻哈乐.webp",
       "createdTime": "2026-01-13",
-      "type": "music",
-      "rating": 8.0
+      "rating": 8,
+      "type": "music"
     },
     {
       "title": "收敛水",
       "link": "https://music.douban.com/subject/3728043/",
       "coverUrl": "/api/image/assets/records/music_收敛水.webp",
       "createdTime": "2026-01-12",
-      "type": "music",
-      "rating": 8.2
+      "rating": 8.2,
+      "type": "music"
     },
     {
       "title": "过客",
       "link": "https://music.douban.com/subject/37925161/",
       "coverUrl": "/api/image/assets/records/music_过客.webp",
       "createdTime": "2026-01-05",
-      "type": "music",
-      "rating": 6.4
+      "rating": 6.4,
+      "type": "music"
     },
     {
       "title": "出人头地 2025 Dreams Come True Mixtape",
       "link": "https://music.douban.com/subject/37239531/",
       "coverUrl": "/api/image/assets/records/music_出人头地.webp",
       "createdTime": "2025-12-30",
-      "type": "music",
-      "rating": 7
+      "rating": 7,
+      "type": "music"
     },
     {
       "title": "Magic, Alive!",
@@ -233,7 +233,7 @@
       "link": "https://music.douban.com/subject/5269027/",
       "coverUrl": "/api/image/assets/records/music_牛羊下山.webp",
       "createdTime": "2025-10-29",
-      "rating": 8.0,
+      "rating": 8,
       "type": "music"
     },
     {
@@ -347,7 +347,7 @@
       "link": "https://andyventure.com/boardgame-avalon/",
       "coverUrl": "/api/image/assets/records/game_阿瓦隆.webp",
       "createdTime": "2025-10-18",
-      "rating": 8.0,
+      "rating": 8,
       "type": "game"
     }
   ]
