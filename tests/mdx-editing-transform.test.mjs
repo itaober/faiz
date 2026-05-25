@@ -50,3 +50,5 @@ assert.equal(restored.includes('readonly={true}'), true);
 assert.equal(restored.includes('{ label: "做一个真诚、快乐的人" }'), true);
 assert.equal(restored.includes('checked: true'), true);
 assert.equal(restored.includes('<Link href="/posts">Posts</Link>'), true);
+assert.equal(restored.includes(',,'), false);
+assert.match(restored, /\),\n\s+checked: true,\n\s+}/);

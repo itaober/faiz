@@ -120,11 +120,11 @@ const checklistToMdx = (source: string) => {
       return `    ${item}`;
     }
 
-    if (item.endsWith(' }')) {
+    if (!item.includes('\n')) {
       return `    ${item.replace(/ }$/, ', checked: true }')}`;
     }
 
-    return `    ${item.replace(/\n {4}}$/, ',\n      checked: true,\n    }')}`;
+    return `    ${item.replace(/\n {4}}$/, '\n      checked: true,\n    }')}`;
   });
 
   return `<TodoList
