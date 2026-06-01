@@ -11,6 +11,14 @@
   ],
   "movie": [
     {
+      "title": "给阿嬷的情书",
+      "link": "https://movie.douban.com/subject/37116446/",
+      "coverUrl": "/api/image/assets/records/movie_给阿嬷的情书_cover.webp",
+      "createdTime": "2026-05-31",
+      "rating": 8.8,
+      "type": "movie"
+    },
+    {
       "title": "一一",
       "link": "https://movie.douban.com/subject/1292434/",
       "coverUrl": "/api/image/assets/records/movie_一一.webp",
