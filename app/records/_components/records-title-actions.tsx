@@ -1,37 +1,57 @@
 'use client';
 
-import { PlusIcon } from 'lucide-react';
-import { useCallback, useEffect } from 'react';
+import { EyeIcon, PlusIcon, SquarePenIcon } from 'lucide-react';
+import { useState } from 'react';
 
-import { recordEditorPreloader } from './record-editor-loader';
+import { useEditMode } from '@/components/edit-mode-context';
+import type { ActionBarTool } from '@/components/editing/action-bar';
+import { useDockedActionBar } from '@/components/editing/edit-session';
+import GitHubTokenDrawer from '@/components/editing/github-token-drawer';
+
 import { useRecordsInlineComposer } from './use-records-inline-composer';
 
+/**
+ * Records list action bar. Carries a browse/edit toggle: in `preview` a record
+ * cover opens the lightbox; in `wysiwyg` it opens the edit side panel and the
+ * "add" affordance appears. Hidden while the side panel is open (it has its own).
+ */
+function RecordsActionBar() {
+  const { setEditMode, token } = useEditMode();
+  const { mode, setMode, setComposerOpen } = useRecordsInlineComposer();
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const isEditing = mode === 'wysiwyg';
+
+  const tools: ActionBarTool[] = [
+    {
+      icon: isEditing ? EyeIcon : SquarePenIcon,
+      label: isEditing ? 'Preview' : 'Edit',
+      active: isEditing,
+      onClick: () => setMode(isEditing ? 'preview' : 'wysiwyg'),
+    },
+  ];
+  if (isEditing) {
+    tools.push({ icon: PlusIcon, label: 'New record', onClick: () => setComposerOpen(true) });
+  }
+
+  useDockedActionBar({
+    context: 'Records',
+    status: 'idle',
+    hasToken: !!token,
+    onConnect: () => setSettingsOpen(true),
+    tools,
+    onExit: () => setEditMode(false),
+  });
+
+  return <GitHubTokenDrawer open={settingsOpen} onOpenChange={setSettingsOpen} />;
+}
+
 export default function RecordsTitleActions() {
-  const { setComposerOpen } = useRecordsInlineComposer();
-  const preloadEditor = useCallback(() => {
-    recordEditorPreloader.preload().catch(() => undefined);
-  }, []);
-  const openEditor = useCallback(() => {
-    recordEditorPreloader.openAfterPreload(() => setComposerOpen(true)).catch(() => undefined);
-  }, [setComposerOpen]);
+  const { isComposerOpen, editingRecordKey } = useRecordsInlineComposer();
 
-  useEffect(() => {
-    preloadEditor();
-  }, [preloadEditor]);
+  // While the side panel is open it carries its own actions.
+  if (isComposerOpen || editingRecordKey) {
+    return null;
+  }
 
-  return (
-    <button
-      type="button"
-      onFocus={preloadEditor}
-      onClick={event => {
-        event.currentTarget.blur();
-        openEditor();
-      }}
-      onPointerEnter={preloadEditor}
-      className="focus-ring hover:bg-muted text-muted-foreground hover:text-foreground flex size-11 items-center justify-center rounded-md transition-colors md:size-8"
-      aria-label="Add record"
-    >
-      <PlusIcon className="size-4" />
-    </button>
-  );
+  return <RecordsActionBar />;
 }

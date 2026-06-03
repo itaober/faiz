@@ -12,6 +12,7 @@
   --accent: oklch(0.58 0.05 252);
   --danger: oklch(0.59 0.18 25);
   --danger-soft: oklch(0.95 0.018 25);
+  --success: oklch(0.62 0.13 150);
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
   --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
@@ -19,6 +20,22 @@
   --overlay-control: color-mix(in oklch, black 28%, transparent);
   --overlay-control-hover: color-mix(in oklch, black 42%, transparent);
   --overlay-control-foreground: color-mix(in oklch, white 82%, transparent);
+
+  /* Edit-mode design scale — formalised from the design handoff (tokens.css). */
+  --fz-dur-fast: 120ms;
+  --fz-dur-normal: 160ms;
+  --fz-dur-slow: 260ms;
+
+  --fz-radius-xs: 4px;
+  --fz-radius-sm: 6px;
+  --fz-radius-md: 8px;
+  --fz-radius-lg: 12px;
+  --fz-radius-xl: 16px;
+  --fz-radius-pill: 999px;
+
+  --fz-shadow-sm: 0 1px 2px oklch(0.2 0.01 106 / 0.06), 0 1px 3px oklch(0.2 0.01 106 / 0.05);
+  --fz-shadow-md: 0 4px 16px oklch(0.2 0.01 106 / 0.08), 0 1px 4px oklch(0.2 0.01 106 / 0.05);
+  --fz-shadow-lg: 0 12px 40px oklch(0.2 0.01 106 / 0.12), 0 2px 8px oklch(0.2 0.01 106 / 0.06);
 }
 
 @theme inline {
@@ -49,10 +66,15 @@
   --accent: oklch(0.74 0.035 252);
   --danger: oklch(0.71 0.14 25);
   --danger-soft: oklch(0.28 0.025 25);
+  --success: oklch(0.72 0.12 150);
   --overlay-backdrop: color-mix(in oklch, black 82%, transparent);
   --overlay-control: color-mix(in oklch, black 30%, transparent);
   --overlay-control-hover: color-mix(in oklch, black 44%, transparent);
   --overlay-control-foreground: color-mix(in oklch, white 88%, transparent);
+
+  --fz-shadow-sm: 0 1px 2px oklch(0 0 0 / 0.3);
+  --fz-shadow-md: 0 4px 16px oklch(0 0 0 / 0.4);
+  --fz-shadow-lg: 0 12px 40px oklch(0 0 0 / 0.5);
 }
 
 body {
@@ -244,5 +266,788 @@ button {
   .memo-editor-content blockquote code,
   .site-prose-editor-content blockquote code {
     color: inherit;
+  }
+}
+
+/* ============================================================================
+   EDIT MODE — the unified "reading is editing" shell.
+   Philosophy: the reading layout never shifts; edit affordances live in the
+   margins and a single docked action bar replaces every scattered icon cluster.
+   ============================================================================ */
+@layer components {
+  /* ── Block edit affordance — gutter handle, revealed on hover ───────────── */
+  .fz-edit-row {
+    position: relative;
+  }
+  .fz-handle {
+    position: absolute;
+    top: 0;
+    left: -2.375rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.625rem;
+    height: 1.625rem;
+    border-radius: var(--fz-radius-sm);
+    color: var(--muted-foreground);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    box-shadow: var(--fz-shadow-sm);
+    opacity: 0;
+    transform: translateX(4px);
+    transition:
+      opacity var(--fz-dur-normal) var(--ease-out),
+      transform var(--fz-dur-normal) var(--ease-out),
+      color var(--fz-dur-normal) var(--ease-out),
+      background-color var(--fz-dur-normal) var(--ease-out);
+  }
+  .fz-handle:hover {
+    color: var(--foreground);
+    background: var(--muted);
+  }
+  /* Inline variant — sits in normal flow (e.g. right after a memo's timestamp)
+     instead of the absolute left gutter. */
+  .fz-handle-inline {
+    position: static;
+    width: 1.5rem;
+    height: 1.5rem;
+  }
+  .fz-edit-row:hover .fz-handle,
+  .fz-edit-row:focus-within .fz-handle {
+    opacity: 1;
+    transform: none;
+  }
+  @media (hover: none) {
+    .fz-handle {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  /* ── Action bar — single docked control ─────────────────────────────────── */
+  .fz-edit-dock {
+    position: fixed;
+    left: 50%;
+    bottom: max(1.25rem, env(safe-area-inset-bottom));
+    transform: translateX(-50%);
+    z-index: 40;
+    display: flex;
+    justify-content: center;
+    pointer-events: none;
+  }
+  .fz-edit-dock > * {
+    pointer-events: auto;
+  }
+  /* Mobile formatting pill — same look as the action bar, raised above the
+     keyboard; cross-fades in place with the action pill (one morphing bar). */
+  .fz-format-pill {
+    position: fixed;
+    left: 50%;
+    z-index: 40;
+    padding-left: 5px;
+    max-width: calc(100vw - 1.25rem);
+  }
+  .fz-actionbar {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 5px 5px 5px 12px;
+    background: color-mix(in oklch, var(--surface) 90%, transparent);
+    backdrop-filter: blur(12px) saturate(1.3);
+    border: 1px solid var(--border);
+    border-radius: var(--fz-radius-pill);
+    box-shadow: var(--fz-shadow-md);
+    font-size: 13px;
+  }
+  .fz-actionbar-group {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .fz-actionbar-ctx {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--muted-foreground);
+    white-space: nowrap;
+  }
+  .fz-actionbar-ctx strong {
+    color: var(--foreground);
+    font-weight: 500;
+    max-width: 12rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .fz-status-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: var(--fz-radius-pill);
+    background: var(--muted-foreground);
+    flex-shrink: 0;
+  }
+  .fz-status-dot[data-state='dirty'] {
+    background: oklch(0.72 0.15 70);
+  }
+  .fz-status-dot[data-state='saving'] {
+    background: var(--accent);
+    animation: fz-pulse 1s ease-in-out infinite;
+  }
+  @keyframes fz-pulse {
+    50% {
+      opacity: 0.35;
+    }
+  }
+  .fz-actionbar-sep {
+    width: 1px;
+    height: 18px;
+    background: var(--border);
+    flex-shrink: 0;
+  }
+  .fz-actionbar-tools {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+  }
+  .fz-actionbar .fz-iconbtn {
+    width: 28px;
+    height: 28px;
+  }
+  .fz-actionbar .fz-btn {
+    height: 28px;
+    padding: 0 11px;
+    gap: 6px;
+    font-size: 13px;
+  }
+
+  /* ── Buttons (shared across bar / toolbar / popovers) ───────────────────── */
+  .fz-iconbtn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border: none;
+    background: transparent;
+    color: var(--muted-foreground);
+    border-radius: var(--fz-radius-pill);
+    transition:
+      background-color var(--fz-dur-normal) var(--ease-out),
+      color var(--fz-dur-normal) var(--ease-out),
+      transform var(--fz-dur-normal) var(--ease-out);
+  }
+  .fz-iconbtn:hover {
+    background: var(--muted);
+    color: var(--foreground);
+  }
+  .fz-iconbtn:not(:disabled):active {
+    transform: scale(0.96);
+  }
+  .fz-iconbtn:disabled {
+    color: color-mix(in oklch, var(--muted-foreground) 50%, transparent);
+    cursor: not-allowed;
+  }
+  .fz-iconbtn[data-active='true'] {
+    background: var(--muted);
+    color: var(--foreground);
+  }
+  .fz-iconbtn-accent {
+    background: var(--foreground);
+    color: var(--background);
+  }
+  .fz-iconbtn-accent:hover {
+    background: color-mix(in oklch, var(--foreground) 88%, var(--background));
+    color: var(--background);
+  }
+  .fz-iconbtn-accent:disabled {
+    background: var(--muted);
+    color: var(--muted-foreground);
+    cursor: not-allowed;
+  }
+  .fz-iconbtn-danger {
+    color: var(--danger);
+  }
+  .fz-iconbtn-danger:hover {
+    background: var(--danger-soft);
+    color: var(--danger);
+  }
+  .fz-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    height: 34px;
+    padding: 0 14px;
+    border-radius: var(--fz-radius-pill);
+    border: 1px solid transparent;
+    font-size: 14px;
+    font-weight: 500;
+    white-space: nowrap;
+    transition:
+      background-color var(--fz-dur-normal) var(--ease-out),
+      color var(--fz-dur-normal) var(--ease-out),
+      border-color var(--fz-dur-normal) var(--ease-out),
+      transform var(--fz-dur-normal) var(--ease-out);
+  }
+  .fz-btn:not(:disabled):active {
+    transform: scale(0.98);
+  }
+  .fz-btn-ghost {
+    color: var(--muted-foreground);
+    background: transparent;
+  }
+  .fz-btn-ghost:hover {
+    background: var(--muted);
+    color: var(--foreground);
+  }
+  .fz-btn-primary {
+    color: var(--background);
+    background: var(--foreground);
+  }
+  .fz-btn-primary:hover {
+    background: color-mix(in oklch, var(--foreground) 88%, var(--background));
+  }
+  .fz-btn-primary:disabled {
+    background: var(--muted);
+    color: var(--muted-foreground);
+    cursor: not-allowed;
+  }
+  .fz-btn-danger {
+    color: var(--danger);
+    background: transparent;
+  }
+  .fz-btn-danger:hover {
+    background: var(--danger-soft);
+  }
+  .fz-kbd {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    line-height: 1;
+    padding: 2px 4px;
+    border-radius: var(--fz-radius-xs);
+    background: color-mix(in oklch, currentColor 12%, transparent);
+    opacity: 0.85;
+  }
+
+  /* divider used inside the selection bubble */
+  .fz-tb-div {
+    width: 1px;
+    height: 18px;
+    background: var(--border);
+    margin: 0 3px;
+    flex-shrink: 0;
+  }
+
+  /* ── Selection bubble (dark, floats over text) ──────────────────────────── */
+  .fz-bubble {
+    display: inline-flex;
+    align-items: center;
+    gap: 1px;
+    padding: 4px;
+    border-radius: var(--fz-radius-md);
+    background: oklch(0.21 0.005 106);
+    box-shadow: var(--fz-shadow-lg);
+  }
+  .fz-bubble button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    border: none;
+    background: transparent;
+    color: oklch(0.82 0.003 106);
+    border-radius: var(--fz-radius-sm);
+    transition: background-color var(--fz-dur-fast) var(--ease-out);
+  }
+  .fz-bubble button:hover {
+    background: oklch(0.32 0.006 106);
+    color: white;
+  }
+  .fz-bubble button[data-active='true'] {
+    background: oklch(0.36 0.006 106);
+    color: white;
+  }
+  .fz-bubble .fz-tb-div {
+    background: oklch(0.4 0.006 106);
+  }
+  .fz-bubble input {
+    background: transparent;
+    border: none;
+    outline: none;
+    color: white;
+    font-size: 13px;
+    min-width: 12rem;
+    padding: 0 6px;
+  }
+  .fz-bubble input::placeholder {
+    color: oklch(0.6 0.006 106);
+  }
+
+  /* ── Slash command palette (compact single-line) ────────────────────────── */
+  .fz-slash {
+    width: 196px;
+    padding: 4px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--fz-radius-md);
+    box-shadow: var(--fz-shadow-lg);
+    max-height: 18rem;
+    overflow-y: auto;
+  }
+  .fz-slash-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted-foreground);
+    font-family: var(--font-mono);
+    padding: 5px 8px 3px;
+  }
+  .fz-slash-item {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 5px 8px;
+    border-radius: var(--fz-radius-sm);
+    cursor: pointer;
+    width: 100%;
+    text-align: left;
+    background: transparent;
+    border: none;
+  }
+  .fz-slash-item[data-active='true'] {
+    background: var(--muted);
+  }
+  .fz-slash-ic {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+    color: var(--muted-foreground);
+  }
+  .fz-slash-item[data-active='true'] .fz-slash-ic {
+    color: var(--foreground);
+  }
+  .fz-slash-name {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--foreground);
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .fz-slash-key {
+    margin-left: auto;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--muted-foreground);
+    flex-shrink: 0;
+  }
+
+  /* ── Connect sheet (GitHub token, on demand) ────────────────────────────── */
+  .fz-sheet {
+    width: 100%;
+    max-width: 420px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--fz-radius-xl);
+    box-shadow: var(--fz-shadow-lg);
+    padding: 22px;
+  }
+  .fz-sheet h3 {
+    font-size: 16px;
+    font-weight: 600;
+    margin: 12px 0 6px;
+  }
+  .fz-sheet p {
+    font-size: 14px;
+    color: var(--muted-foreground);
+    line-height: 1.6;
+    margin: 0 0 16px;
+  }
+  .fz-token-field {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: 42px;
+    padding: 0 6px 0 14px;
+    border: 1px solid var(--border);
+    border-radius: var(--fz-radius-md);
+    background: var(--background);
+  }
+  .fz-token-field input {
+    flex: 1;
+    min-width: 0;
+    border: none;
+    outline: none;
+    background: transparent;
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--foreground);
+  }
+  .fz-icon-circle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    border-radius: var(--fz-radius-pill);
+    background: var(--muted);
+    color: var(--foreground);
+  }
+
+  /* ── Compose surface (new drafts only) ──────────────────────────────────── */
+  .fz-composer-prompt {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 13px 16px;
+    border: 1px dashed var(--border);
+    border-radius: var(--fz-radius-lg);
+    background: color-mix(in oklch, var(--surface) 60%, transparent);
+    color: var(--muted-foreground);
+    font-size: 14px;
+    text-align: left;
+    transition:
+      border-color var(--fz-dur-normal) var(--ease-out),
+      background-color var(--fz-dur-normal) var(--ease-out);
+  }
+  .fz-composer-prompt:hover {
+    border-color: color-mix(in oklch, var(--foreground) 22%, var(--border));
+    background: var(--surface);
+  }
+
+  /* ── Cover uploader ─────────────────────────────────────────────────────── */
+  .fz-cover {
+    position: relative;
+    border-radius: var(--fz-radius-md);
+    overflow: hidden;
+  }
+  .fz-cover-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border: 1.5px dashed var(--border);
+    border-radius: var(--fz-radius-md);
+    background: color-mix(in oklch, var(--muted) 45%, transparent);
+    color: var(--muted-foreground);
+    font-size: 13px;
+    text-align: center;
+    transition:
+      border-color var(--fz-dur-normal) var(--ease-out),
+      background-color var(--fz-dur-normal) var(--ease-out),
+      color var(--fz-dur-normal) var(--ease-out);
+  }
+  .fz-cover-empty[data-drag='true'] {
+    border-color: var(--accent);
+    background: color-mix(in oklch, var(--accent) 8%, transparent);
+    color: var(--accent);
+  }
+  /* ── Side panel — reusable right-docked structured editor (vaul) ────────── */
+  .fz-sidepanel {
+    width: min(408px, 100vw);
+    flex-shrink: 0;
+    border-left: 1px solid var(--border);
+    background: var(--surface);
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+  .fz-sidepanel-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 16px 16px 20px;
+    flex-shrink: 0;
+  }
+  .fz-sidepanel-title {
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    font-size: 15px;
+    font-weight: 600;
+  }
+  .fz-sidepanel-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 4px 20px 20px;
+  }
+  .fz-sidepanel-foot {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    padding: 12px 16px;
+    border-top: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .fz-panel-cover {
+    width: 132px;
+    aspect-ratio: 2 / 3;
+    margin: 4px auto 22px;
+  }
+  .fz-field-col {
+    display: grid;
+    grid-template-columns: 64px 1fr;
+    gap: 12px;
+    align-items: start;
+    padding: 11px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .fz-field-col:last-child {
+    border-bottom: none;
+  }
+  /* Whole row is the hit target (e.g. Date opens the picker on any click). */
+  .fz-field-clickable {
+    cursor: pointer;
+  }
+  .fz-field-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--muted-foreground);
+    font-family: var(--font-mono);
+    padding-top: 5px;
+  }
+  .fz-input {
+    width: 100%;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--foreground);
+    font-size: 14px;
+    font-family: inherit;
+    padding: 0;
+    line-height: 1.6;
+  }
+  .fz-input::placeholder {
+    color: color-mix(in oklch, var(--muted-foreground) 70%, transparent);
+  }
+  .fz-input-mono {
+    font-family: var(--font-mono);
+    font-size: 13px;
+  }
+  .fz-textarea {
+    width: 100%;
+    min-height: 84px;
+    resize: vertical;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--foreground);
+    font-family: inherit;
+    font-size: 14px;
+    line-height: 1.75;
+    padding: 0;
+  }
+  .fz-textarea::placeholder {
+    color: color-mix(in oklch, var(--muted-foreground) 70%, transparent);
+  }
+  .fz-seg {
+    display: flex;
+    gap: 2px;
+    padding: 2px;
+    background: var(--muted);
+    border-radius: var(--fz-radius-md);
+  }
+  .fz-seg button {
+    position: relative;
+    flex: 1 1 0;
+    min-width: 0;
+    height: 26px;
+    padding: 0 8px;
+    border: none;
+    background: transparent;
+    color: var(--muted-foreground);
+    border-radius: var(--fz-radius-sm);
+    font-size: 13px;
+    font-weight: 500;
+    text-align: center;
+    transition: color var(--fz-dur-fast) var(--ease-out);
+  }
+  .fz-seg button[data-active='true'] {
+    color: var(--foreground);
+  }
+  /* Sliding pill that animates between segments (motion shared layout). */
+  .fz-seg-active {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    background: var(--surface);
+    border-radius: var(--fz-radius-sm);
+    box-shadow: var(--fz-shadow-sm);
+  }
+  .fz-stars {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    color: oklch(0.8 0.004 106);
+  }
+  .fz-stars button {
+    background: none;
+    border: none;
+    padding: 0;
+    display: inline-flex;
+    color: inherit;
+  }
+
+  .fz-fab {
+    position: fixed;
+    right: 18px;
+    bottom: max(18px, env(safe-area-inset-bottom));
+    width: 52px;
+    height: 52px;
+    border-radius: var(--fz-radius-pill);
+    background: var(--foreground);
+    color: var(--background);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    box-shadow: var(--fz-shadow-lg);
+    z-index: 35;
+    transition: transform var(--fz-dur-normal) var(--ease-out);
+  }
+  .fz-fab:active {
+    transform: scale(0.94);
+  }
+
+  /* ── Record detail — review white text beside the centered cover ────────── */
+  .fz-review-overlay {
+    color: oklch(0.92 0.003 106);
+    font-size: 15px;
+    line-height: 1.85;
+  }
+  .fz-review-overlay p {
+    margin: 0 0 14px;
+  }
+  .fz-review-overlay p:last-child {
+    margin-bottom: 0;
+  }
+}
+
+/* ── Tiptap editor surface ─────────────────────────────────────────────────── */
+@layer utilities {
+  .tiptap,
+  .ProseMirror {
+    outline: none;
+  }
+  .tiptap :first-child {
+    margin-top: 0;
+  }
+  /* List items render markdown content as <p>; drop its margins so bullet/ordered
+     rhythm matches the read view's tight <li> rendering (zero layout shift). */
+  .tiptap li > p {
+    margin-block: 0;
+  }
+  /* Placeholder shown only when the whole editor is empty */
+  .tiptap p.is-editor-empty:first-child::before {
+    content: attr(data-placeholder);
+    color: color-mix(in oklch, var(--muted-foreground) 70%, transparent);
+    float: left;
+    height: 0;
+    pointer-events: none;
+  }
+  /* Task lists in the editor — mirror the read-view Checkbox component exactly
+     (size-4 · border-[1.5px] currentColor · opacity 60→100 · gap-2 · items gap-0.5). */
+  .tiptap ul[data-type='taskList'] {
+    list-style: none;
+    margin-left: 0;
+    padding-left: 0;
+    /* Mirror the read-view <TodoList> wrapper: flex column · gap-0.5. */
+    display: flex;
+    flex-direction: column;
+    gap: 0.125rem;
+  }
+  .tiptap ul[data-type='taskList'] li {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-block: 0;
+  }
+  .tiptap ul[data-type='taskList'] li > label {
+    flex-shrink: 0;
+    margin: 0;
+    user-select: none;
+  }
+  .tiptap ul[data-type='taskList'] li > div {
+    flex: 1;
+    min-width: 0;
+  }
+  .tiptap ul[data-type='taskList'] li p {
+    margin: 0;
+  }
+  .tiptap ul[data-type='taskList'] input[type='checkbox'] {
+    appearance: none;
+    width: 1rem;
+    height: 1rem;
+    border: 1.5px solid currentColor;
+    border-radius: 0.25rem;
+    background: transparent;
+    cursor: pointer;
+    position: relative;
+    opacity: 0.6;
+  }
+  .tiptap ul[data-type='taskList'] li[data-checked='true'] input[type='checkbox'] {
+    opacity: 1;
+  }
+  .tiptap ul[data-type='taskList'] li[data-checked='true'] input[type='checkbox']::after {
+    content: '';
+    position: absolute;
+    top: 0.05rem;
+    left: 0.3rem;
+    width: 0.25rem;
+    height: 0.5rem;
+    /* Match the read-view CheckIcon: foreground color (not muted currentColor). */
+    border-right: 2.5px solid var(--foreground);
+    border-bottom: 2.5px solid var(--foreground);
+    transform: rotate(45deg);
+  }
+  .tiptap .ProseMirror-selectednode {
+    outline: 2px solid var(--accent);
+    border-radius: var(--fz-radius-sm);
+  }
+  /* Image with caption — mirrors the read-view <Image> (centered, captioned). */
+  .tiptap figure.fz-editor-figure {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-block: 1rem;
+  }
+  .tiptap .fz-editor-figure img {
+    width: 100%;
+    max-width: 36rem;
+    height: auto;
+    margin: 0;
+    border-radius: var(--fz-radius-md);
+  }
+  /* Shared by the static <figcaption> (read-only) and the editable <input>. */
+  .tiptap .fz-editor-figcaption {
+    margin-top: 0.5rem;
+    width: 100%;
+    max-width: 36rem;
+    padding: 0;
+    text-align: center;
+    font-size: 0.875rem;
+    color: var(--muted-foreground);
+    border: none;
+    background: transparent;
+    outline: none;
+    font-family: inherit;
+  }
+  .tiptap input.fz-editor-figcaption::placeholder {
+    color: color-mix(in oklch, var(--muted-foreground) 55%, transparent);
+  }
+  .tiptap input.fz-editor-figcaption:focus {
+    color: var(--foreground);
   }
 }

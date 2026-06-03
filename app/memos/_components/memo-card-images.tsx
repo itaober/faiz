@@ -7,6 +7,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
 import { ANIMATION } from '@/lib/constants/animation';
+import { lockScroll, unlockScroll } from '@/lib/scroll-lock';
 import { cn } from '@/lib/utils';
 
 const SWIPE_THRESHOLD = 40;
@@ -103,8 +104,7 @@ export default function MemoCardImages({ images }: MemoCardImagesProps) {
       return;
     }
 
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
+    lockScroll();
 
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
@@ -128,7 +128,7 @@ export default function MemoCardImages({ images }: MemoCardImagesProps) {
     document.addEventListener('keydown', onKeyDown);
 
     return () => {
-      document.body.style.overflow = previousOverflow;
+      unlockScroll();
       document.removeEventListener('keydown', onKeyDown);
     };
   }, [handleClosePreview, isPreviewOpen, showNext, showPrev]);

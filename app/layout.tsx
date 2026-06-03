@@ -8,6 +8,7 @@ import { ThemeProvider } from 'next-themes';
 import { Toaster } from 'sonner';
 
 import { EditModeProvider } from '@/components/edit-mode-provider';
+import { EditDockProvider } from '@/components/editing/edit-dock';
 import { MotionProvider } from '@/components/motion-provider';
 import { ServiceWorkerRegistration } from '@/components/service-worker-registration';
 import { ThemeScript, ThemeSync } from '@/components/theme-script';
@@ -113,9 +114,11 @@ export default function RootLayout({
           <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
             <ThemeSync />
             <EditModeProvider>
-              <Header />
-              <main className="mx-auto max-w-3xl px-6 py-12">{children}</main>
-              <BackToTop />
+              <EditDockProvider>
+                <Header />
+                <main className="mx-auto max-w-3xl px-6 py-12">{children}</main>
+                <BackToTop />
+              </EditDockProvider>
             </EditModeProvider>
           </ThemeProvider>
         </MotionProvider>

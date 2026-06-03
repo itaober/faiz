@@ -1,25 +1,26 @@
 'use client';
 
-import { ImagePlusIcon, SaveIcon, SettingsIcon, Trash2Icon, XIcon } from 'lucide-react';
-import Image from 'next/image';
+import { PlusIcon, Trash2Icon, XIcon } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { createPortal } from 'react-dom';
 import { toast } from 'sonner';
 
 import { createMemoAction } from '@/app/memos/_actions/create-memo';
+import { deleteMemoAction } from '@/app/memos/_actions/delete-memo';
 import { updateMemoAction } from '@/app/memos/_actions/update-memo';
+import type { ActionBarTool, EditViewMode } from '@/components/editing/action-bar';
+import ConfirmDrawer from '@/components/editing/confirm-drawer';
+import { useDockedActionBar } from '@/components/editing/edit-session';
 import GitHubTokenDrawer from '@/components/editing/github-token-drawer';
-import MarkdownLexicalEditor from '@/components/editing/markdown-lexical-editor';
+import TiptapEditor from '@/components/editing/tiptap-editor';
 import { uploadStagedEditorImages } from '@/components/editing/upload-staged-editor-images';
 import type { Memo } from '@/lib/data/memos';
 import type { StagedEditorImage } from '@/lib/utils/editor-image';
-import { toApiImageUrl, updateStagedEditorImageCaption } from '@/lib/utils/editor-image';
+import { toApiImageUrl } from '@/lib/utils/editor-image';
 
 import { useMemosContext } from '../_context/use-memos-context';
 
 interface IMemoEditorSurfaceProps {
-  actionsPortal?: HTMLElement | null;
   memo?: Memo;
   onCancel: () => void;
 }
@@ -44,25 +45,23 @@ const generateMemoDraftId = () =>
     .toString(36)
     .slice(2, 8)}`;
 
-export default function MemoEditorSurface({
-  actionsPortal,
-  memo,
-  onCancel,
-}: IMemoEditorSurfaceProps) {
+export default function MemoEditorSurface({ memo, onCancel }: IMemoEditorSurfaceProps) {
   const router = useRouter();
   const { token } = useMemosContext();
+  const [mode, setMode] = useState<EditViewMode>('wysiwyg');
   const [content, setContent] = useState(memo?.content ?? '');
   const [attachments, setAttachments] = useState<MemoAttachment[]>(() =>
     memo ? memo.images.map(toExistingAttachment) : [],
   );
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [draftId, setDraftId] = useState(generateMemoDraftId);
-  const [toolbarPortal, setToolbarPortal] = useState<HTMLElement | null>(null);
   const [imageUploadRequestId, setImageUploadRequestId] = useState(0);
 
   const isEditMode = !!memo;
-  const expectsExternalActions = actionsPortal !== undefined;
+  const hasToken = !!token;
   const entityId = memo?.id || draftId;
 
   useEffect(() => {
@@ -71,7 +70,6 @@ export default function MemoEditorSurface({
       setAttachments(memo.images.map(toExistingAttachment));
       return;
     }
-
     setDraftId(generateMemoDraftId());
     setContent('');
     setAttachments([]);
@@ -82,14 +80,12 @@ export default function MemoEditorSurface({
       setIsSettingsOpen(true);
       return;
     }
-
     if (!content.trim() && attachments.length === 0) {
       toast.error('Please enter content or upload images');
       return;
     }
 
     setIsSubmitting(true);
-
     const submitMemo = async () => {
       await uploadStagedEditorImages({
         images: attachments.flatMap(attachment => (attachment.pending ? [attachment.pending] : [])),
@@ -98,7 +94,6 @@ export default function MemoEditorSurface({
       });
 
       const imagePaths = attachments.map(attachment => attachment.path);
-
       const result =
         isEditMode && memo
           ? await updateMemoAction({
@@ -114,11 +109,9 @@ export default function MemoEditorSurface({
               images: imagePaths,
               token,
             });
-
       if (!result.success) {
         throw new Error(result.error || 'Operation failed');
       }
-
       return result;
     };
 
@@ -140,193 +133,150 @@ export default function MemoEditorSurface({
     });
   };
 
-  const updateAttachmentCaption = (attachmentId: string, caption: string) => {
-    setAttachments(previousAttachments =>
-      previousAttachments.map(attachment => {
-        if (attachment.id !== attachmentId) {
-          return attachment;
-        }
-
-        const alt = caption.trim();
-        if (!attachment.pending) {
-          return { ...attachment, alt };
-        }
-
-        const imageId = alt || attachment.pending.imageId || 'image';
-        let pending = updateStagedEditorImageCaption(attachment.pending, alt, imageId);
-        let suffix = 2;
-
-        while (
-          previousAttachments.some(
-            otherAttachment =>
-              otherAttachment.id !== attachment.id && otherAttachment.path === pending.path,
-          )
-        ) {
-          pending = updateStagedEditorImageCaption(attachment.pending, alt, `${imageId}-${suffix}`);
-          suffix += 1;
-        }
-
-        return {
-          ...attachment,
-          alt: pending.alt,
-          path: pending.path,
-          pending,
-        };
-      }),
-    );
+  const handleDelete = async () => {
+    if (!memo) {
+      return;
+    }
+    if (!token) {
+      setIsDeleteOpen(false);
+      setIsSettingsOpen(true);
+      return;
+    }
+    setIsDeleting(true);
+    const deleteMemo = async () => {
+      const result = await deleteMemoAction({
+        id: memo.id,
+        createdTime: memo.createdTime,
+        token,
+      });
+      if (!result.success) {
+        throw new Error(result.error || 'Delete failed');
+      }
+    };
+    toast.promise(deleteMemo(), {
+      loading: 'Deleting...',
+      success: () => {
+        setIsDeleteOpen(false);
+        onCancel();
+        router.refresh();
+        return 'Memo deleted';
+      },
+      error: error => error.message || 'Delete failed',
+      finally: () => setIsDeleting(false),
+    });
   };
 
   const isDisabled = isSubmitting || (!content.trim() && attachments.length === 0);
-  const attachmentsFooter =
-    attachments.length > 0 ? (
-      <section className="bg-background px-4 pt-4 pb-5">
-        <div className="mb-3 flex items-center justify-between">
-          <p className="text-muted-foreground text-xs font-medium">
-            Attached images · {attachments.length}
-          </p>
-          <p className="text-muted-foreground/70 text-[11px]">Uploads on save</p>
+  const tools: ActionBarTool[] = isEditMode
+    ? [
+        {
+          icon: Trash2Icon,
+          label: 'Delete memo',
+          danger: true,
+          onClick: () => setIsDeleteOpen(true),
+        },
+      ]
+    : [];
+
+  // Image grid mirrors the read view (3-col, aspect-square) with a remove control
+  // on each image + a dashed add box — same layout/size as how memos display.
+  const imagesFooter = (
+    <div className="not-prose grid grid-cols-3 gap-2 pb-4 md:gap-4">
+      {attachments.map(attachment => (
+        <div
+          key={attachment.id}
+          className="group bg-muted/30 relative aspect-square overflow-hidden rounded-md"
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={attachment.previewSrc}
+            alt={attachment.alt}
+            className="size-full object-cover"
+          />
+          {attachment.pending ? (
+            <span className="bg-foreground/70 absolute bottom-2 left-2 size-1.5 rounded-full" />
+          ) : null}
+          <button
+            type="button"
+            onClick={() =>
+              setAttachments(images => images.filter(image => image.id !== attachment.id))
+            }
+            className="focus-ring bg-background/90 text-danger absolute top-2 right-2 flex size-6 items-center justify-center rounded-full opacity-100 shadow-sm transition-opacity md:opacity-0 md:group-hover:opacity-100"
+            aria-label="Remove image"
+          >
+            <XIcon className="size-3.5" />
+          </button>
         </div>
-        <div className="grid grid-cols-3 gap-3 sm:grid-cols-4">
-          {attachments.map(attachment => (
-            <div key={attachment.id} className="group space-y-2">
-              <div className="bg-muted/20 relative overflow-hidden rounded-lg">
-                {attachment.previewSrc.startsWith('data:') ||
-                attachment.previewSrc.startsWith('blob:') ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={attachment.previewSrc}
-                    alt={attachment.alt}
-                    className="aspect-square w-full object-cover"
-                  />
-                ) : (
-                  <Image
-                    src={attachment.previewSrc}
-                    alt={attachment.alt}
-                    width={180}
-                    height={180}
-                    className="aspect-square w-full object-cover"
-                  />
-                )}
-                {attachment.pending ? (
-                  <span className="bg-background/90 text-muted-foreground absolute bottom-1.5 left-1.5 rounded-full px-2 py-0.5 text-[10px] shadow-sm">
-                    Pending
-                  </span>
-                ) : null}
-                <button
-                  type="button"
-                  onClick={() =>
-                    setAttachments(images => images.filter(image => image.id !== attachment.id))
-                  }
-                  className="focus-ring bg-background/90 text-danger absolute top-1.5 right-1.5 flex size-7 items-center justify-center rounded-full opacity-100 shadow-sm md:opacity-0 md:group-hover:opacity-100"
-                  aria-label="Remove attached image"
-                >
-                  <Trash2Icon className="size-4" />
-                </button>
-              </div>
-              {attachment.pending ? (
-                <input
-                  type="text"
-                  aria-label="Attachment caption"
-                  value={attachment.alt}
-                  onChange={event => updateAttachmentCaption(attachment.id, event.target.value)}
-                  placeholder="Image caption"
-                  className="placeholder:text-muted-foreground/60 focus:border-foreground/40 w-full border-b border-transparent bg-transparent px-1 pb-1 text-xs outline-none transition-colors"
-                />
-              ) : null}
-            </div>
-          ))}
-        </div>
-      </section>
-    ) : null;
-  const actions = (
-    <>
-      <div ref={setToolbarPortal} className="hidden shrink-0 md:flex" />
+      ))}
       <button
         type="button"
         onClick={() => setImageUploadRequestId(requestId => requestId + 1)}
-        className="focus-ring icon-button hover:bg-muted text-muted-foreground hover:text-foreground size-8"
-        aria-label="Attach image"
-        title="Attach image"
+        className="fz-cover-empty aspect-square w-full"
+        aria-label="Add image"
       >
-        <ImagePlusIcon className="size-4" />
+        <PlusIcon className="size-5" />
       </button>
-      <button
-        type="button"
-        onClick={onCancel}
-        className="focus-ring icon-button hover:bg-muted text-muted-foreground hover:text-foreground size-8"
-        aria-label="Cancel editing"
-      >
-        <XIcon className="size-4" />
-      </button>
-      <button
-        type="button"
-        onClick={() => setIsSettingsOpen(true)}
-        className="focus-ring icon-button hover:bg-muted text-muted-foreground hover:text-foreground size-8"
-        aria-label="Settings"
-      >
-        <SettingsIcon className="size-4" />
-      </button>
-      <button
-        type="button"
-        onClick={handleSubmit}
-        disabled={isDisabled}
-        className="focus-ring icon-button hover:bg-muted text-muted-foreground hover:text-foreground disabled:text-muted-foreground/50 size-8 disabled:cursor-not-allowed"
-        aria-label={isEditMode ? 'Update memo' : 'Publish memo'}
-      >
-        <SaveIcon className="size-4" />
-      </button>
-    </>
+    </div>
   );
 
+  useDockedActionBar({
+    context: isEditMode ? 'Memo' : 'New memo',
+    status: isSubmitting ? 'saving' : 'dirty',
+    hasToken,
+    onConnect: () => setIsSettingsOpen(true),
+    mode,
+    onModeChange: setMode,
+    tools,
+    onExit: onCancel,
+    onSave: handleSubmit,
+    saveLabel: isEditMode ? 'Save' : 'Publish',
+    saveDisabled: isDisabled,
+  });
+
   return (
-    <>
-      <section className="not-prose mb-6">
-        {actionsPortal ? createPortal(actions, actionsPortal) : null}
-        {!expectsExternalActions ? (
-          <div className="mb-2 flex items-center justify-end gap-2">{actions}</div>
-        ) : null}
-        <MarkdownLexicalEditor
-          key={entityId}
-          value={content}
-          onChange={setContent}
-          token={token}
-          uploadScope="memos"
-          uploadEntityId={entityId}
-          revalidatePath="/memos"
-          placeholder="Write something..."
-          chrome="seamless"
-          showQuickReference={false}
-          toolbarPortal={toolbarPortal}
-          imageUploadRequestId={imageUploadRequestId}
-          floatingActions={actions}
-          editorClassName="memo-editor-content"
-          minHeightClassName={isEditMode ? 'min-h-0' : 'min-h-40'}
-          onRequestToken={() => setIsSettingsOpen(true)}
-          insertUploadedImages={false}
-          editorFooter={attachmentsFooter}
-          onImagesStaged={images => {
-            setAttachments(previousAttachments => {
-              const nextAttachments = new Map(
-                previousAttachments.map(attachment => [attachment.path, attachment]),
-              );
-
-              images.forEach(image => {
-                nextAttachments.set(image.path, {
-                  alt: image.alt,
-                  id: image.path,
-                  path: image.path,
-                  pending: image,
-                  previewSrc: image.previewSrc,
-                });
+    <section className="not-prose">
+      <TiptapEditor
+        key={entityId}
+        value={content}
+        onChange={setContent}
+        mode={mode}
+        uploadScope="memos"
+        uploadEntityId={entityId}
+        placeholder="Write something..."
+        imageUploadRequestId={imageUploadRequestId}
+        editorClassName="memo-editor-content"
+        minHeightClassName="min-h-0"
+        insertUploadedImages={false}
+        editorFooter={imagesFooter}
+        autoFocus
+        onImagesStaged={images => {
+          setAttachments(previousAttachments => {
+            const nextAttachments = new Map(
+              previousAttachments.map(attachment => [attachment.path, attachment]),
+            );
+            images.forEach(image => {
+              nextAttachments.set(image.path, {
+                alt: image.alt,
+                id: image.path,
+                path: image.path,
+                pending: image,
+                previewSrc: image.previewSrc,
               });
-
-              return Array.from(nextAttachments.values());
             });
-          }}
-        />
-      </section>
+            return Array.from(nextAttachments.values());
+          });
+        }}
+      />
 
       <GitHubTokenDrawer open={isSettingsOpen} onOpenChange={setIsSettingsOpen} />
-    </>
+      <ConfirmDrawer
+        open={isDeleteOpen}
+        onOpenChange={setIsDeleteOpen}
+        title="Delete memo?"
+        description="This memo will be permanently removed."
+        isLoading={isDeleting}
+        onConfirm={handleDelete}
+      />
+    </section>
   );
 }

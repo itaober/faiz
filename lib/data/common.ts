@@ -185,39 +185,6 @@ export const fetchGitHubDir = async (dir: string, init?: RequestInit, token?: st
   }
 };
 
-/**
- * Fetches GitHub file content with response metadata
- *
- * @param path - File path within the repository
- * @param init - Optional fetch configuration
- * @param token - Optional GitHub token
- * @returns Object containing file content, status code, and headers
- */
-export const fetchGitHubFile = async (path: string, init?: RequestInit, token?: string) => {
-  try {
-    const res = await fetchGitHubApi(
-      path,
-      {
-        ...init,
-        headers: {
-          Accept: 'application/vnd.github.v3.raw',
-          ...init?.headers,
-        },
-      },
-      token,
-    );
-
-    return {
-      content: await res.text(),
-      status: res.status,
-      headers: res.headers,
-    };
-  } catch (error) {
-    console.error(`Failed to fetch GitHub file ${path}:`, error);
-    throw error;
-  }
-};
-
 /** GitHub file content metadata interface */
 interface IGitHubContentMeta {
   sha?: string;

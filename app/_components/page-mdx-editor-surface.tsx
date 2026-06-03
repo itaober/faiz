@@ -1,16 +1,19 @@
 'use client';
 
-import { SaveIcon, SettingsIcon, XIcon } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
-import { updatePageAction } from '@/app/_actions/edit-content';
+import { updatePageAction } from '@/app/_actions/edit-page';
 import { useEditMode } from '@/components/edit-mode-context';
+import type { EditViewMode } from '@/components/editing/action-bar';
+import { useDockedActionBar } from '@/components/editing/edit-session';
 import GitHubTokenDrawer from '@/components/editing/github-token-drawer';
-import MarkdownLexicalEditor from '@/components/editing/markdown-lexical-editor';
+import TiptapEditor from '@/components/editing/tiptap-editor';
 import { uploadStagedEditorImages } from '@/components/editing/upload-staged-editor-images';
+import { isMobileViewport } from '@/hooks/use-is-mobile';
 import { markdownTodoListsToMdx, mdxTodoListsToMarkdown } from '@/lib/mdx-editing';
+import { cn } from '@/lib/utils';
 import type { StagedEditorImage } from '@/lib/utils/editor-image';
 
 import PostTitle from './post-title';
@@ -19,24 +22,24 @@ interface IPageMdxEditorSurfaceProps {
   page: 'about' | 'lines';
   title: string;
   content: string;
-  onCancel: () => void;
 }
 
-export default function PageMdxEditorSurface({
-  page,
-  title,
-  content,
-  onCancel,
-}: IPageMdxEditorSurfaceProps) {
+export default function PageMdxEditorSurface({ page, title, content }: IPageMdxEditorSurfaceProps) {
   const router = useRouter();
-  const { token } = useEditMode();
+  const { token, setEditMode } = useEditMode();
+  // Touch enters edit directly (tap-to-edit); desktop opens in preview.
+  const [mode, setMode] = useState<EditViewMode>(() =>
+    isMobileViewport() ? 'wysiwyg' : 'preview',
+  );
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [draftTitle, setDraftTitle] = useState(title);
   const [draftContent, setDraftContent] = useState(() => mdxTodoListsToMarkdown(content));
   const [stagedImages, setStagedImages] = useState<StagedEditorImage[]>([]);
-  const [toolbarPortal, setToolbarPortal] = useState<HTMLElement | null>(null);
+  const hasToken = !!token;
+  const context = page === 'about' ? 'About' : 'Lines';
   const isSaveDisabled = isSubmitting || !draftTitle.trim();
+  const readOnlyTitle = mode === 'preview';
 
   useEffect(() => {
     setDraftTitle(title);
@@ -75,7 +78,7 @@ export default function PageMdxEditorSurface({
       loading: 'Saving...',
       success: () => {
         setStagedImages([]);
-        onCancel();
+        setMode('preview');
         router.refresh();
         return 'Page saved';
       },
@@ -84,35 +87,17 @@ export default function PageMdxEditorSurface({
     });
   };
 
-  const renderActions = () => (
-    <>
-      <button
-        type="button"
-        onClick={onCancel}
-        className="focus-ring icon-button hover:bg-muted text-muted-foreground hover:text-foreground size-8"
-        aria-label="Cancel editing"
-      >
-        <XIcon className="size-4" />
-      </button>
-      <button
-        type="button"
-        onClick={() => setSettingsOpen(true)}
-        className="focus-ring icon-button hover:bg-muted text-muted-foreground hover:text-foreground size-8"
-        aria-label="Settings"
-      >
-        <SettingsIcon className="size-4" />
-      </button>
-      <button
-        type="button"
-        onClick={handleSubmit}
-        disabled={isSaveDisabled}
-        className="focus-ring icon-button hover:bg-muted text-muted-foreground hover:text-foreground disabled:text-muted-foreground/50 size-8 disabled:cursor-not-allowed"
-        aria-label="Save page"
-      >
-        <SaveIcon className="size-4" />
-      </button>
-    </>
-  );
+  useDockedActionBar({
+    context,
+    status: isSubmitting ? 'saving' : 'dirty',
+    hasToken,
+    onConnect: () => setSettingsOpen(true),
+    mode,
+    onModeChange: setMode,
+    onExit: () => setEditMode(false),
+    onSave: handleSubmit,
+    saveDisabled: isSaveDisabled,
+  });
 
   return (
     <>
@@ -123,33 +108,28 @@ export default function PageMdxEditorSurface({
             name={`${page}-title`}
             aria-label="Page title"
             value={draftTitle}
+            readOnly={readOnlyTitle}
             onChange={event => setDraftTitle(event.target.value)}
             onClick={event => event.stopPropagation()}
             placeholder="Page title"
-            className="placeholder:text-muted-foreground w-full min-w-0 bg-transparent font-[inherit] leading-[inherit] tracking-[inherit] text-[inherit] outline-none select-text"
+            className={cn(
+              'placeholder:text-muted-foreground w-full min-w-0 bg-transparent font-[inherit] leading-[inherit] tracking-[inherit] text-[inherit] outline-none select-text',
+              readOnlyTitle && 'cursor-default',
+            )}
           />
         }
-      >
-        <div ref={setToolbarPortal} className="hidden shrink-0 md:flex" />
-        {renderActions()}
-      </PostTitle>
+      />
 
-      <MarkdownLexicalEditor
+      <TiptapEditor
         key={page}
         value={draftContent}
         onChange={setDraftContent}
-        token={token}
+        mode={mode}
         uploadScope="pages"
         uploadEntityId={page}
-        revalidatePath={page === 'about' ? '/' : `/${page}`}
-        placeholder="Edit this page..."
-        chrome="seamless"
-        showQuickReference={false}
-        toolbarPortal={toolbarPortal}
-        floatingActions={renderActions()}
+        placeholder="Type / for blocks…"
         editorClassName="site-prose-editor-content"
         minHeightClassName="min-h-0"
-        onRequestToken={() => setSettingsOpen(true)}
         onImagesStaged={images => {
           setStagedImages(previousImages => {
             const nextImages = new Map(previousImages.map(image => [image.path, image]));

@@ -1,36 +1,22 @@
 'use client';
 
 import { ArrowUpIcon } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
+import { useWindowScroll } from '@/hooks/use-window-event';
 import { cn } from '@/lib/utils';
 
 const SHOW_OFFSET = 240;
 
 export default function BackToTop() {
   const [visible, setVisible] = useState(false);
-  const tickingRef = useRef(false);
 
+  const handleScroll = useCallback(() => setVisible(window.scrollY > SHOW_OFFSET), []);
+  useWindowScroll(handleScroll);
+  // Reflect the initial scroll position on mount.
   useEffect(() => {
-    const onScroll = () => {
-      if (tickingRef.current) {
-        return;
-      }
-
-      tickingRef.current = true;
-      requestAnimationFrame(() => {
-        setVisible(window.scrollY > SHOW_OFFSET);
-        tickingRef.current = false;
-      });
-    };
-
-    setVisible(window.scrollY > SHOW_OFFSET);
-    window.addEventListener('scroll', onScroll, { passive: true });
-
-    return () => {
-      window.removeEventListener('scroll', onScroll);
-    };
-  }, []);
+    handleScroll();
+  }, [handleScroll]);
 
   const scrollToTop = () => {
     const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;

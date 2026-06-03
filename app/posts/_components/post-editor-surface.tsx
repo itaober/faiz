@@ -1,24 +1,29 @@
 'use client';
 
 import dayjs from 'dayjs';
-import { CalendarIcon, PinIcon, SaveIcon, SettingsIcon, XIcon } from 'lucide-react';
+import { CalendarIcon, PinIcon, Trash2Icon } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
-import { createPostAction, updatePostAction } from '@/app/_actions/edit-content';
+import { createPostAction, deletePostAction, updatePostAction } from '@/app/_actions/edit-post';
 import PostTitle from '@/app/_components/post-title';
 import { useEditMode } from '@/components/edit-mode-context';
+import type { ActionBarTool, EditViewMode } from '@/components/editing/action-bar';
+import ConfirmDrawer from '@/components/editing/confirm-drawer';
+import { useDockedActionBar } from '@/components/editing/edit-session';
 import GitHubTokenDrawer from '@/components/editing/github-token-drawer';
-import MarkdownLexicalEditor from '@/components/editing/markdown-lexical-editor';
+import TiptapEditor from '@/components/editing/tiptap-editor';
 import { uploadStagedEditorImages } from '@/components/editing/upload-staged-editor-images';
+import { isMobileViewport } from '@/hooks/use-is-mobile';
 import type { PostMeta } from '@/lib/data/data';
+import { markdownTodoListsToMdx, mdxTodoListsToMarkdown } from '@/lib/mdx-editing';
 import { cn } from '@/lib/utils';
 import type { StagedEditorImage } from '@/lib/utils/editor-image';
 
 interface IPostEditorSurfaceProps {
   post?: PostMeta & { content: string };
-  onCancel: () => void;
+  onExit: () => void;
 }
 
 const slugify = (value: string) =>
@@ -38,7 +43,6 @@ const formatPostDateInput = (value?: string) => {
   if (!value) {
     return dayjs().format('YYYY-MM-DD');
   }
-
   return value.slice(0, 10);
 };
 
@@ -46,57 +50,53 @@ const buildPostCreatedTime = (dateValue: string, previousValue?: string) => {
   const date = dateValue || formatPostDateInput(previousValue);
   const previousTime = previousValue?.match(/\b(\d{2}:\d{2}:\d{2})\b/)?.[1];
   const time = previousTime ?? dayjs().format('HH:mm:ss');
-
   return `${date} ${time}`;
 };
 
-export default function PostEditorSurface({ post, onCancel }: IPostEditorSurfaceProps) {
+export default function PostEditorSurface({ post, onExit }: IPostEditorSurfaceProps) {
   const router = useRouter();
   const { token } = useEditMode();
-  const [isTokenSettingsOpen, setIsTokenSettingsOpen] = useState(false);
-  const [isPostSettingsOpen, setIsPostSettingsOpen] = useState(false);
+  const isEdit = !!post;
+  const [mode, setMode] = useState<EditViewMode>(() =>
+    !isEdit || isMobileViewport() ? 'wysiwyg' : 'preview',
+  );
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [title, setTitle] = useState(post?.title ?? '');
-  const [slug, setSlug] = useState(post?.slug ?? '');
   const [tags, setTags] = useState(post?.tags.join(', ') ?? '');
   const [pinned, setPinned] = useState(Boolean(post?.pinned));
   const [createdTime, setCreatedTime] = useState(formatPostDateInput(post?.createdTime));
-  const [content, setContent] = useState(post?.content ?? '');
+  // Checkboxes (<TodoList>/<CheckboxRoot>) edit as markdown task lists, like pages.
+  const [content, setContent] = useState(() => mdxTodoListsToMarkdown(post?.content ?? ''));
   const [stagedImages, setStagedImages] = useState<StagedEditorImage[]>([]);
-  const [slugTouched, setSlugTouched] = useState(Boolean(post));
-  const [toolbarPortal, setToolbarPortal] = useState<HTMLElement | null>(null);
   const postDateInputRef = useRef<HTMLInputElement>(null);
 
-  const isEdit = !!post;
-  const uploadEntityId = useMemo(() => slug || slugify(title) || 'post', [slug, title]);
-  const isSaveDisabled = isSubmitting || !title.trim() || !slug.trim() || !content.trim();
+  const hasToken = !!token;
+  const slug = useMemo(() => post?.slug ?? (slugify(title) || 'post'), [post, title]);
+  const uploadEntityId = slug;
+  const isSaveDisabled = isSubmitting || !title.trim() || !content.trim();
+  const isPreview = mode === 'preview';
+  // Pin is editable in preview mode, so the bar must allow saving when it differs
+  // from the saved value — otherwise toggling pin has no persistable effect.
+  const pinDirty = pinned !== Boolean(post?.pinned);
 
   useEffect(() => {
     setTitle(post?.title ?? '');
-    setSlug(post?.slug ?? '');
     setTags(post?.tags.join(', ') ?? '');
     setPinned(Boolean(post?.pinned));
     setCreatedTime(formatPostDateInput(post?.createdTime));
-    setContent(post?.content ?? '');
+    setContent(mdxTodoListsToMarkdown(post?.content ?? ''));
     setStagedImages([]);
-    setSlugTouched(Boolean(post));
   }, [post]);
-
-  const handleTitleChange = (value: string) => {
-    setTitle(value);
-    if (!slugTouched) {
-      setSlug(slugify(value));
-    }
-  };
 
   const openPostDatePicker = () => {
     const input = postDateInputRef.current;
     if (!input) {
       return;
     }
-
     input.focus({ preventScroll: true });
-
     try {
       input.showPicker();
     } catch {
@@ -106,15 +106,18 @@ export default function PostEditorSurface({ post, onCancel }: IPostEditorSurface
 
   const handleSubmit = async () => {
     if (!token) {
-      setIsTokenSettingsOpen(true);
+      setSettingsOpen(true);
       return;
     }
 
     setIsSubmitting(true);
+    // Convert task lists back to MDX (<TodoList>) before saving; the server still
+    // normalises images (![](…) → <Image>).
+    const mdxContent = markdownTodoListsToMdx(content);
     const submitPost = async () => {
       await uploadStagedEditorImages({
         images: stagedImages,
-        content,
+        content: mdxContent,
         token,
         revalidatePath: isEdit && post ? `/posts/${post.slug}` : '/posts',
       });
@@ -125,22 +128,18 @@ export default function PostEditorSurface({ post, onCancel }: IPostEditorSurface
         tags: parseTags(tags),
         pinned,
         createdTime: buildPostCreatedTime(createdTime, post?.createdTime),
-        content,
+        content: mdxContent,
         token,
       };
 
       const result =
         isEdit && post
-          ? await updatePostAction({
-              ...payload,
-              originalSlug: post.slug,
-            })
+          ? await updatePostAction({ ...payload, originalSlug: post.slug })
           : await createPostAction(payload);
 
       if (!result.success) {
         throw new Error(result.error || 'Save failed');
       }
-
       return result.data;
     };
 
@@ -148,9 +147,9 @@ export default function PostEditorSurface({ post, onCancel }: IPostEditorSurface
       loading: isEdit ? 'Updating...' : 'Publishing...',
       success: savedPost => {
         setStagedImages([]);
-        onCancel();
+        setMode('preview');
         router.refresh();
-        if (savedPost?.slug) {
+        if (!isEdit && savedPost?.slug) {
           router.push(`/posts/${savedPost.slug}`);
         }
         return isEdit ? 'Post updated' : 'Post published';
@@ -160,98 +159,39 @@ export default function PostEditorSurface({ post, onCancel }: IPostEditorSurface
     });
   };
 
-  const renderActions = () => (
-    <>
-      <button
-        type="button"
-        onClick={onCancel}
-        className="focus-ring icon-button hover:bg-muted text-muted-foreground hover:text-foreground size-8"
-        aria-label="Cancel editing"
-      >
-        <XIcon className="size-4" />
-      </button>
-      <div className="relative">
-        <button
-          type="button"
-          onClick={() => setIsPostSettingsOpen(open => !open)}
-          data-active={isPostSettingsOpen || undefined}
-          className="focus-ring icon-button hover:bg-muted data-[active=true]:bg-muted data-[active=true]:text-foreground text-muted-foreground hover:text-foreground size-8"
-          aria-label="Post settings"
-        >
-          <SettingsIcon className="size-4" />
-        </button>
-        {isPostSettingsOpen && (
-          <div className="bg-background border-border absolute top-full right-0 z-30 mt-2 w-[min(20rem,calc(100vw-2rem))] rounded-lg border p-3 shadow-xl">
-            <div className="mb-3 flex items-center justify-between gap-3">
-              <p className="text-muted-foreground text-xs font-medium">Post settings</p>
-              <button
-                type="button"
-                onClick={() => setIsPostSettingsOpen(false)}
-                className="focus-ring icon-button hover:bg-muted text-muted-foreground hover:text-foreground size-7"
-                aria-label="Close post settings"
-              >
-                <XIcon className="size-3.5" />
-              </button>
-            </div>
-            <label className="mb-3 block">
-              <span className="text-muted-foreground mb-1 block text-xs">Slug</span>
-              <input
-                name="post-slug"
-                aria-label="Post slug"
-                value={slug}
-                onChange={event => {
-                  setSlugTouched(true);
-                  setSlug(slugify(event.target.value));
-                }}
-                placeholder="post-slug"
-                className="border-border placeholder:text-muted-foreground focus:border-foreground/40 w-full rounded-md border bg-transparent px-2.5 py-2 font-mono text-xs outline-none"
-              />
-            </label>
-            <label className="mb-3 block">
-              <span className="text-muted-foreground mb-1 block text-xs">Tags</span>
-              <input
-                name="post-tags"
-                aria-label="Post tags"
-                value={tags}
-                onChange={event => setTags(event.target.value)}
-                placeholder="tags, separated, by comma"
-                className="border-border placeholder:text-muted-foreground focus:border-foreground/40 w-full rounded-md border bg-transparent px-2.5 py-2 text-xs outline-none"
-              />
-            </label>
-            <button
-              type="button"
-              onClick={() => setPinned(value => !value)}
-              data-active={pinned || undefined}
-              className="focus-ring hover:bg-muted data-[active=true]:text-foreground data-[active=true]:bg-muted text-muted-foreground mb-2 flex h-8 items-center gap-2 rounded-md px-2 text-xs transition-colors"
-            >
-              <PinIcon className="size-3.5" />
-              Pinned
-            </button>
-            <button
-              type="button"
-              onClick={() => setIsTokenSettingsOpen(true)}
-              className="focus-ring hover:bg-muted text-muted-foreground hover:text-foreground flex h-8 items-center rounded-md px-2 text-xs transition-colors"
-            >
-              GitHub token settings
-            </button>
-          </div>
-        )}
-      </div>
-      <button
-        type="button"
-        onClick={handleSubmit}
-        disabled={isSaveDisabled}
-        className="focus-ring icon-button hover:bg-muted text-muted-foreground hover:text-foreground disabled:text-muted-foreground/50 size-8 disabled:cursor-not-allowed"
-        aria-label="Save post"
-      >
-        <SaveIcon className="size-4" />
-      </button>
-    </>
-  );
+  const handleDelete = async () => {
+    if (!post) {
+      return;
+    }
+    if (!token) {
+      setConfirmOpen(false);
+      setSettingsOpen(true);
+      return;
+    }
+    setIsDeleting(true);
+    const deletePost = async () => {
+      const result = await deletePostAction({ slug: post.slug, token });
+      if (!result.success) {
+        throw new Error(result.error || 'Delete failed');
+      }
+    };
+    toast.promise(deletePost(), {
+      loading: 'Deleting...',
+      success: () => {
+        setConfirmOpen(false);
+        router.push('/posts');
+        router.refresh();
+        return 'Post deleted';
+      },
+      error: error => error.message || 'Delete failed',
+      finally: () => setIsDeleting(false),
+    });
+  };
 
   const parsedTags = parseTags(tags);
-  const postTagsWidth = `${Math.min(Math.max(tags.length || 4, 4), 32)}ch`;
-  const renderMeta = () => (
+  const tagsWidth = `${Math.min(Math.max(tags.length || 4, 4), 32)}ch`;
+
+  const editableMeta = (
     <>
       <div className="flex min-h-6 items-center gap-1">
         <CalendarIcon className="size-3.5 shrink-0" />
@@ -283,7 +223,7 @@ export default function PostEditorSurface({ post, onCancel }: IPostEditorSurface
         value={tags}
         onChange={event => setTags(event.target.value)}
         placeholder="tags"
-        style={{ width: postTagsWidth }}
+        style={{ width: tagsWidth }}
         className={cn(
           'focus-ring border-border placeholder:text-muted-foreground/70 h-6 max-w-[18rem] min-w-14 rounded-md border bg-transparent px-2 py-0.5 text-xs font-medium outline-none transition-colors',
           tags.trim()
@@ -294,6 +234,39 @@ export default function PostEditorSurface({ post, onCancel }: IPostEditorSurface
     </>
   );
 
+  const tools: ActionBarTool[] = [
+    {
+      icon: PinIcon,
+      label: pinned ? 'Unpin' : 'Pin to top',
+      active: pinned,
+      activeFill: true,
+      onClick: () => setPinned(value => !value),
+    },
+  ];
+  if (isEdit) {
+    tools.push({
+      icon: Trash2Icon,
+      label: 'Delete post',
+      danger: true,
+      onClick: () => setConfirmOpen(true),
+    });
+  }
+
+  useDockedActionBar({
+    context: title.trim() || (isEdit ? 'Post' : 'New post'),
+    status: isSubmitting ? 'saving' : pinDirty || !isPreview ? 'dirty' : 'idle',
+    hasToken,
+    onConnect: () => setSettingsOpen(true),
+    mode,
+    onModeChange: setMode,
+    tools,
+    onExit,
+    onSave: handleSubmit,
+    saveLabel: isEdit ? 'Save' : 'Publish',
+    saveDisabled: isSaveDisabled,
+    dirty: pinDirty,
+  });
+
   return (
     <>
       <PostTitle
@@ -303,37 +276,33 @@ export default function PostEditorSurface({ post, onCancel }: IPostEditorSurface
             name="post-title"
             aria-label="Post title"
             value={title}
-            onChange={event => handleTitleChange(event.target.value)}
+            readOnly={isPreview}
+            onChange={event => setTitle(event.target.value)}
             onClick={event => event.stopPropagation()}
             placeholder="Post title"
-            className="placeholder:text-muted-foreground w-full min-w-0 bg-transparent font-[inherit] leading-[inherit] tracking-[inherit] text-[inherit] outline-none select-text"
+            className={cn(
+              'placeholder:text-muted-foreground w-full min-w-0 bg-transparent font-[inherit] leading-[inherit] tracking-[inherit] text-[inherit] outline-none select-text',
+              isPreview && 'cursor-default',
+            )}
           />
         }
-        createdTime={post?.createdTime}
-        updatedTime={post?.updatedTime}
-        tags={parsedTags}
-        metaNode={renderMeta()}
-      >
-        <div ref={setToolbarPortal} className="hidden shrink-0 md:flex" />
-        {renderActions()}
-      </PostTitle>
+        createdTime={isPreview ? (post?.createdTime ?? createdTime) : undefined}
+        updatedTime={isPreview ? post?.updatedTime : undefined}
+        tags={isPreview ? parsedTags : undefined}
+        metaNode={isPreview ? undefined : editableMeta}
+      />
 
-      <MarkdownLexicalEditor
+      <TiptapEditor
         key={post?.slug ?? 'new-post'}
         value={content}
         onChange={setContent}
-        token={token}
+        mode={mode}
         uploadScope="posts"
         uploadEntityId={uploadEntityId}
-        revalidatePath={isEdit && post ? `/posts/${post.slug}` : '/posts'}
-        placeholder="Start writing..."
-        chrome="seamless"
-        showQuickReference={false}
-        toolbarPortal={toolbarPortal}
-        floatingActions={renderActions()}
+        placeholder="Start writing… type / for blocks"
         editorClassName="site-prose-editor-content"
         minHeightClassName={content.trim() ? 'min-h-0' : 'min-h-40'}
-        onRequestToken={() => setIsTokenSettingsOpen(true)}
+        autoFocus={!isEdit}
         onImagesStaged={images => {
           setStagedImages(previousImages => {
             const nextImages = new Map(previousImages.map(image => [image.path, image]));
@@ -343,7 +312,15 @@ export default function PostEditorSurface({ post, onCancel }: IPostEditorSurface
         }}
       />
 
-      <GitHubTokenDrawer open={isTokenSettingsOpen} onOpenChange={setIsTokenSettingsOpen} />
+      <GitHubTokenDrawer open={settingsOpen} onOpenChange={setSettingsOpen} />
+      <ConfirmDrawer
+        open={confirmOpen}
+        onOpenChange={setConfirmOpen}
+        title="Delete post?"
+        description="This removes the MDX file and updates the posts index."
+        isLoading={isDeleting}
+        onConfirm={handleDelete}
+      />
     </>
   );
 }

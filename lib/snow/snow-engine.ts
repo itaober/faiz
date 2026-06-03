@@ -79,7 +79,9 @@ export class SnowEngine implements ISnowController {
     const dpr = window.devicePixelRatio || 1;
     this.canvas.width = width * dpr;
     this.canvas.height = height * dpr;
-    this.ctx.scale(dpr, dpr);
+    // setTransform (absolute) not scale (cumulative): resize() runs on every
+    // window resize, and cumulative scaling would compound the DPR each call.
+    this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     this.canvas.style.width = `${width}px`;
     this.canvas.style.height = `${height}px`;
   }

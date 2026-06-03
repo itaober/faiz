@@ -17,6 +17,14 @@ export interface ActionError {
 
 export type ActionResult<T = void> = { success: true; data?: T } | ActionError;
 
+/** Shared VALIDATION error builder used across all content actions. */
+export const validationError = (error: string): ActionError => ({
+  success: false,
+  error,
+  code: 'VALIDATION',
+  retryable: false,
+});
+
 export function createActionError(
   error: unknown,
   fallbackMessage = 'An error occurred',
@@ -52,7 +60,10 @@ export function createActionError(
       };
     }
 
-    return { success: false, error: message, code: 'UNKNOWN', retryable: true };
+    // Don't surface the raw message for unclassified errors — it can leak
+    // internal repo paths / branch names (e.g. from putGitHubFile). The full
+    // error is still logged server-side by the action's catch block.
+    return { success: false, error: fallbackMessage, code: 'UNKNOWN', retryable: true };
   }
 
   return { success: false, error: fallbackMessage, code: 'UNKNOWN', retryable: true };

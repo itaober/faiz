@@ -1,8 +1,9 @@
 'use client';
 
 import { useTheme } from 'next-themes';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 
+import { useIsMobile } from '@/hooks/use-is-mobile';
 import { DEFAULT_SNOW_CONFIG, SNOW_DENSITY } from '@/lib/snow/constants';
 import { SnowEngine } from '@/lib/snow/snow-engine';
 
@@ -20,17 +21,7 @@ export function SnowEffect({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const engineRef = useRef<SnowEngine | null>(null);
   const { resolvedTheme } = useTheme();
-  const [isMobile, setIsMobile] = useState(false);
-
-  useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.matchMedia('(max-width: 768px)').matches);
-    };
-
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     if (!canvasRef.current || !enabled) return;

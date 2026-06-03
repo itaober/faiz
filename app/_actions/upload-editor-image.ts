@@ -156,11 +156,19 @@ export async function uploadRemoteEditorImageAction(
   try {
     const response = await fetch(imageUrl, {
       cache: 'no-store',
+      // Don't follow redirects: the host allowlist only validated the initial
+      // URL, so a redirect could send us to an internal / cloud-metadata host
+      // (SSRF). Reject any redirect rather than re-resolving the new target.
+      redirect: 'manual',
       headers: {
         Accept: 'image/avif,image/webp,image/png,image/jpeg,image/gif,*/*;q=0.8',
         'User-Agent': 'faiz-blog',
       },
     });
+
+    if (response.type === 'opaqueredirect' || (response.status >= 300 && response.status < 400)) {
+      return createUploadValidationError('Remote image URL must not redirect');
+    }
 
     if (!response.ok) {
       throw new Error(`Remote image failed: ${response.status} ${response.statusText}`);

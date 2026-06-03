@@ -14,6 +14,7 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState } f
 import { createPortal } from 'react-dom';
 
 import { ANIMATION } from '@/lib/constants/animation';
+import { lockScroll, unlockScroll } from '@/lib/scroll-lock';
 import { cn } from '@/lib/utils';
 
 interface IPreviewContext {
@@ -21,55 +22,6 @@ interface IPreviewContext {
   setIsPreview: Dispatch<SetStateAction<boolean>>;
   triggerRef: RefObject<HTMLButtonElement | null>;
 }
-
-let previewScrollLockCount = 0;
-let previousBodyOverflow: string | null = null;
-let previousBodyPosition: string | null = null;
-let previousBodyTop: string | null = null;
-let previousBodyWidth: string | null = null;
-let previousDocumentOverflow: string | null = null;
-let previousScrollY = 0;
-
-const lockPreviewScroll = () => {
-  if (previewScrollLockCount === 0) {
-    previousScrollY = window.scrollY;
-    previousBodyOverflow = document.body.style.overflow;
-    previousBodyPosition = document.body.style.position;
-    previousBodyTop = document.body.style.top;
-    previousBodyWidth = document.body.style.width;
-    previousDocumentOverflow = document.documentElement.style.overflow;
-    document.body.style.overflow = 'hidden';
-    document.body.style.position = 'fixed';
-    document.body.style.top = `-${previousScrollY}px`;
-    document.body.style.width = '100%';
-    document.documentElement.style.overflow = 'hidden';
-  }
-
-  previewScrollLockCount += 1;
-};
-
-const unlockPreviewScroll = () => {
-  if (previewScrollLockCount === 0) {
-    return;
-  }
-
-  previewScrollLockCount -= 1;
-
-  if (previewScrollLockCount === 0) {
-    document.body.style.overflow = previousBodyOverflow ?? '';
-    document.body.style.position = previousBodyPosition ?? '';
-    document.body.style.top = previousBodyTop ?? '';
-    document.body.style.width = previousBodyWidth ?? '';
-    document.documentElement.style.overflow = previousDocumentOverflow ?? '';
-    previousBodyOverflow = null;
-    previousBodyPosition = null;
-    previousBodyTop = null;
-    previousBodyWidth = null;
-    previousDocumentOverflow = null;
-    window.scrollTo(0, previousScrollY);
-    previousScrollY = 0;
-  }
-};
 
 const PreviewContext = createContext<IPreviewContext | null>(null);
 
@@ -96,10 +48,10 @@ const Preview = ({ children }: IPreviewProps) => {
       return;
     }
 
-    lockPreviewScroll();
+    lockScroll();
 
     return () => {
-      unlockPreviewScroll();
+      unlockScroll();
     };
   }, [isPreview]);
 

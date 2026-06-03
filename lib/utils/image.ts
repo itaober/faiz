@@ -39,10 +39,21 @@ export const compressImage = async (file: File, options: CompressOptions = {}): 
   return new File([buffer], newName, { type: 'image/webp', lastModified: Date.now() });
 };
 
-/** Generate storage path for image file */
-export const getImageStoragePath = (filename: string, dir = '/assets/images'): string => {
-  return `${dir}/${filename}`;
-};
+/** Read a File into a base64 string (without the `data:` prefix). */
+export const fileToBase64 = (file: File): Promise<string> =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = typeof reader.result === 'string' ? reader.result.split(',')[1] : '';
+      if (result) {
+        resolve(result);
+      } else {
+        reject(new Error('Failed to read image data'));
+      }
+    };
+    reader.onerror = () => reject(new Error('Failed to read image file'));
+    reader.readAsDataURL(file);
+  });
 
 // =========================================================================================
 // Internal Helpers

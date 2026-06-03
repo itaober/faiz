@@ -2,8 +2,9 @@
 
 import { Columns2Icon } from 'lucide-react';
 import { motion } from 'motion/react';
-import { type MouseEvent, useCallback, useEffect, useLayoutEffect, useState } from 'react';
+import { type MouseEvent, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 
+import { useWindowResize, useWindowScroll } from '@/hooks/use-window-event';
 import { cn } from '@/lib/utils';
 
 type TocMode = 'minimal' | 'full';
@@ -107,55 +108,38 @@ export default function PostToc() {
     localStorage.setItem(STORAGE_KEY, mode);
   }, [mode]);
 
-  useEffect(() => {
-    if (tocItems.length === 0) {
-      return;
-    }
+  const headingsRef = useRef<HTMLElement[]>([]);
 
-    const headings = tocItems
-      .map(item => document.getElementById(item.id))
-      .filter((node): node is HTMLElement => Boolean(node));
-
+  const updateActive = useCallback(() => {
+    const headings = headingsRef.current;
     if (headings.length === 0) {
       return;
     }
 
-    const updateActive = () => {
-      const offset = 140;
-      let current = headings[0].id;
-
-      for (const heading of headings) {
-        if (heading.getBoundingClientRect().top <= offset) {
-          current = heading.id;
-        } else {
-          break;
-        }
+    const offset = 140;
+    let current = headings[0].id;
+    for (const heading of headings) {
+      if (heading.getBoundingClientRect().top <= offset) {
+        current = heading.id;
+      } else {
+        break;
       }
+    }
 
-      setActiveId(current);
-    };
+    setActiveId(current);
+  }, []);
 
-    let ticking = false;
-    const onScroll = () => {
-      if (ticking) {
-        return;
-      }
-      ticking = true;
-      requestAnimationFrame(() => {
-        updateActive();
-        ticking = false;
-      });
-    };
-
+  // Re-resolve heading elements whenever the TOC changes, then sync once.
+  useEffect(() => {
+    headingsRef.current = tocItems
+      .map(item => document.getElementById(item.id))
+      .filter((node): node is HTMLElement => Boolean(node));
     updateActive();
-    window.addEventListener('scroll', onScroll, { passive: true });
-    window.addEventListener('resize', onScroll);
+  }, [tocItems, updateActive]);
 
-    return () => {
-      window.removeEventListener('scroll', onScroll);
-      window.removeEventListener('resize', onScroll);
-    };
-  }, [tocItems]);
+  // Scroll-spy via the shared throttled scroll/resize listeners.
+  useWindowScroll(updateActive);
+  useWindowResize(updateActive);
 
   const expanded = mode === 'full';
 

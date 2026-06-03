@@ -66,30 +66,6 @@ export const formatMdxImage = (src: string, alt: string) =>
     unescapeMarkdownValue(alt),
   )}" />`;
 
-export const updateStagedEditorImageCaption = (
-  image: StagedEditorImage,
-  caption: string,
-  imageIdOverride?: string,
-): StagedEditorImage => {
-  const alt = unescapeMarkdownValue(caption.trim());
-  const imageId = imageIdOverride || alt || image.imageId || 'image';
-  const path = buildEditorImageStoragePath({
-    entityId: image.uploadEntityId,
-    imageId,
-    scope: image.scope,
-  });
-  const src = toApiImageUrl(path);
-
-  return {
-    ...image,
-    alt,
-    imageId,
-    markup: formatMdxImage(src, alt),
-    path,
-    src,
-  };
-};
-
 const getMdxImageAttribute = (attributes: string, name: 'alt' | 'src') => {
   const match = attributes.match(
     new RegExp(`\\b${name}\\s*=\\s*(?:"([^"]*)"|'([^']*)'|\\{\\s*\`([^\`]*)\`\\s*\\})`),
@@ -154,3 +130,15 @@ const transformOutsideFencedCode = (value: string, transform: (segment: string) 
 
 export const normalizeEditorImageMarkup = (value: string) =>
   transformOutsideFencedCode(value, segment => markdownImagesToMdx(normalizeMdxImageTags(segment)));
+
+/**
+ * Converts MDX `<Image src="" alt="" />` tags back into plain markdown
+ * `![alt](src)` so a markdown-based editor can load stored MDX content.
+ */
+export const mdxImagesToMarkdown = (value: string) =>
+  value.replace(/<Image\b([\s\S]*?)\/>/g, (raw, attributes: string) => {
+    const src = getMdxImageAttribute(attributes, 'src');
+    const alt = getMdxImageAttribute(attributes, 'alt');
+
+    return src ? `![${alt}](${src})` : raw;
+  });
