@@ -426,6 +426,7 @@ export default function SearchCommand({ onClose }: ISearchCommandProps) {
             onClose();
           }
         }}
+        fixed
         repositionInputs
         autoFocus
       >

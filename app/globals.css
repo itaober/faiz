@@ -789,9 +789,10 @@ button {
     z-index: 50;
     display: flex;
     flex-direction: column;
-    /* Fixed height (min == max) so the sheet doesn't grow as results come in. */
-    min-height: 85dvh;
-    max-height: 85dvh;
+    /* Fixed height so the sheet doesn't grow as results come in. Not min/max-
+       locked: vaul's `fixed` mode shrinks this height to sit above the keyboard,
+       which a min-height would otherwise block. */
+    height: 85dvh;
     background: var(--surface);
     border: 1px solid var(--border);
     border-bottom: none;
