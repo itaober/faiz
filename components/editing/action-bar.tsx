@@ -15,6 +15,7 @@ import { AnimatePresence, motion } from 'motion/react';
 import { useEffect } from 'react';
 
 import Tooltip from '@/components/tooltip';
+import { useSaveShortcut } from '@/hooks/use-save-shortcut';
 import { cn } from '@/lib/utils';
 
 import { hasOpenEditingOverlay } from './editing-overlays';
@@ -115,32 +116,30 @@ export default function ActionBar({
 }: ActionBarSession) {
   const canSave = !!onSave && (mode !== 'preview' || !!dirty);
 
+  useSaveShortcut(hasToken && canSave && !saveDisabled, () => onSave?.());
+
+  // Escape exits — unless an editing overlay / slash menu / bubble / sheet has
+  // focus and should consume it first.
   useEffect(() => {
+    if (!hasToken) {
+      return;
+    }
     const handleKey = (event: KeyboardEvent) => {
-      if (!hasToken) {
+      if (event.key !== 'Escape') {
         return;
       }
-      if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
-        event.preventDefault();
-        if (canSave && !saveDisabled) {
-          onSave?.();
-        }
+      if (hasOpenEditingOverlay() || document.querySelector('.fz-slash')) {
         return;
       }
-      if (event.key === 'Escape') {
-        if (hasOpenEditingOverlay() || document.querySelector('.fz-slash')) {
-          return;
-        }
-        const active = document.activeElement;
-        if (active?.closest('.fz-bubble') || active?.closest('.fz-sheet')) {
-          return;
-        }
-        onExit();
+      const active = document.activeElement;
+      if (active?.closest('.fz-bubble') || active?.closest('.fz-sheet')) {
+        return;
       }
+      onExit();
     };
     document.addEventListener('keydown', handleKey);
     return () => document.removeEventListener('keydown', handleKey);
-  }, [canSave, hasToken, onExit, onSave, saveDisabled]);
+  }, [hasToken, onExit]);
 
   // ── No token: a single, context-free Connect action ─────────────────────
   if (!hasToken) {

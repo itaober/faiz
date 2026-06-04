@@ -1,7 +1,6 @@
-import { cache } from 'react';
 import z from 'zod';
 
-import { fetchGitHubJson } from './common';
+import { cachedResource, fetchGitHubJson } from './common';
 
 const META_PATH = 'data/meta.json';
 const RECORDS_PATH = 'data/records.json';
@@ -18,15 +17,11 @@ export const MetaSchema = z.object({
     .optional(),
 });
 
-export const getMetaInfo = cache(async (): Promise<z.infer<typeof MetaSchema> | null> => {
-  try {
-    const authorData = await fetchGitHubJson(META_PATH);
-    return MetaSchema.parse(authorData);
-  } catch (error) {
-    console.error('Failed to fetch or parse meta data:', error);
-    return null;
-  }
-});
+export const getMetaInfo = cachedResource(
+  'meta',
+  async () => MetaSchema.parse(await fetchGitHubJson(META_PATH)),
+  null,
+);
 
 export const RecordItemSchema = z.object({
   title: z.string(),
@@ -49,15 +44,11 @@ export type RecordType = keyof z.infer<typeof RecordsSchema>;
 export type RecordItem = z.infer<typeof RecordItemSchema>;
 export type Records = z.infer<typeof RecordsSchema>;
 
-export const getRecordsInfo = cache(async (): Promise<Records | null> => {
-  try {
-    const recordsData = await fetchGitHubJson(RECORDS_PATH);
-    return RecordsSchema.parse(recordsData);
-  } catch (error) {
-    console.error('Failed to fetch or parse records data:', error);
-    return null;
-  }
-});
+export const getRecordsInfo = cachedResource(
+  'records',
+  async () => RecordsSchema.parse(await fetchGitHubJson(RECORDS_PATH)),
+  null,
+);
 
 export const PostMetaSchema = z.object({
   slug: z.string(),
@@ -72,12 +63,8 @@ export const PostListSchema = z.array(PostMetaSchema);
 export type PostMeta = z.infer<typeof PostMetaSchema>;
 export type PostList = z.infer<typeof PostListSchema>;
 
-export const getPostListInfo = cache(async (): Promise<PostList | null> => {
-  try {
-    const postListData = await fetchGitHubJson('data/posts.json');
-    return PostListSchema.parse(postListData);
-  } catch (error) {
-    console.error('Failed to fetch or parse post list data:', error);
-    return null;
-  }
-});
+export const getPostListInfo = cachedResource(
+  'post list',
+  async () => PostListSchema.parse(await fetchGitHubJson('data/posts.json')),
+  null,
+);

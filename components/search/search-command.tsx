@@ -350,9 +350,13 @@ export default function SearchCommand({ onClose }: ISearchCommandProps) {
 
       <div className="fz-search-results" ref={listRef}>
         {!hasQuery ? (
-          <div className="fz-search-empty">Search posts, memos, records &amp; pages</div>
+          <div className="text-muted-foreground my-auto p-4 text-center text-sm">
+            Search posts, memos, records &amp; pages
+          </div>
         ) : visible.length === 0 ? (
-          <div className="fz-search-empty">{ready ? 'No results' : 'Searching…'}</div>
+          <div className="text-muted-foreground my-auto p-4 text-center text-sm">
+            {ready ? 'No results' : 'Searching…'}
+          </div>
         ) : (
           visible.map((hit, i) => {
             const meta = TYPE_META[hit.type];
@@ -429,7 +433,7 @@ export default function SearchCommand({ onClose }: ISearchCommandProps) {
           <Drawer.Overlay className="fz-search-drawer-overlay" />
           <Drawer.Content className="fz-search-drawer" aria-describedby={undefined}>
             <Drawer.Title className="sr-only">Search</Drawer.Title>
-            <Drawer.Handle className="fz-search-drawer-handle" />
+            <Drawer.Handle className="mt-2.5 mb-1" />
             {body}
           </Drawer.Content>
         </Drawer.Portal>

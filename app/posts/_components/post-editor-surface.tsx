@@ -19,7 +19,7 @@ import { isMobileViewport } from '@/hooks/use-is-mobile';
 import type { PostMeta } from '@/lib/data/data';
 import { markdownTodoListsToMdx, mdxTodoListsToMarkdown } from '@/lib/mdx-editing';
 import { cn } from '@/lib/utils';
-import type { StagedEditorImage } from '@/lib/utils/editor-image';
+import { mergeByPath, type StagedEditorImage } from '@/lib/utils/editor-image';
 
 interface IPostEditorSurfaceProps {
   post?: PostMeta & { content: string };
@@ -294,13 +294,9 @@ export default function PostEditorSurface({ post, onExit }: IPostEditorSurfacePr
         editorClassName="site-prose-editor-content"
         minHeightClassName={content.trim() ? 'min-h-0' : 'min-h-40'}
         autoFocus={!isEdit}
-        onImagesStaged={images => {
-          setStagedImages(previousImages => {
-            const nextImages = new Map(previousImages.map(image => [image.path, image]));
-            images.forEach(image => nextImages.set(image.path, image));
-            return Array.from(nextImages.values());
-          });
-        }}
+        onImagesStaged={images =>
+          setStagedImages(previous => mergeByPath(previous, images, image => image))
+        }
       />
 
       <GitHubTokenDrawer open={settingsOpen} onOpenChange={setSettingsOpen} />

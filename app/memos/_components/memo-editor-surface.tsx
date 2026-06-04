@@ -17,7 +17,7 @@ import { uploadStagedEditorImages } from '@/components/editing/upload-staged-edi
 import { useContentEditor } from '@/hooks/use-content-editor';
 import type { Memo } from '@/lib/data/memos';
 import type { StagedEditorImage } from '@/lib/utils/editor-image';
-import { toApiImageUrl } from '@/lib/utils/editor-image';
+import { mergeByPath, toApiImageUrl } from '@/lib/utils/editor-image';
 
 import { useMemosContext } from '../_context/use-memos-context';
 
@@ -245,23 +245,17 @@ export default function MemoEditorSurface({ memo, onCancel }: IMemoEditorSurface
         insertUploadedImages={false}
         editorFooter={imagesFooter}
         autoFocus
-        onImagesStaged={images => {
-          setAttachments(previousAttachments => {
-            const nextAttachments = new Map(
-              previousAttachments.map(attachment => [attachment.path, attachment]),
-            );
-            images.forEach(image => {
-              nextAttachments.set(image.path, {
-                alt: image.alt,
-                id: image.path,
-                path: image.path,
-                pending: image,
-                previewSrc: image.previewSrc,
-              });
-            });
-            return Array.from(nextAttachments.values());
-          });
-        }}
+        onImagesStaged={images =>
+          setAttachments(previous =>
+            mergeByPath(previous, images, image => ({
+              alt: image.alt,
+              id: image.path,
+              path: image.path,
+              pending: image,
+              previewSrc: image.previewSrc,
+            })),
+          )
+        }
       />
 
       <GitHubTokenDrawer open={isSettingsOpen} onOpenChange={setIsSettingsOpen} />

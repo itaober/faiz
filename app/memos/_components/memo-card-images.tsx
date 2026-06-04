@@ -8,6 +8,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Overlay from '@/components/overlay';
 import { ANIMATION } from '@/lib/constants/animation';
 import { cn } from '@/lib/utils';
+import { toApiImageUrl } from '@/lib/utils/editor-image';
 
 const SWIPE_THRESHOLD = 40;
 
@@ -35,7 +36,7 @@ export default function MemoCardImages({ images }: MemoCardImagesProps) {
   const touchStartXRef = useRef<number | null>(null);
   const touchStartYRef = useRef<number | null>(null);
 
-  const previewUrls = useMemo(() => images.map(path => `/api/image/${path}`), [images]);
+  const previewUrls = useMemo(() => images.map(toApiImageUrl), [images]);
 
   const showPrev = useCallback(() => {
     if (count <= 1) {

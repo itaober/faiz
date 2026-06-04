@@ -52,6 +52,23 @@ export const buildEditorImageStoragePath = ({
 
 export const toApiImageUrl = (storagePath: string) => `/api/image/${storagePath}`;
 
+/**
+ * Merge freshly-staged images into an existing list, de-duplicated by `path`
+ * (a re-upload of the same path replaces the prior entry). `toItem` maps each
+ * incoming image to the caller's item shape (identity, or e.g. a memo attachment).
+ */
+export const mergeByPath = <T extends { path: string }, S extends { path: string }>(
+  existing: T[],
+  incoming: S[],
+  toItem: (image: S) => T,
+): T[] => {
+  const byPath = new Map<string, T>(existing.map(item => [item.path, item]));
+  for (const image of incoming) {
+    byPath.set(image.path, toItem(image));
+  }
+  return [...byPath.values()];
+};
+
 export const unescapeMarkdownValue = (value: string) =>
   value.replace(/\\([\\`*_{}[\]()#+\-.!_>])/g, '$1');
 

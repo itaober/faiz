@@ -81,8 +81,14 @@ export const SlashList = forwardRef<SlashListRef, SlashListProps>(({ items, comm
             <span className="fz-slash-ic">
               <Icon className="size-[15px]" />
             </span>
-            <span className="fz-slash-name">{item.title}</span>
-            {item.syntax ? <span className="fz-slash-key">{item.syntax}</span> : null}
+            <span className="text-foreground min-w-0 flex-1 truncate text-[13px] font-medium">
+              {item.title}
+            </span>
+            {item.syntax ? (
+              <span className="text-muted-foreground ml-auto shrink-0 font-mono text-[10px]">
+                {item.syntax}
+              </span>
+            ) : null}
           </button>
         );
       })}

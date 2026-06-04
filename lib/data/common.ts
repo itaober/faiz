@@ -1,4 +1,5 @@
 import { updateTag } from 'next/cache';
+import { cache } from 'react';
 
 import { formatTimeForId } from '@/lib/dayjs';
 
@@ -6,6 +7,30 @@ import { fetchWithRetry } from './fetch-with-retry';
 
 /** GitHub Token from environment variables */
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
+
+/**
+ * Wraps a data-layer getter in React `cache()` (per-request dedup) plus the
+ * uniform "log and fall back" guard every getter repeats. The producer holds
+ * the fetch + parse for that resource; on any throw we log and return
+ * `fallback` so a single bad file never takes down a page render.
+ *
+ * @param label - Human label for the error log
+ * @param produce - Fetch + parse the resource (may take args, e.g. a slug)
+ * @param fallback - Value returned when `produce` throws
+ */
+export const cachedResource = <Args extends unknown[], T>(
+  label: string,
+  produce: (...args: Args) => Promise<T>,
+  fallback: T,
+) =>
+  cache(async (...args: Args): Promise<T> => {
+    try {
+      return await produce(...args);
+    } catch (error) {
+      console.error(`Failed to load ${label}:`, error);
+      return fallback;
+    }
+  });
 
 /**
  * Generates a unique ID

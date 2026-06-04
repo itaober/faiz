@@ -14,7 +14,7 @@ import { useContentEditor } from '@/hooks/use-content-editor';
 import { isMobileViewport } from '@/hooks/use-is-mobile';
 import { markdownTodoListsToMdx, mdxTodoListsToMarkdown } from '@/lib/mdx-editing';
 import { cn } from '@/lib/utils';
-import type { StagedEditorImage } from '@/lib/utils/editor-image';
+import { mergeByPath, type StagedEditorImage } from '@/lib/utils/editor-image';
 
 import PostTitle from './post-title';
 
@@ -120,13 +120,9 @@ export default function PageMdxEditorSurface({ page, title, content }: IPageMdxE
         placeholder="Type / for blocks…"
         editorClassName="site-prose-editor-content"
         minHeightClassName="min-h-0"
-        onImagesStaged={images => {
-          setStagedImages(previousImages => {
-            const nextImages = new Map(previousImages.map(image => [image.path, image]));
-            images.forEach(image => nextImages.set(image.path, image));
-            return Array.from(nextImages.values());
-          });
-        }}
+        onImagesStaged={images =>
+          setStagedImages(previous => mergeByPath(previous, images, image => image))
+        }
       />
 
       <GitHubTokenDrawer open={settingsOpen} onOpenChange={setSettingsOpen} />

@@ -2,7 +2,7 @@
 
 import { ImagePlusIcon, KeyRoundIcon, StarIcon, Trash2Icon, XIcon } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { Drawer } from 'vaul';
 
@@ -17,6 +17,7 @@ import GitHubTokenDrawer from '@/components/editing/github-token-drawer';
 import Segmented from '@/components/segmented';
 import { useContentEditor } from '@/hooks/use-content-editor';
 import { useCoverImage } from '@/hooks/use-cover-image';
+import { useSaveShortcut } from '@/hooks/use-save-shortcut';
 import type { RecordItem } from '@/lib/data/data';
 import { buildEditorImageStoragePath } from '@/lib/utils/editor-image';
 import { SUPPORTED_IMAGE_TYPES } from '@/lib/utils/image';
@@ -168,27 +169,7 @@ export default function RecordsSidePanel({
     });
   };
 
-  // Keep ⌘↵ pointed at the latest handleSubmit so it submits the CURRENT field
-  // values. The keydown effect below only re-subscribes when hasToken /
-  // isSaveDisabled change, so without this ref it would freeze rating / review /
-  // type / date at the values present the last time isSaveDisabled flipped.
-  const handleSubmitRef = useRef(handleSubmit);
-  useEffect(() => {
-    handleSubmitRef.current = handleSubmit;
-  });
-
-  useEffect(() => {
-    const handleKey = (event: KeyboardEvent) => {
-      if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
-        event.preventDefault();
-        if (hasToken && !isSaveDisabled) {
-          handleSubmitRef.current();
-        }
-      }
-    };
-    document.addEventListener('keydown', handleKey);
-    return () => document.removeEventListener('keydown', handleKey);
-  }, [hasToken, isSaveDisabled]);
+  useSaveShortcut(hasToken && !isSaveDisabled, handleSubmit);
 
   return (
     <Drawer.Root direction="right" open onOpenChange={open => !open && onClose()} handleOnly>
@@ -203,8 +184,8 @@ export default function RecordsSidePanel({
         >
           <Drawer.Title className="sr-only">{isEdit ? 'Edit record' : 'New record'}</Drawer.Title>
 
-          <div className="fz-sidepanel-head">
-            <span className="fz-sidepanel-title">
+          <div className="flex shrink-0 items-center justify-between py-4 pr-4 pl-5">
+            <span className="inline-flex items-center gap-[9px] text-[15px] font-semibold">
               <span className="fz-status-dot" data-state="dirty" />
               {isEdit ? 'Edit record' : 'New record'}
             </span>
@@ -213,7 +194,7 @@ export default function RecordsSidePanel({
             </button>
           </div>
 
-          <div className="fz-sidepanel-body">
+          <div className="flex-1 overflow-y-auto px-5 pt-1 pb-5">
             {!hasToken && (
               <button
                 type="button"
@@ -225,7 +206,7 @@ export default function RecordsSidePanel({
             )}
 
             <div
-              className="fz-cover fz-panel-cover"
+              className="fz-cover mx-auto mt-1 mb-[22px] aspect-[2/3] w-[132px]"
               onDragOver={event => {
                 event.preventDefault();
                 setIsDragging(true);
@@ -278,7 +259,7 @@ export default function RecordsSidePanel({
                 <span className="fz-field-label">Image name</span>
                 <div className="flex min-w-0 flex-col gap-1">
                   <input
-                    className="fz-input fz-input-mono"
+                    className="fz-input font-mono text-[13px]"
                     value={coverName ?? title}
                     onChange={event => setCoverName(event.target.value)}
                     placeholder="cover"
@@ -340,11 +321,11 @@ export default function RecordsSidePanel({
               </div>
             </div>
 
-            <div className="fz-field-col fz-field-clickable" onClick={openDatePicker}>
+            <div className="fz-field-col cursor-pointer" onClick={openDatePicker}>
               <span className="fz-field-label">Date</span>
               <input
                 ref={dateInputRef}
-                className="fz-input fz-input-mono cursor-pointer"
+                className="fz-input font-mono text-[13px] cursor-pointer"
                 type="date"
                 value={createdTime}
                 onChange={event => setCreatedTime(event.target.value)}
@@ -364,7 +345,7 @@ export default function RecordsSidePanel({
             <div className="fz-field-col">
               <span className="fz-field-label">Link</span>
               <input
-                className="fz-input fz-input-mono"
+                className="fz-input font-mono text-[13px]"
                 value={link}
                 onChange={event => setLink(event.target.value)}
                 placeholder="douban.com/subject/…"
@@ -382,7 +363,7 @@ export default function RecordsSidePanel({
             </div>
           </div>
 
-          <div className="fz-sidepanel-foot">
+          <div className="border-border flex shrink-0 items-center justify-end gap-2 border-t px-4 py-3">
             {isEdit && (
               <button
                 type="button"

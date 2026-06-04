@@ -71,7 +71,7 @@ export default function GitHubTokenDrawer({ open, onOpenChange }: IGitHubTokenDr
           <XIcon className="size-4" />
         </button>
 
-        <span className="fz-icon-circle">
+        <span className="bg-muted text-foreground inline-flex size-11 items-center justify-center rounded-full">
           <KeyRoundIcon className="size-5" />
         </span>
         <h3>Connect to save</h3>
