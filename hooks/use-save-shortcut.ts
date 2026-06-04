@@ -13,11 +13,9 @@ export function useSaveShortcut(enabled: boolean, onSave: () => void) {
 
   useEffect(() => {
     const handleKey = (event: KeyboardEvent) => {
-      if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
+      if (enabled && (event.metaKey || event.ctrlKey) && event.key === 'Enter') {
         event.preventDefault();
-        if (enabled) {
-          onSaveRef.current();
-        }
+        onSaveRef.current();
       }
     };
     document.addEventListener('keydown', handleKey);

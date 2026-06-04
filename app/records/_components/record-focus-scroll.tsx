@@ -33,6 +33,7 @@ export default function RecordFocusScroll({ focusKey }: { focusKey: string }) {
     // over ~1s until the position converges, then drop the pulse class.
     let ticks = 0;
     let pulsed: HTMLElement | null = null;
+    let timer = 0;
     const align = () => {
       const card = findCard();
       if (card) {
@@ -44,14 +45,16 @@ export default function RecordFocusScroll({ focusKey }: { focusKey: string }) {
       }
       ticks += 1;
       if (ticks < 5) {
-        window.setTimeout(align, 250);
+        timer = window.setTimeout(align, 250);
       } else if (pulsed) {
-        const card = pulsed;
-        window.setTimeout(() => card.classList.remove('fz-record-focus'), 2200);
+        const node = pulsed;
+        timer = window.setTimeout(() => node.classList.remove('fz-record-focus'), 2200);
       }
     };
-    const timer = window.setTimeout(align, 150);
+    timer = window.setTimeout(align, 150);
 
+    // The chain is serial, so only one timer is ever pending — clearing the
+    // latest cancels the whole sequence (e.g. when focusKey changes mid-scroll).
     return () => {
       window.clearTimeout(timer);
       pulsed?.classList.remove('fz-record-focus');
