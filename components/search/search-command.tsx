@@ -268,10 +268,16 @@ export default function SearchCommand({ onClose }: ISearchCommandProps) {
   }, [active, visible]);
 
   const go = (hit: SearchHit) => {
-    // Posts carry the query so the article can scroll to + highlight the match;
-    // memos open their own permalink page, so their url already locates them.
+    // Posts carry the query so the article scrolls to + highlights the match;
+    // records carry their id so the records page scrolls to that card; memos
+    // open their own permalink page, so their url already locates them.
     const q = query.trim();
-    const url = hit.type === 'post' && q ? `${hit.url}?q=${encodeURIComponent(q)}` : hit.url;
+    let url = hit.url;
+    if (hit.type === 'post' && q) {
+      url = `${hit.url}?q=${encodeURIComponent(q)}`;
+    } else if (hit.type === 'record') {
+      url = `${hit.url}&focus=${encodeURIComponent(hit.id)}`;
+    }
     router.push(url);
     onClose();
   };

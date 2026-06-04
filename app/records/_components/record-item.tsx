@@ -81,6 +81,7 @@ export default function RecordItem({
         canEdit ? 'cursor-pointer' : 'hover:bg-muted/45',
       )}
       data-selected={isSelected || undefined}
+      data-record-key={`record:${type}:${createdTime}:${title}`}
       variants={{
         hidden: { opacity: 0, y: ANIMATION.distance.small },
         visible: { opacity: 1, y: 0 },

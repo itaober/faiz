@@ -790,6 +790,20 @@ button {
       background: color-mix(in oklch, var(--accent) 0%, transparent);
     }
   }
+  /* Transient ring on the matched card when a record is opened from search.
+     Uses box-shadow so there's no layout shift against neighbouring cards. */
+  .fz-record-focus {
+    animation: fz-record-focus-pulse 2.2s var(--ease-out) forwards;
+  }
+  @keyframes fz-record-focus-pulse {
+    0%,
+    55% {
+      box-shadow: 0 0 0 2px color-mix(in oklch, var(--accent) 55%, transparent);
+    }
+    100% {
+      box-shadow: 0 0 0 2px color-mix(in oklch, var(--accent) 0%, transparent);
+    }
+  }
   .fz-search-empty {
     margin: auto 0;
     text-align: center;

@@ -5,6 +5,7 @@ import { getMetaInfo } from '@/lib/data/data';
 import { buildDescription, buildPageMetadata } from '@/lib/utils/seo';
 
 import PostTitle from '../_components/post-title';
+import RecordFocusScroll from './_components/record-focus-scroll';
 import { RecordsInlineComposerProvider } from './_components/records-inline-composer-context';
 import RecordsList from './_components/records-list';
 import RecordsTabs from './_components/records-tabs';
@@ -24,6 +25,7 @@ export async function generateMetadata() {
 interface RecordsPageProps {
   searchParams?: Promise<{
     tab?: string;
+    focus?: string;
   }>;
 }
 
@@ -38,6 +40,7 @@ const normalizeTab = (value: string | undefined): Tab => {
 export default async function RecordsPage({ searchParams }: RecordsPageProps) {
   const resolvedSearchParams = await searchParams;
   const activeTab = normalizeTab(resolvedSearchParams?.tab);
+  const focusKey = resolvedSearchParams?.focus;
 
   return (
     <RecordsInlineComposerProvider>
@@ -48,6 +51,7 @@ export default async function RecordsPage({ searchParams }: RecordsPageProps) {
       <Suspense fallback={null}>
         <RecordsList activeTab={activeTab} />
       </Suspense>
+      {focusKey ? <RecordFocusScroll focusKey={focusKey} /> : null}
     </RecordsInlineComposerProvider>
   );
 }
