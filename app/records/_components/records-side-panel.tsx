@@ -1,7 +1,6 @@
 'use client';
 
 import { ImagePlusIcon, KeyRoundIcon, StarIcon, Trash2Icon, XIcon } from 'lucide-react';
-import { motion } from 'motion/react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
@@ -15,6 +14,8 @@ import {
 import { useEditMode } from '@/components/edit-mode-context';
 import ConfirmDrawer from '@/components/editing/confirm-drawer';
 import GitHubTokenDrawer from '@/components/editing/github-token-drawer';
+import Segmented from '@/components/segmented';
+import { useContentEditor } from '@/hooks/use-content-editor';
 import { useCoverImage } from '@/hooks/use-cover-image';
 import type { RecordItem } from '@/lib/data/data';
 import { buildEditorImageStoragePath } from '@/lib/utils/editor-image';
@@ -51,10 +52,16 @@ export default function RecordsSidePanel({
   const isEdit = !!record;
   const hasToken = !!token;
 
-  const [settingsOpen, setSettingsOpen] = useState(false);
-  const [confirmOpen, setConfirmOpen] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
+  const {
+    settingsOpen,
+    setSettingsOpen,
+    confirmOpen,
+    setConfirmOpen,
+    isSubmitting,
+    isDeleting,
+    submit,
+    remove,
+  } = useContentEditor(token);
   const [title, setTitle] = useState(record?.title ?? '');
   const [type, setType] = useState<RecordItem['type']>(record?.type ?? initialType);
   const { coverPreviewSrc, hasCover, pendingFile, stageCoverFile, clearPendingCover, uploadCover } =
@@ -87,85 +94,77 @@ export default function RecordsSidePanel({
     }
   };
 
-  const handleSubmit = async () => {
-    if (!token) {
-      setSettingsOpen(true);
-      return;
-    }
-    const parsedRating = rating.trim() ? Number(rating) : undefined;
-    if (parsedRating !== undefined && Number.isNaN(parsedRating)) {
+  const parsedRating = rating.trim() ? Number(rating) : undefined;
+
+  const handleSubmit = () => {
+    // Validate only once a token exists, so a token-less save still routes to the
+    // connect-token drawer first (matching the prior gate ordering).
+    if (hasToken && parsedRating !== undefined && Number.isNaN(parsedRating)) {
       toast.error('Invalid rating');
       return;
     }
-
-    setIsSubmitting(true);
-    const saveRecord = async () => {
-      const nextCoverUrl = await uploadCover(type, coverImageName, token);
-      const nextRecord: RecordItem = {
-        title,
-        type,
-        coverUrl: nextCoverUrl,
-        link,
-        createdTime,
-        rating: parsedRating,
-        comment: comment.trim() || undefined,
-      };
-      const result =
-        isEdit && record
-          ? await updateRecordAction({
-              original: { title: record.title, type: record.type, createdTime: record.createdTime },
-              record: nextRecord,
-              token,
-            })
-          : await createRecordAction({ record: nextRecord, token });
-      if (!result.success) {
-        throw new Error(result.error || 'Save failed');
-      }
-      return result;
-    };
-
-    toast.promise(saveRecord(), {
+    submit({
       loading: pendingFile ? 'Uploading cover...' : isEdit ? 'Updating...' : 'Saving...',
-      success: () => {
+      success: isEdit ? 'Record updated' : 'Record saved',
+      errorFallback: 'Save failed',
+      onSuccess: () => {
         clearPendingCover();
         onClose();
         router.refresh();
-        return isEdit ? 'Record updated' : 'Record saved';
       },
-      error: error => error.message || 'Save failed',
-      finally: () => setIsSubmitting(false),
+      run: async token => {
+        const nextCoverUrl = await uploadCover(type, coverImageName, token);
+        const nextRecord: RecordItem = {
+          title,
+          type,
+          coverUrl: nextCoverUrl,
+          link,
+          createdTime,
+          rating: parsedRating,
+          comment: comment.trim() || undefined,
+        };
+        const result =
+          isEdit && record
+            ? await updateRecordAction({
+                original: {
+                  title: record.title,
+                  type: record.type,
+                  createdTime: record.createdTime,
+                },
+                record: nextRecord,
+                token,
+              })
+            : await createRecordAction({ record: nextRecord, token });
+        if (!result.success) {
+          throw new Error(result.error || 'Save failed');
+        }
+        return result;
+      },
     });
   };
 
-  const handleDelete = async () => {
+  const handleDelete = () => {
     if (!record) {
       return;
     }
-    if (!token) {
-      setConfirmOpen(false);
-      setSettingsOpen(true);
-      return;
-    }
-    setIsDeleting(true);
-    const deleteRecord = async () => {
-      const result = await deleteRecordAction({
-        original: { title: record.title, type: record.type, createdTime: record.createdTime },
-        token,
-      });
-      if (!result.success) {
-        throw new Error(result.error || 'Delete failed');
-      }
-    };
-    toast.promise(deleteRecord(), {
+    remove({
       loading: 'Deleting...',
-      success: () => {
+      success: 'Record deleted',
+      errorFallback: 'Delete failed',
+      onSuccess: () => {
         setConfirmOpen(false);
         onClose();
         router.refresh();
-        return 'Record deleted';
       },
-      error: error => error.message || 'Delete failed',
-      finally: () => setIsDeleting(false),
+      run: async token => {
+        const result = await deleteRecordAction({
+          original: { title: record.title, type: record.type, createdTime: record.createdTime },
+          token,
+        });
+        if (!result.success) {
+          throw new Error(result.error || 'Delete failed');
+        }
+      },
     });
   };
 
@@ -183,7 +182,7 @@ export default function RecordsSidePanel({
       if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
         event.preventDefault();
         if (hasToken && !isSaveDisabled) {
-          handleSubmitRef.current().catch(() => undefined);
+          handleSubmitRef.current();
         }
       }
     };
@@ -354,28 +353,12 @@ export default function RecordsSidePanel({
 
             <div className="fz-field-col">
               <span className="fz-field-label">Type</span>
-              <div className="fz-seg">
-                {typeOptions.map(option => {
-                  const active = type === option.value;
-                  return (
-                    <button
-                      key={option.value}
-                      type="button"
-                      data-active={active || undefined}
-                      onClick={() => setType(option.value)}
-                    >
-                      {active && (
-                        <motion.span
-                          layoutId="fz-seg-active"
-                          className="fz-seg-active"
-                          transition={{ type: 'spring', stiffness: 500, damping: 40 }}
-                        />
-                      )}
-                      <span className="relative z-[1]">{option.label}</span>
-                    </button>
-                  );
-                })}
-              </div>
+              <Segmented
+                layoutId="fz-records-type-seg"
+                options={typeOptions}
+                value={type}
+                onChange={setType}
+              />
             </div>
 
             <div className="fz-field-col">

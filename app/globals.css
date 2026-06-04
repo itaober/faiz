@@ -703,11 +703,14 @@ button {
   }
 
   /* ── Global search (⌘K command palette) ─────────────────────────────────── */
-  .fz-search-overlay {
+  /* Shared <Overlay> base; consumers add alignment / backdrop / padding. */
+  .fz-overlay {
     position: fixed;
     inset: 0;
     z-index: 50;
     display: flex;
+  }
+  .fz-search-overlay {
     align-items: flex-start;
     justify-content: center;
     padding: 12vh 16px 16px;

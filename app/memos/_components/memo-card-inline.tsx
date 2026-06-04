@@ -1,9 +1,10 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { type ReactNode, useCallback, useEffect, useState } from 'react';
+import { type ReactNode, useCallback } from 'react';
 
 import EditHandle from '@/components/editing/edit-handle';
+import { useMounted } from '@/hooks/use-mounted';
 import type { Memo } from '@/lib/data/memos';
 
 import { useMemosContext } from '../_context/use-memos-context';
@@ -18,12 +19,9 @@ interface IMemoCardInlineProps {
 
 export default function MemoCardInline({ memo, children }: IMemoCardInlineProps) {
   const { isEdit, editingId, setEditingId } = useMemosContext();
-  const [mounted, setMounted] = useState(false);
+  const mounted = useMounted();
   const isEditing = editingId === memo.id;
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
   const preloadEditor = useCallback(() => {
     memoEditorPreloader.preload().catch(() => undefined);
   }, []);

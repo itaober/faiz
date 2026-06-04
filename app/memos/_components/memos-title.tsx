@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from 'react';
 
 import PageEditBar from '@/components/editing/page-edit-bar';
 import { useConsecutiveClicks } from '@/hooks/use-consecutive-clicks';
+import { useMounted } from '@/hooks/use-mounted';
 import dayjs from '@/lib/dayjs';
 
 import { useMemosContext } from '../_context/use-memos-context';
@@ -16,7 +17,7 @@ const COMPOSE_ID = 'compose';
 
 export default function MemosTitle() {
   const { isEdit, toggleEdit, editingId, setEditingId } = useMemosContext();
-  const [mounted, setMounted] = useState(false);
+  const mounted = useMounted();
   const [draftCreatedTime, setDraftCreatedTime] = useState('');
   const preloadEditor = useCallback(() => {
     memoEditorPreloader.preload().catch(() => undefined);
@@ -27,10 +28,6 @@ export default function MemosTitle() {
   }, [setEditingId]);
 
   const handleClick = useConsecutiveClicks({ threshold: 5, onTrigger: toggleEdit });
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   const canEdit = mounted && isEdit;
   const isComposing = canEdit && editingId === COMPOSE_ID;

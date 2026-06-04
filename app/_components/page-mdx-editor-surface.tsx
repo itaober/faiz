@@ -2,7 +2,6 @@
 
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { toast } from 'sonner';
 
 import { updatePageAction } from '@/app/_actions/edit-page';
 import { useEditMode } from '@/components/edit-mode-context';
@@ -11,6 +10,7 @@ import { useDockedActionBar } from '@/components/editing/edit-session';
 import GitHubTokenDrawer from '@/components/editing/github-token-drawer';
 import TiptapEditor from '@/components/editing/tiptap-editor';
 import { uploadStagedEditorImages } from '@/components/editing/upload-staged-editor-images';
+import { useContentEditor } from '@/hooks/use-content-editor';
 import { isMobileViewport } from '@/hooks/use-is-mobile';
 import { markdownTodoListsToMdx, mdxTodoListsToMarkdown } from '@/lib/mdx-editing';
 import { cn } from '@/lib/utils';
@@ -31,8 +31,7 @@ export default function PageMdxEditorSurface({ page, title, content }: IPageMdxE
   const [mode, setMode] = useState<EditViewMode>(() =>
     isMobileViewport() ? 'wysiwyg' : 'preview',
   );
-  const [settingsOpen, setSettingsOpen] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { settingsOpen, setSettingsOpen, isSubmitting, submit } = useContentEditor(token);
   const [draftTitle, setDraftTitle] = useState(title);
   const [draftContent, setDraftContent] = useState(() => mdxTodoListsToMarkdown(content));
   const [stagedImages, setStagedImages] = useState<StagedEditorImage[]>([]);
@@ -47,43 +46,34 @@ export default function PageMdxEditorSurface({ page, title, content }: IPageMdxE
     setStagedImages([]);
   }, [content, title]);
 
-  const handleSubmit = async () => {
-    if (!token) {
-      setSettingsOpen(true);
-      return;
-    }
-
-    setIsSubmitting(true);
-    const savePage = async () => {
-      await uploadStagedEditorImages({
-        images: stagedImages,
-        content: draftContent,
-        token,
-        revalidatePath: page === 'about' ? '/' : `/${page}`,
-      });
-
-      const result = await updatePageAction({
-        page,
-        title: draftTitle,
-        content: markdownTodoListsToMdx(draftContent),
-        token,
-      });
-      if (!result.success) {
-        throw new Error(result.error || 'Save failed');
-      }
-      return result;
-    };
-
-    toast.promise(savePage(), {
+  const handleSubmit = () => {
+    submit({
       loading: 'Saving...',
-      success: () => {
+      success: 'Page saved',
+      errorFallback: 'Save failed',
+      onSuccess: () => {
         setStagedImages([]);
         setMode('preview');
         router.refresh();
-        return 'Page saved';
       },
-      error: error => error.message || 'Save failed',
-      finally: () => setIsSubmitting(false),
+      run: async token => {
+        await uploadStagedEditorImages({
+          images: stagedImages,
+          content: draftContent,
+          token,
+          revalidatePath: page === 'about' ? '/' : `/${page}`,
+        });
+        const result = await updatePageAction({
+          page,
+          title: draftTitle,
+          content: markdownTodoListsToMdx(draftContent),
+          token,
+        });
+        if (!result.success) {
+          throw new Error(result.error || 'Save failed');
+        }
+        return result;
+      },
     });
   };
 

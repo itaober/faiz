@@ -1,7 +1,7 @@
 'use client';
 
 import { XIcon } from 'lucide-react';
-import { AnimatePresence, motion } from 'motion/react';
+import { motion } from 'motion/react';
 import Image from 'next/image';
 import type {
   CSSProperties,
@@ -11,10 +11,9 @@ import type {
   SetStateAction,
 } from 'react';
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
 
+import Overlay from '@/components/overlay';
 import { ANIMATION } from '@/lib/constants/animation';
-import { lockScroll, unlockScroll } from '@/lib/scroll-lock';
 import { cn } from '@/lib/utils';
 
 interface IPreviewContext {
@@ -42,18 +41,6 @@ interface IPreviewProps {
 const Preview = ({ children }: IPreviewProps) => {
   const [isPreview, setIsPreview] = useState(false);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
-
-  useEffect(() => {
-    if (!isPreview) {
-      return;
-    }
-
-    lockScroll();
-
-    return () => {
-      unlockScroll();
-    };
-  }, [isPreview]);
 
   return (
     <PreviewContext.Provider value={{ isPreview, setIsPreview, triggerRef }}>
@@ -221,26 +208,14 @@ const PreviewPortal = ({
     }
   }, []);
 
+  // Esc + scroll-lock are handled by <Overlay>; here we just focus the close
+  // button when the lightbox opens (Tab focus-trap stays in handleDialogKeyDown).
   useEffect(() => {
     if (!isPreview) {
       return;
     }
-
     closeButtonRef.current?.focus();
-
-    const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        event.preventDefault();
-        handleClose();
-      }
-    };
-
-    document.addEventListener('keydown', handleEscape);
-
-    return () => {
-      document.removeEventListener('keydown', handleEscape);
-    };
-  }, [handleClose, isPreview]);
+  }, [isPreview]);
 
   useEffect(() => {
     if (!isPreview || !hasSidecar) {
@@ -319,87 +294,71 @@ const PreviewPortal = ({
     };
   }, [hasSidecar, isPreview]);
 
-  if (typeof document === 'undefined') {
-    return null;
-  }
-
-  return createPortal(
-    <AnimatePresence initial={false}>
-      {isPreview ? (
-        <motion.div
-          data-preview={isPreview}
-          className={cn(
-            'bg-overlay-backdrop fixed inset-0 z-50 flex items-center justify-center px-4 py-4 backdrop-blur md:px-6 md:py-6',
-            className,
-          )}
+  return (
+    <Overlay
+      open={isPreview}
+      onClose={handleClose}
+      ariaLabel={ariaLabel}
+      className={cn(
+        'bg-overlay-backdrop items-center justify-center px-4 py-4 backdrop-blur md:px-6 md:py-6',
+        className,
+      )}
+    >
+      <motion.div
+        ref={dialogRef}
+        tabIndex={-1}
+        onKeyDown={handleDialogKeyDown}
+        className="relative flex max-h-full max-w-full flex-col items-end justify-center gap-2 md:gap-3"
+        initial={{ opacity: 0, y: ANIMATION.distance.small, scale: 0.985 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        exit={{ opacity: 0, y: ANIMATION.distance.minimal, scale: 0.99 }}
+        transition={{ duration: 0.24, ease: ANIMATION.ease.out }}
+      >
+        <motion.button
+          ref={closeButtonRef}
+          type="button"
+          aria-label="Close preview"
           onClick={handleClose}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.18, ease: ANIMATION.ease.out }}
+          className="focus-ring-overlay icon-button bg-overlay-control text-overlay-control-foreground hover:bg-overlay-control-hover hover:text-overlay-control-foreground size-11 md:size-10"
+          initial={{ opacity: 0, y: -ANIMATION.distance.minimal }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -ANIMATION.distance.minimal }}
+          transition={{ duration: 0.18, delay: 0.03, ease: ANIMATION.ease.out }}
         >
-          <motion.div
-            ref={dialogRef}
-            role="dialog"
-            aria-modal="true"
-            aria-label={ariaLabel}
-            tabIndex={-1}
-            onClick={event => event.stopPropagation()}
-            onKeyDown={handleDialogKeyDown}
-            className="relative flex max-h-full max-w-full flex-col items-end justify-center gap-2 md:gap-3"
-            initial={{ opacity: 0, y: ANIMATION.distance.small, scale: 0.985 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: ANIMATION.distance.minimal, scale: 0.99 }}
-            transition={{ duration: 0.24, ease: ANIMATION.ease.out }}
-          >
-            <motion.button
-              ref={closeButtonRef}
-              type="button"
-              aria-label="Close preview"
-              onClick={handleClose}
-              className="focus-ring-overlay icon-button bg-overlay-control text-overlay-control-foreground hover:bg-overlay-control-hover hover:text-overlay-control-foreground size-11 md:size-10"
-              initial={{ opacity: 0, y: -ANIMATION.distance.minimal }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -ANIMATION.distance.minimal }}
-              transition={{ duration: 0.18, delay: 0.03, ease: ANIMATION.ease.out }}
-            >
-              <XIcon className="size-4.5" />
-            </motion.button>
-            {hasSidecar ? (
-              <div
-                className={cn(
-                  'relative flex max-w-[calc(100vw-2rem)] flex-col items-center overflow-visible pb-1',
-                  sidecarPlacement === 'right' && 'overflow-visible',
-                )}
-              >
-                <div ref={previewFrameRef} className="relative shrink-0">
-                  <PreviewContent className={contentClassName}>{children}</PreviewContent>
-                  <motion.aside
-                    style={sidecarLayout.style}
-                    className={cn(
-                      'text-left',
-                      sidecarPlacement === 'right'
-                        ? 'absolute max-h-[min(78vh,48rem)] max-w-56 overflow-y-auto'
-                        : 'relative max-w-full',
-                      sidecarClassName,
-                    )}
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    transition={{ duration: 0.2, delay: 0.04, ease: ANIMATION.ease.out }}
-                  >
-                    {sidecar}
-                  </motion.aside>
-                </div>
-              </div>
-            ) : (
-              <PreviewContent className={contentClassName}>{children}</PreviewContent>
+          <XIcon className="size-4.5" />
+        </motion.button>
+        {hasSidecar ? (
+          <div
+            className={cn(
+              'relative flex max-w-[calc(100vw-2rem)] flex-col items-center overflow-visible pb-1',
+              sidecarPlacement === 'right' && 'overflow-visible',
             )}
-          </motion.div>
-        </motion.div>
-      ) : null}
-    </AnimatePresence>,
-    document.body,
+          >
+            <div ref={previewFrameRef} className="relative shrink-0">
+              <PreviewContent className={contentClassName}>{children}</PreviewContent>
+              <motion.aside
+                style={sidecarLayout.style}
+                className={cn(
+                  'text-left',
+                  sidecarPlacement === 'right'
+                    ? 'absolute max-h-[min(78vh,48rem)] max-w-56 overflow-y-auto'
+                    : 'relative max-w-full',
+                  sidecarClassName,
+                )}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.2, delay: 0.04, ease: ANIMATION.ease.out }}
+              >
+                {sidecar}
+              </motion.aside>
+            </div>
+          </div>
+        ) : (
+          <PreviewContent className={contentClassName}>{children}</PreviewContent>
+        )}
+      </motion.div>
+    </Overlay>
   );
 };
 

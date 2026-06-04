@@ -2,10 +2,10 @@
 
 import { GithubIcon, KeyRoundIcon, XIcon } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
 import { toast } from 'sonner';
 
 import { useEditMode } from '@/components/edit-mode-context';
+import Overlay from '@/components/overlay';
 
 interface IGitHubTokenDrawerProps {
   open: boolean;
@@ -31,24 +31,6 @@ export default function GitHubTokenDrawer({ open, onOpenChange }: IGitHubTokenDr
     }
   }, [open]);
 
-  useEffect(() => {
-    if (!open) {
-      return;
-    }
-    const handleKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        event.stopPropagation();
-        onOpenChange(false);
-      }
-    };
-    document.addEventListener('keydown', handleKey, true);
-    return () => document.removeEventListener('keydown', handleKey, true);
-  }, [open, onOpenChange]);
-
-  if (!open) {
-    return null;
-  }
-
   const handleSave = async () => {
     if (!inputValue.trim()) {
       return;
@@ -66,18 +48,12 @@ export default function GitHubTokenDrawer({ open, onOpenChange }: IGitHubTokenDr
     }
   };
 
-  return createPortal(
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ backgroundColor: 'color-mix(in oklch, black 8%, transparent)' }}
-      role="dialog"
-      aria-modal="true"
-      aria-label="Connect to save"
-      onMouseDown={event => {
-        if (event.target === event.currentTarget) {
-          onOpenChange(false);
-        }
-      }}
+  return (
+    <Overlay
+      open={open}
+      onClose={() => onOpenChange(false)}
+      ariaLabel="Connect to save"
+      className="items-center justify-center bg-[color-mix(in_oklch,black_8%,transparent)] p-4"
     >
       <form
         className="fz-sheet relative"
@@ -140,7 +116,6 @@ export default function GitHubTokenDrawer({ open, onOpenChange }: IGitHubTokenDr
             : 'GitHub → Settings → Developer settings → Fine-grained tokens'}
         </p>
       </form>
-    </div>,
-    document.body,
+    </Overlay>
   );
 }

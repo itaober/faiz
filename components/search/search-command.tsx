@@ -11,12 +11,12 @@ import type MiniSearch from 'minisearch';
 import { motion } from 'motion/react';
 import { useRouter } from 'next/navigation';
 import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
 import { Drawer } from 'vaul';
 
+import Overlay from '@/components/overlay';
+import Segmented, { type SegmentedOption } from '@/components/segmented';
 import { isMobileViewport } from '@/hooks/use-is-mobile';
 import { ANIMATION } from '@/lib/constants/animation';
-import { lockScroll, unlockScroll } from '@/lib/scroll-lock';
 import type { SearchDoc, SearchType } from '@/lib/search/types';
 
 type SearchHit = Pick<SearchDoc, 'type' | 'title' | 'url' | 'date' | 'text' | 'rating'> & {
@@ -207,18 +207,14 @@ export default function SearchCommand({ onClose }: ISearchCommandProps) {
     return () => mql.removeEventListener('change', sync);
   }, []);
 
-  // Desktop locks the page scroll + focuses the input itself; on mobile the vaul
-  // drawer manages scroll-lock and focus.
+  // Scroll-lock is handled by <Overlay> (desktop) / vaul (mobile); here we just
+  // focus the input on desktop. Mobile uses vaul's autoFocus.
   useEffect(() => {
     if (isMobile) {
       return;
     }
-    lockScroll();
     const focusId = window.setTimeout(() => inputRef.current?.focus(), 30);
-    return () => {
-      unlockScroll();
-      window.clearTimeout(focusId);
-    };
+    return () => window.clearTimeout(focusId);
   }, [isMobile]);
 
   useEffect(() => {
@@ -293,13 +289,28 @@ export default function SearchCommand({ onClose }: ISearchCommandProps) {
       if (hit) {
         go(hit);
       }
-    } else if (event.key === 'Escape') {
-      event.preventDefault();
-      onClose();
     }
+    // Escape is handled by <Overlay> (desktop) / vaul (mobile).
   };
 
   const hasQuery = query.trim().length > 0;
+
+  // Counts (e.g. "Memos (3)") show only once searched; a type with no matches
+  // is disabled rather than removed, so the filter row never reflows.
+  const filterOptions: SegmentedOption<Filter>[] = [
+    {
+      value: 'all',
+      label: hasQuery && results.length > 0 ? `All (${results.length})` : 'All',
+    },
+    ...FILTER_ORDER.map<SegmentedOption<Filter>>(type => {
+      const n = counts[type] ?? 0;
+      return {
+        value: type,
+        label: hasQuery && n > 0 ? `${TYPE_META[type].plural} (${n})` : TYPE_META[type].plural,
+        disabled: hasQuery && n === 0,
+      };
+    }),
+  ];
 
   const body = (
     <>
@@ -319,54 +330,16 @@ export default function SearchCommand({ onClose }: ISearchCommandProps) {
       </div>
 
       <div className="fz-search-filters">
-        <div className="fz-seg fz-search-seg">
-          <button
-            type="button"
-            data-active={filter === 'all' || undefined}
-            onClick={() => {
-              setFilter('all');
-              setActive(0);
-            }}
-          >
-            {filter === 'all' ? (
-              <motion.span
-                layoutId="fz-search-seg-active"
-                className="fz-seg-active"
-                transition={{ type: 'spring', stiffness: 500, damping: 40 }}
-              />
-            ) : null}
-            <span className="relative z-[1] block truncate">
-              {hasQuery && results.length > 0 ? `All (${results.length})` : 'All'}
-            </span>
-          </button>
-          {FILTER_ORDER.map(type => {
-            const n = counts[type] ?? 0;
-            const disabled = hasQuery && n === 0;
-            const label =
-              hasQuery && n > 0 ? `${TYPE_META[type].plural} (${n})` : TYPE_META[type].plural;
-            return (
-              <button
-                key={type}
-                type="button"
-                data-active={filter === type || undefined}
-                disabled={disabled}
-                onClick={() => {
-                  setFilter(type);
-                  setActive(0);
-                }}
-              >
-                {filter === type ? (
-                  <motion.span
-                    layoutId="fz-search-seg-active"
-                    className="fz-seg-active"
-                    transition={{ type: 'spring', stiffness: 500, damping: 40 }}
-                  />
-                ) : null}
-                <span className="relative z-[1] block truncate">{label}</span>
-              </button>
-            );
-          })}
-        </div>
+        <Segmented
+          className="fz-search-seg"
+          layoutId="fz-search-filter-seg"
+          options={filterOptions}
+          value={filter}
+          onChange={value => {
+            setFilter(value);
+            setActive(0);
+          }}
+        />
       </div>
 
       <div className="fz-search-results" ref={listRef}>
@@ -458,30 +431,16 @@ export default function SearchCommand({ onClose }: ISearchCommandProps) {
     );
   }
 
-  return createPortal(
-    <motion.div
-      className="fz-search-overlay"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: ANIMATION.duration.fast }}
-      onMouseDown={event => {
-        if (event.target === event.currentTarget) {
-          onClose();
-        }
-      }}
-    >
+  return (
+    <Overlay open onClose={onClose} ariaLabel="Search" className="fz-search-overlay">
       <motion.div
         className="fz-search"
-        role="dialog"
-        aria-modal="true"
-        aria-label="Search"
         initial={{ opacity: 0, y: -8, scale: 0.98 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ duration: ANIMATION.duration.normal, ease: ANIMATION.ease.out }}
       >
         {body}
       </motion.div>
-    </motion.div>,
-    document.body,
+    </Overlay>
   );
 }

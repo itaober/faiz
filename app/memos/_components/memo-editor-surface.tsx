@@ -14,6 +14,7 @@ import { useDockedActionBar } from '@/components/editing/edit-session';
 import GitHubTokenDrawer from '@/components/editing/github-token-drawer';
 import TiptapEditor from '@/components/editing/tiptap-editor';
 import { uploadStagedEditorImages } from '@/components/editing/upload-staged-editor-images';
+import { useContentEditor } from '@/hooks/use-content-editor';
 import type { Memo } from '@/lib/data/memos';
 import type { StagedEditorImage } from '@/lib/utils/editor-image';
 import { toApiImageUrl } from '@/lib/utils/editor-image';
@@ -53,10 +54,16 @@ export default function MemoEditorSurface({ memo, onCancel }: IMemoEditorSurface
   const [attachments, setAttachments] = useState<MemoAttachment[]>(() =>
     memo ? memo.images.map(toExistingAttachment) : [],
   );
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
+  const {
+    settingsOpen: isSettingsOpen,
+    setSettingsOpen: setIsSettingsOpen,
+    confirmOpen: isDeleteOpen,
+    setConfirmOpen: setIsDeleteOpen,
+    isSubmitting,
+    isDeleting,
+    submit,
+    remove,
+  } = useContentEditor(token);
   const [draftId, setDraftId] = useState(generateMemoDraftId);
   const [imageUploadRequestId, setImageUploadRequestId] = useState(0);
 
@@ -75,94 +82,83 @@ export default function MemoEditorSurface({ memo, onCancel }: IMemoEditorSurface
     setAttachments([]);
   }, [memo]);
 
-  const handleSubmit = async () => {
-    if (!token) {
-      setIsSettingsOpen(true);
-      return;
-    }
-    if (!content.trim() && attachments.length === 0) {
+  const handleSubmit = () => {
+    // Validate only once a token exists, so a token-less save still routes to the
+    // connect-token drawer first (matching the prior gate ordering).
+    if (hasToken && !content.trim() && attachments.length === 0) {
       toast.error('Please enter content or upload images');
       return;
     }
-
-    setIsSubmitting(true);
-    const submitMemo = async () => {
-      await uploadStagedEditorImages({
-        images: attachments.flatMap(attachment => (attachment.pending ? [attachment.pending] : [])),
-        token,
-        revalidatePath: '/memos',
-      });
-
-      const imagePaths = attachments.map(attachment => attachment.path);
-      const result =
-        isEditMode && memo
-          ? await updateMemoAction({
-              id: memo.id,
-              content: content.trim(),
-              images: imagePaths,
-              createdTime: memo.createdTime,
-              token,
-            })
-          : await createMemoAction({
-              id: draftId,
-              content: content.trim(),
-              images: imagePaths,
-              token,
-            });
-      if (!result.success) {
-        throw new Error(result.error || 'Operation failed');
-      }
-      return result;
-    };
-
-    toast.promise(submitMemo(), {
+    submit({
       loading: attachments.some(attachment => attachment.pending)
         ? 'Uploading images...'
         : isEditMode
           ? 'Updating...'
           : 'Publishing...',
-      success: () => {
+      success: isEditMode ? 'Memo updated' : 'Memo published',
+      errorFallback: 'Operation failed',
+      onSuccess: () => {
         setContent('');
         setAttachments([]);
         onCancel();
         router.refresh();
-        return isEditMode ? 'Memo updated' : 'Memo published';
       },
-      error: error => error.message || 'Operation failed',
-      finally: () => setIsSubmitting(false),
+      run: async token => {
+        await uploadStagedEditorImages({
+          images: attachments.flatMap(attachment =>
+            attachment.pending ? [attachment.pending] : [],
+          ),
+          token,
+          revalidatePath: '/memos',
+        });
+
+        const imagePaths = attachments.map(attachment => attachment.path);
+        const result =
+          isEditMode && memo
+            ? await updateMemoAction({
+                id: memo.id,
+                content: content.trim(),
+                images: imagePaths,
+                createdTime: memo.createdTime,
+                token,
+              })
+            : await createMemoAction({
+                id: draftId,
+                content: content.trim(),
+                images: imagePaths,
+                token,
+              });
+        if (!result.success) {
+          throw new Error(result.error || 'Operation failed');
+        }
+        return result;
+      },
     });
   };
 
-  const handleDelete = async () => {
+  const handleDelete = () => {
     if (!memo) {
       return;
     }
-    if (!token) {
-      setIsDeleteOpen(false);
-      setIsSettingsOpen(true);
-      return;
-    }
-    setIsDeleting(true);
-    const deleteMemo = async () => {
-      const result = await deleteMemoAction({
-        id: memo.id,
-        createdTime: memo.createdTime,
-        token,
-      });
-      if (!result.success) {
-        throw new Error(result.error || 'Delete failed');
-      }
-    };
-    toast.promise(deleteMemo(), {
+    remove({
       loading: 'Deleting...',
-      success: () => {
+      success: 'Memo deleted',
+      errorFallback: 'Delete failed',
+      onSuccess: () => {
         setIsDeleteOpen(false);
         onCancel();
         router.refresh();
-        return 'Memo deleted';
       },
-      error: error => error.message || 'Delete failed',
-      finally: () => setIsDeleting(false),
+      run: async token => {
+        const result = await deleteMemoAction({
+          id: memo.id,
+          createdTime: memo.createdTime,
+          token,
+        });
+        if (!result.success) {
+          throw new Error(result.error || 'Delete failed');
+        }
+      },
     });
   };
 

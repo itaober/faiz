@@ -4,7 +4,6 @@ import dayjs from 'dayjs';
 import { CalendarIcon, PinIcon, Trash2Icon } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { toast } from 'sonner';
 
 import { createPostAction, deletePostAction, updatePostAction } from '@/app/_actions/edit-post';
 import PostTitle from '@/app/_components/post-title';
@@ -15,6 +14,7 @@ import { useDockedActionBar } from '@/components/editing/edit-session';
 import GitHubTokenDrawer from '@/components/editing/github-token-drawer';
 import TiptapEditor from '@/components/editing/tiptap-editor';
 import { uploadStagedEditorImages } from '@/components/editing/upload-staged-editor-images';
+import { useContentEditor } from '@/hooks/use-content-editor';
 import { isMobileViewport } from '@/hooks/use-is-mobile';
 import type { PostMeta } from '@/lib/data/data';
 import { markdownTodoListsToMdx, mdxTodoListsToMarkdown } from '@/lib/mdx-editing';
@@ -60,10 +60,16 @@ export default function PostEditorSurface({ post, onExit }: IPostEditorSurfacePr
   const [mode, setMode] = useState<EditViewMode>(() =>
     !isEdit || isMobileViewport() ? 'wysiwyg' : 'preview',
   );
-  const [settingsOpen, setSettingsOpen] = useState(false);
-  const [confirmOpen, setConfirmOpen] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
+  const {
+    settingsOpen,
+    setSettingsOpen,
+    confirmOpen,
+    setConfirmOpen,
+    isSubmitting,
+    isDeleting,
+    submit,
+    remove,
+  } = useContentEditor(token);
   const [title, setTitle] = useState(post?.title ?? '');
   const [tags, setTags] = useState(post?.tags.join(', ') ?? '');
   const [pinned, setPinned] = useState(Boolean(post?.pinned));
@@ -104,87 +110,72 @@ export default function PostEditorSurface({ post, onExit }: IPostEditorSurfacePr
     }
   };
 
-  const handleSubmit = async () => {
-    if (!token) {
-      setSettingsOpen(true);
-      return;
-    }
-
-    setIsSubmitting(true);
+  const handleSubmit = () => {
     // Convert task lists back to MDX (<TodoList>) before saving; the server still
     // normalises images (![](…) → <Image>).
     const mdxContent = markdownTodoListsToMdx(content);
-    const submitPost = async () => {
-      await uploadStagedEditorImages({
-        images: stagedImages,
-        content: mdxContent,
-        token,
-        revalidatePath: isEdit && post ? `/posts/${post.slug}` : '/posts',
-      });
-
-      const payload = {
-        title,
-        slug,
-        tags: parseTags(tags),
-        pinned,
-        createdTime: buildPostCreatedTime(createdTime, post?.createdTime),
-        content: mdxContent,
-        token,
-      };
-
-      const result =
-        isEdit && post
-          ? await updatePostAction({ ...payload, originalSlug: post.slug })
-          : await createPostAction(payload);
-
-      if (!result.success) {
-        throw new Error(result.error || 'Save failed');
-      }
-      return result.data;
-    };
-
-    toast.promise(submitPost(), {
+    submit<PostMeta | undefined>({
       loading: isEdit ? 'Updating...' : 'Publishing...',
-      success: savedPost => {
+      success: isEdit ? 'Post updated' : 'Post published',
+      errorFallback: 'Save failed',
+      onSuccess: savedPost => {
         setStagedImages([]);
         setMode('preview');
         router.refresh();
         if (!isEdit && savedPost?.slug) {
           router.push(`/posts/${savedPost.slug}`);
         }
-        return isEdit ? 'Post updated' : 'Post published';
       },
-      error: error => error.message || 'Save failed',
-      finally: () => setIsSubmitting(false),
+      run: async token => {
+        await uploadStagedEditorImages({
+          images: stagedImages,
+          content: mdxContent,
+          token,
+          revalidatePath: isEdit && post ? `/posts/${post.slug}` : '/posts',
+        });
+
+        const payload = {
+          title,
+          slug,
+          tags: parseTags(tags),
+          pinned,
+          createdTime: buildPostCreatedTime(createdTime, post?.createdTime),
+          content: mdxContent,
+          token,
+        };
+
+        const result =
+          isEdit && post
+            ? await updatePostAction({ ...payload, originalSlug: post.slug })
+            : await createPostAction(payload);
+
+        if (!result.success) {
+          throw new Error(result.error || 'Save failed');
+        }
+        return result.data;
+      },
     });
   };
 
-  const handleDelete = async () => {
+  const handleDelete = () => {
     if (!post) {
       return;
     }
-    if (!token) {
-      setConfirmOpen(false);
-      setSettingsOpen(true);
-      return;
-    }
-    setIsDeleting(true);
-    const deletePost = async () => {
-      const result = await deletePostAction({ slug: post.slug, token });
-      if (!result.success) {
-        throw new Error(result.error || 'Delete failed');
-      }
-    };
-    toast.promise(deletePost(), {
+    remove({
       loading: 'Deleting...',
-      success: () => {
+      success: 'Post deleted',
+      errorFallback: 'Delete failed',
+      onSuccess: () => {
         setConfirmOpen(false);
         router.push('/posts');
         router.refresh();
-        return 'Post deleted';
       },
-      error: error => error.message || 'Delete failed',
-      finally: () => setIsDeleting(false),
+      run: async token => {
+        const result = await deletePostAction({ slug: post.slug, token });
+        if (!result.success) {
+          throw new Error(result.error || 'Delete failed');
+        }
+      },
     });
   };
 

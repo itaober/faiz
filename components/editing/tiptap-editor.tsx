@@ -311,6 +311,9 @@ export default function TiptapEditor({
   const editorRef = useRef<ReturnType<typeof useEditor>>(null);
   const markdownRef = useRef<HTMLTextAreaElement>(null);
   const previousModeRef = useRef<EditViewMode>(mode);
+  // Latest props read inside the editor's stable callbacks (onUpdate, paste…).
+  // Kept as raw refs (not a useLatest hook) so the React Compiler still
+  // recognises them as stable and can optimise the callbacks below.
   const valueRef = useRef(value);
   const onChangeRef = useRef(onChange);
   const insertRef = useRef(insertUploadedImages);

@@ -4,11 +4,12 @@ import dayjs from 'dayjs';
 import { motion } from 'motion/react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback } from 'react';
 
 import { Badge } from '@/components/badge';
 import { useEditMode } from '@/components/edit-mode-context';
 import { Preview, PreviewImage, PreviewPortal, PreviewTrigger } from '@/components/preview';
+import { useMounted } from '@/hooks/use-mounted';
 import { ANIMATION } from '@/lib/constants/animation';
 import type { RecordItem as RecordDataItem } from '@/lib/data/data';
 import { cn } from '@/lib/utils';
@@ -36,7 +37,7 @@ export default function RecordItem({
 }: IRecordItemProps) {
   const { isEditMode } = useEditMode();
   const { editingRecordKey, setEditingRecordKey, mode } = useRecordsInlineComposer();
-  const [mounted, setMounted] = useState(false);
+  const mounted = useMounted();
   const isMusicTab = tab === 'music';
   const recordKey = `${type}-${createdTime}-${title}`;
   const coverSizes =
@@ -48,10 +49,6 @@ export default function RecordItem({
   const openEditor = useCallback(() => {
     setEditingRecordKey(recordKey);
   }, [recordKey, setEditingRecordKey]);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   const reviewParagraphs = comment
     ? comment
