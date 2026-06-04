@@ -1,6 +1,7 @@
 import { RssIcon } from 'lucide-react';
 import Link from 'next/link';
 
+import SearchEntry from '@/components/search/search-entry';
 import ThemeToggle from '@/components/theme-toggle';
 import { getMetaInfo } from '@/lib/data/data';
 
@@ -56,6 +57,10 @@ const navNodes = [
       </Link>
     ),
     hiddenOnMobile: true,
+  },
+  {
+    key: 'search',
+    node: <SearchEntry />,
   },
   {
     key: 'theme-toggle',

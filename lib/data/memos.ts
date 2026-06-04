@@ -94,6 +94,22 @@ export const getMemosByMonths = async (months: string[], token?: string): Promis
   return results.flat();
 };
 
+/**
+ * Resolve a single memo by id for its permalink page. The id doesn't encode the
+ * month, so we scan all month files (each cached individually) and find it —
+ * no change to the stored memo structure.
+ */
+export const getMemoById = cache(async (id: string, token?: string): Promise<Memo | null> => {
+  try {
+    const months = await getMemosIndex(token);
+    const all = await getMemosByMonths(months, token);
+    return all.find(memo => memo.id === id) ?? null;
+  } catch (error) {
+    console.error('Failed to fetch memo by id:', error);
+    return null;
+  }
+});
+
 export const getMemos = cache(async (token?: string): Promise<MemoList> => {
   try {
     const months = await getMemosIndex(token);

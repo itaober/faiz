@@ -702,6 +702,155 @@ button {
     color: var(--foreground);
   }
 
+  /* ── Global search (⌘K command palette) ─────────────────────────────────── */
+  .fz-search-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 12vh 16px 16px;
+    background: color-mix(in oklch, black 8%, transparent);
+  }
+  .fz-search {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    max-width: 560px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--fz-radius-xl);
+    box-shadow: var(--fz-shadow-lg);
+    overflow: hidden;
+  }
+  .fz-search-input-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    height: 52px;
+    padding: 0 16px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .fz-search-input-row input {
+    flex: 1;
+    min-width: 0;
+    border: none;
+    outline: none;
+    background: transparent;
+    color: var(--foreground);
+    font-size: 15px;
+  }
+  .fz-search-filters {
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  /* Reuse the records segmented control (.fz-seg); tighten padding so five
+     segments fit on a narrow mobile sheet, and grey out empty types. */
+  .fz-search-seg button {
+    padding: 0 4px;
+    font-size: 12px;
+  }
+  .fz-search-seg button:disabled {
+    color: color-mix(in oklch, var(--muted-foreground) 45%, transparent);
+    cursor: default;
+  }
+  .fz-search-results {
+    display: flex;
+    flex-direction: column;
+    min-height: 300px;
+    max-height: 50vh;
+    overflow-y: auto;
+    padding: 6px;
+  }
+  .fz-search-hl {
+    background: color-mix(in oklch, var(--accent) 22%, transparent);
+    color: inherit;
+    border-radius: 3px;
+    padding: 0 1px;
+  }
+  /* Transient pulse on the matched text when a post is opened from search. */
+  .fz-search-jump {
+    color: inherit;
+    border-radius: 3px;
+    padding: 0 1px;
+    animation: fz-search-jump-pulse 2.4s var(--ease-out) forwards;
+  }
+  @keyframes fz-search-jump-pulse {
+    0%,
+    55% {
+      background: color-mix(in oklch, var(--accent) 38%, transparent);
+    }
+    100% {
+      background: color-mix(in oklch, var(--accent) 0%, transparent);
+    }
+  }
+  .fz-search-empty {
+    margin: auto 0;
+    text-align: center;
+    color: var(--muted-foreground);
+    font-size: 14px;
+    padding: 16px;
+  }
+  .fz-search-foot {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 8px 14px;
+    border-top: 1px solid var(--border);
+    color: var(--muted-foreground);
+    font-size: 11px;
+    flex-shrink: 0;
+  }
+  .fz-search-foot kbd {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    padding: 1px 5px;
+    margin-right: 2px;
+    border: 1px solid var(--border);
+    border-radius: var(--fz-radius-sm);
+    background: var(--background);
+  }
+
+  /* Mobile: a vaul bottom sheet stands in for the centered palette. vaul drives
+     positioning + the slide animation; these rules supply the surface styling. */
+  .fz-search-drawer-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    background: color-mix(in oklch, black 35%, transparent);
+  }
+  .fz-search-drawer {
+    position: fixed;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 50;
+    display: flex;
+    flex-direction: column;
+    /* Fixed height (min == max) so the sheet doesn't grow as results come in. */
+    min-height: 85dvh;
+    max-height: 85dvh;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-bottom: none;
+    border-top-left-radius: var(--fz-radius-xl);
+    border-top-right-radius: var(--fz-radius-xl);
+    box-shadow: var(--fz-shadow-lg);
+    outline: none;
+  }
+  .fz-search-drawer-handle {
+    margin-top: 10px;
+    margin-bottom: 4px;
+  }
+  .fz-search-drawer .fz-search-results {
+    flex: 1;
+    min-height: 220px;
+    max-height: none;
+  }
+
   /* ── Compose surface (new drafts only) ──────────────────────────────────── */
   .fz-composer-prompt {
     display: flex;

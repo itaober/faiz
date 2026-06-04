@@ -1,6 +1,6 @@
 'use client';
 
-import { Columns2Icon } from 'lucide-react';
+import { PanelRightCloseIcon, PanelRightOpenIcon } from 'lucide-react';
 import { motion } from 'motion/react';
 import { type MouseEvent, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 
@@ -217,7 +217,7 @@ export default function PostToc() {
         <button
           type="button"
           className={cn(
-            'focus-ring text-muted-foreground/45 hover:text-muted-foreground/90 border-border/45 bg-background/65 hover:border-border/70 hover:bg-background/85 ml-1 inline-flex items-center justify-start gap-1 self-start rounded-full border px-1.5 py-0.5 backdrop-blur-sm transition-colors',
+            'focus-ring text-muted-foreground/45 hover:text-muted-foreground/90 border-border/45 bg-background/65 hover:border-border/70 hover:bg-background/85 ml-1 inline-flex items-center justify-center self-start rounded-full border p-1 backdrop-blur-sm transition-colors',
             'pointer-events-none opacity-0',
             'group-hover:pointer-events-auto group-hover:opacity-100',
           )}
@@ -226,10 +226,11 @@ export default function PostToc() {
             mode === 'minimal' ? 'Expand table of contents' : 'Collapse table of contents'
           }
         >
-          <Columns2Icon className="size-3" />
-          <span className="text-[10px] leading-none tracking-wide">
-            {mode === 'minimal' ? 'Minimal' : 'Expanded'}
-          </span>
+          {mode === 'minimal' ? (
+            <PanelRightOpenIcon className="size-3.5" />
+          ) : (
+            <PanelRightCloseIcon className="size-3.5" />
+          )}
         </button>
       </div>
     </motion.aside>

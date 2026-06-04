@@ -67,7 +67,7 @@ export default function HeaderClient({ avatar, avatarAlt, navNodes }: IHeaderCli
               alt={avatarAlt}
               width={48}
               height={48}
-              className="rounded-full select-none"
+              className="size-10 rounded-full select-none md:size-12"
             />
             {isEditModeLoaded && isEditMode && (
               <span
@@ -78,7 +78,7 @@ export default function HeaderClient({ avatar, avatarAlt, navNodes }: IHeaderCli
           </motion.div>
         </Link>
         <nav aria-label="Primary navigation">
-          <ul className="group flex items-center gap-3 md:gap-6">
+          <ul className="group flex items-center gap-2.5 text-[15px] md:gap-6 md:text-base">
             {navNodes.map((el, index) => {
               const active = el.href ? isActive(el.key) : false;
               const node =

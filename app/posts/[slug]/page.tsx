@@ -7,10 +7,12 @@ import { getPostMDX } from '@/lib/data/mdx';
 import { buildDescription, buildPageMetadata } from '@/lib/utils/seo';
 
 import PostDetailInlineSection from '../_components/post-detail-inline-section';
+import PostMatchScroll from '../_components/post-match-scroll';
 import PostTocDeferred from '../_components/post-toc-deferred';
 
 interface IPostPageProps {
   params: Promise<{ slug: string }>;
+  searchParams: Promise<{ q?: string }>;
 }
 
 async function getPost(slug: string) {
@@ -44,8 +46,9 @@ export async function generateMetadata({ params }: IPostPageProps): Promise<Meta
   };
 }
 
-export default async function PostPage({ params }: IPostPageProps) {
+export default async function PostPage({ params, searchParams }: IPostPageProps) {
   const { slug } = await params;
+  const { q } = await searchParams;
   const post = await getPost(slug);
   const { content, data } = post;
 
@@ -61,6 +64,7 @@ export default async function PostPage({ params }: IPostPageProps) {
           </PostDetailInlineSection>
         </div>
       </MotionWrapper>
+      {q ? <PostMatchScroll query={q} /> : null}
     </>
   );
 }
