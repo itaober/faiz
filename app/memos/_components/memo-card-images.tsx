@@ -10,14 +10,16 @@ import { ANIMATION } from '@/lib/constants/animation';
 import { cn } from '@/lib/utils';
 import { toApiImageUrl } from '@/lib/utils/editor-image';
 
+import { getMemoImageLayout } from './memo-image-layout';
+
 const SWIPE_THRESHOLD = 40;
 
-const getMemoImageSizes = (count: number) => {
-  if (count <= 1) {
+const getMemoImageSizes = (columns: number) => {
+  if (columns <= 1) {
     return '(max-width: 768px) calc(100vw - 5.5rem), 36rem';
   }
 
-  if (count === 2) {
+  if (columns === 2) {
     return '(max-width: 768px) calc((100vw - 6rem) / 2), 18rem';
   }
 
@@ -29,28 +31,34 @@ interface MemoCardImagesProps {
 }
 
 export default function MemoCardImages({ images }: MemoCardImagesProps) {
-  const count = images.length;
-  const imageSizes = getMemoImageSizes(count);
+  const layout = getMemoImageLayout(images.length);
+  const { columns, visibleCount } = layout;
+  const visibleImages = useMemo(() => images.slice(0, visibleCount), [images, visibleCount]);
+  const imageSizes = getMemoImageSizes(columns);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
   const touchStartXRef = useRef<number | null>(null);
   const touchStartYRef = useRef<number | null>(null);
 
-  const previewUrls = useMemo(() => images.map(toApiImageUrl), [images]);
+  const previewUrls = useMemo(() => visibleImages.map(toApiImageUrl), [visibleImages]);
+
+  useEffect(() => {
+    setCurrentIndex(index => Math.min(index, Math.max(0, visibleCount - 1)));
+  }, [visibleCount]);
 
   const showPrev = useCallback(() => {
-    if (count <= 1) {
+    if (visibleCount <= 1) {
       return;
     }
-    setCurrentIndex(prev => (prev - 1 + count) % count);
-  }, [count]);
+    setCurrentIndex(prev => (prev - 1 + visibleCount) % visibleCount);
+  }, [visibleCount]);
 
   const showNext = useCallback(() => {
-    if (count <= 1) {
+    if (visibleCount <= 1) {
       return;
     }
-    setCurrentIndex(prev => (prev + 1) % count);
-  }, [count]);
+    setCurrentIndex(prev => (prev + 1) % visibleCount);
+  }, [visibleCount]);
 
   const handleOpenPreview = useCallback((index: number) => {
     setCurrentIndex(index);
@@ -69,7 +77,7 @@ export default function MemoCardImages({ images }: MemoCardImagesProps) {
 
   const handleTouchEnd = useCallback(
     (event: React.TouchEvent<HTMLDivElement>) => {
-      if (count <= 1) {
+      if (visibleCount <= 1) {
         return;
       }
 
@@ -96,12 +104,12 @@ export default function MemoCardImages({ images }: MemoCardImagesProps) {
         showPrev();
       }
     },
-    [count, showNext, showPrev],
+    [visibleCount, showNext, showPrev],
   );
 
   // Esc + scroll-lock are handled by <Overlay>; here we add arrow-key paging.
   useEffect(() => {
-    if (!isPreviewOpen || count <= 1) {
+    if (!isPreviewOpen || visibleCount <= 1) {
       return;
     }
     const onKeyDown = (event: KeyboardEvent) => {
@@ -115,9 +123,9 @@ export default function MemoCardImages({ images }: MemoCardImagesProps) {
     };
     document.addEventListener('keydown', onKeyDown);
     return () => document.removeEventListener('keydown', onKeyDown);
-  }, [isPreviewOpen, count, showNext, showPrev]);
+  }, [isPreviewOpen, visibleCount, showNext, showPrev]);
 
-  if (count === 0) {
+  if (visibleCount === 0) {
     return null;
   }
 
@@ -128,29 +136,29 @@ export default function MemoCardImages({ images }: MemoCardImagesProps) {
     <>
       <div
         className={cn('not-prose pb-4', {
-          'grid grid-cols-2 gap-2 md:gap-4': count === 2,
-          'grid grid-cols-3 gap-2 md:gap-4': count > 2,
+          'grid grid-cols-2 gap-2 md:gap-4': columns === 2,
+          'grid grid-cols-3 gap-2 md:gap-4': columns === 3,
         })}
       >
         {previewUrls.map((url, index) => {
           const imageAlt = `Memo image ${index + 1}`;
           return (
             <button
-              key={images[index]}
+              key={`${visibleImages[index]}-${index}`}
               type="button"
               onClick={() => handleOpenPreview(index)}
               aria-label={`Open ${imageAlt}`}
               className={cn('focus-ring rounded-md text-left', {
-                'w-fit': count === 1,
-                'w-full': count > 1,
+                'w-fit': columns === 1,
+                'w-full': columns > 1,
               })}
             >
               <div
                 className={cn({
                   'bg-muted/30 w-fit max-w-full cursor-pointer overflow-hidden rounded-md':
-                    count === 1,
+                    columns === 1,
                   'bg-muted/30 aspect-square w-full cursor-pointer overflow-hidden rounded-md':
-                    count > 1,
+                    columns > 1,
                 })}
               >
                 <Image
@@ -160,8 +168,8 @@ export default function MemoCardImages({ images }: MemoCardImagesProps) {
                   height={0}
                   sizes={imageSizes}
                   className={cn({
-                    'h-auto w-auto max-w-full rounded': count === 1,
-                    'relative aspect-square w-full rounded object-cover': count > 1,
+                    'h-auto w-auto max-w-full rounded': columns === 1,
+                    'relative aspect-square w-full rounded object-cover': columns > 1,
                   })}
                 />
               </div>
@@ -207,7 +215,7 @@ export default function MemoCardImages({ images }: MemoCardImagesProps) {
               className="object-contain"
             />
 
-            {count > 1 && (
+            {visibleCount > 1 && (
               <>
                 <button
                   type="button"
@@ -229,9 +237,9 @@ export default function MemoCardImages({ images }: MemoCardImagesProps) {
             )}
           </div>
 
-          {count > 1 && (
+          {visibleCount > 1 && (
             <p className="text-overlay-control-foreground w-full text-center font-mono text-xs">
-              {currentIndex + 1} / {count}
+              {currentIndex + 1} / {visibleCount}
             </p>
           )}
         </motion.div>

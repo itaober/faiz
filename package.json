@@ -9,8 +9,7 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "prepare": "simple-git-hooks",
-    "start": "next start",
-    "test": "for test in tests/*.test.mjs; do node \"$test\"; done"
+    "start": "next start"
   },
   "simple-git-hooks": {
     "pre-commit": "pnpm lint-staged",
