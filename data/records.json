@@ -37,6 +37,15 @@
   ],
   "tv": [
     {
+      "title": "绝命毒师 第四季",
+      "link": "https://movie.douban.com/subject/4927382/",
+      "coverUrl": "/api/image/assets/records/tv_绝命毒师_4.webp",
+      "createdTime": "2026-06-06",
+      "rating": 9.4,
+      "comment": "炸鸡叔真优雅！",
+      "type": "tv"
+    },
+    {
       "title": "绝命毒师 第三季",
       "link": "https://movie.douban.com/subject/4256328/",
       "coverUrl": "/api/image/assets/records/tv_绝命毒师_3.webp",
