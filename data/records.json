@@ -37,6 +37,14 @@
   ],
   "tv": [
     {
+      "title": "绝命毒师 第三季",
+      "link": "https://movie.douban.com/subject/4256328/",
+      "coverUrl": "/api/image/assets/records/tv_绝命毒师_3.webp",
+      "createdTime": "2026-05-05",
+      "rating": 9.1,
+      "type": "tv"
+    },
+    {
       "title": "潜伏",
       "link": "https://movie.douban.com/subject/3314870/",
       "coverUrl": "/api/image/assets/records/tv_潜伏.webp",
