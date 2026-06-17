@@ -254,6 +254,24 @@ export default function SearchCommand({ onClose }: ISearchCommandProps) {
     [results, filter],
   );
 
+  // Group visible results by type (ordered by FILTER_ORDER) so results render
+  // under labelled sections instead of as a flat list with trailing type tags.
+  const grouped = useMemo(() => {
+    const groups: {
+      type: SearchType;
+      hits: { hit: SearchHit; globalIndex: number }[];
+    }[] = [];
+    for (const type of FILTER_ORDER) {
+      const hits = visible
+        .map((hit, i) => ({ hit, globalIndex: i }))
+        .filter(({ hit }) => hit.type === type);
+      if (hits.length > 0) {
+        groups.push({ type, hits });
+      }
+    }
+    return groups;
+  }, [visible]);
+
   // Drop a type filter that has no matches once a search is running (a type can
   // still be pre-selected while the query is empty).
   useEffect(() => {
@@ -358,42 +376,47 @@ export default function SearchCommand({ onClose }: ISearchCommandProps) {
             {ready ? 'No results' : 'Searching…'}
           </div>
         ) : (
-          visible.map((hit, i) => {
-            const meta = TYPE_META[hit.type];
+          grouped.map(group => {
+            const meta = TYPE_META[group.type];
             const Icon = meta.icon;
-            // Memos have no title, so the matching excerpt is the primary line.
-            const primary = hit.title || snippet(hit.text, query);
-            const subNode = renderSubLine(hit, query);
             return (
-              <button
-                key={hit.id}
-                type="button"
-                className="flex w-full cursor-pointer items-start gap-2.5 rounded-md px-2.5 py-2 text-left data-[active=true]:bg-muted"
-                data-active={i === active || undefined}
-                onMouseEnter={() => setActive(i)}
-                onMouseDown={event => event.preventDefault()}
-                onClick={() => go(hit)}
-              >
-                <span className="text-muted-foreground/55 inline-flex size-5 shrink-0 items-center justify-center">
-                  <Icon className="size-[15px]" />
+              <div key={group.type}>
+                <span className="fz-search-group-header">
+                  {meta.plural} ({group.hits.length})
                 </span>
-                <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                  <span className="flex min-w-0 items-baseline gap-2">
-                    <span className="text-foreground min-w-0 flex-1 truncate text-sm font-medium">
-                      {highlight(primary || 'Untitled', query)}
-                    </span>
-                    <span className="text-muted-foreground shrink-0 text-[13px]">
-                      <span className="mr-1.5 opacity-50">—</span>
-                      {meta.label}
-                    </span>
-                  </span>
-                  {subNode ? (
-                    <span className="text-muted-foreground min-w-0 truncate text-[13px]">
-                      {subNode}
-                    </span>
-                  ) : null}
-                </span>
-              </button>
+                {group.hits.map(({ hit, globalIndex }) => {
+                  // Memos have no title, so the matching excerpt is the primary line.
+                  const primary = hit.title || snippet(hit.text, query);
+                  const subNode = renderSubLine(hit, query);
+                  return (
+                    <button
+                      key={hit.id}
+                      type="button"
+                      className="flex w-full cursor-pointer items-start gap-2.5 rounded-md px-2.5 py-2 text-left data-[active=true]:bg-muted"
+                      data-active={globalIndex === active || undefined}
+                      onMouseEnter={() => setActive(globalIndex)}
+                      onMouseDown={event => event.preventDefault()}
+                      onClick={() => go(hit)}
+                    >
+                      <span className="text-muted-foreground/55 inline-flex size-5 shrink-0 items-center justify-center">
+                        <Icon className="size-[15px]" />
+                      </span>
+                      <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                        <span className="flex min-w-0 items-baseline gap-2">
+                          <span className="text-foreground min-w-0 flex-1 truncate text-sm font-medium">
+                            {highlight(primary || 'Untitled', query)}
+                          </span>
+                        </span>
+                        {subNode ? (
+                          <span className="text-muted-foreground min-w-0 truncate text-[13px]">
+                            {subNode}
+                          </span>
+                        ) : null}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
             );
           })
         )}

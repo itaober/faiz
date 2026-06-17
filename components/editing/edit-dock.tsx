@@ -15,7 +15,7 @@ import { EditSessionContext } from './edit-session';
  * active editor changes.
  */
 export function EditDockProvider({ children }: { children: ReactNode }) {
-  const { isEditMode } = useEditMode();
+  const { isEditMode, isTokenLoaded } = useEditMode();
   const [session, setSession] = useState<ActionBarSession | null>(null);
   // While a mobile editor is focused, the editor renders its formatting pill in
   // this same spot — so the dock yields (cross-fades out) to avoid two pills.
@@ -36,7 +36,7 @@ export function EditDockProvider({ children }: { children: ReactNode }) {
       {children}
       <div className="fz-edit-dock">
         <AnimatePresence>
-          {isEditMode && session && !mobileEditing ? (
+          {isEditMode && isTokenLoaded && session && !mobileEditing ? (
             <ActionBar key="dock-bar" {...session} />
           ) : null}
         </AnimatePresence>
