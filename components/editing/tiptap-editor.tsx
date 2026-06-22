@@ -47,7 +47,14 @@ import {
 
 import type { EditViewMode } from './action-bar';
 import { useSetMobileEditing } from './edit-session';
-import { registerImagePreview, SlashCommand, StagedImage } from './tiptap/extensions';
+import {
+  groupAdjacentImages,
+  ImageGallery,
+  registerGalleryStaging,
+  registerImagePreview,
+  SlashCommand,
+  StagedImage,
+} from './tiptap/extensions';
 
 interface ITiptapEditorProps {
   value: string;
@@ -308,6 +315,7 @@ export default function TiptapEditor({
   const [isFocused, setIsFocused] = useState(false);
   const [keyboardBottom, setKeyboardBottom] = useState(0);
   const fileInputId = useId();
+  const galleryInputId = useId();
   const editorRef = useRef<ReturnType<typeof useEditor>>(null);
   const markdownRef = useRef<HTMLTextAreaElement>(null);
   const previousModeRef = useRef<EditViewMode>(mode);
@@ -330,8 +338,15 @@ export default function TiptapEditor({
     (document.getElementById(fileInputId) as HTMLInputElement | null)?.click();
   }, [fileInputId]);
 
-  const stageFiles = useCallback(
-    async (files: File[]) => {
+  const openGalleryPicker = useCallback(() => {
+    (document.getElementById(galleryInputId) as HTMLInputElement | null)?.click();
+  }, [galleryInputId]);
+
+  // Stage files in-memory (compress + register preview) and hand the refs to the
+  // parent for upload-on-save. Does NOT touch the document — callers decide how
+  // to place the result (single image, new gallery, or append to one).
+  const processFiles = useCallback(
+    async (files: File[]): Promise<StagedEditorImage[]> => {
       const valid = files.filter(file => {
         if (!isSupportedImageType(file.type)) {
           toast.error(`Unsupported format: ${file.name}`);
@@ -344,7 +359,7 @@ export default function TiptapEditor({
         return true;
       });
       if (!valid.length) {
-        return;
+        return [];
       }
 
       const process = async () => {
@@ -376,22 +391,60 @@ export default function TiptapEditor({
             src,
             uploadEntityId,
           });
-
-          if (insertRef.current && editorRef.current) {
-            editorRef.current.chain().focus().setImage({ src, alt }).run();
-          }
         }
         onImagesStagedRef.current?.(staged);
         return staged;
       };
 
-      await toast.promise(process(), {
+      const promise = process();
+      toast.promise(promise, {
         loading: valid.length > 1 ? `Processing ${valid.length} images…` : 'Processing image…',
         success: 'Image ready · uploads on save',
         error: error => (error instanceof Error ? error.message : 'Failed to process image'),
       });
+      return promise;
     },
     [uploadEntityId, uploadScope],
+  );
+
+  // Place freshly-picked files into the document: a single file becomes a plain
+  // image (basic usage unchanged); two or more become one gallery node.
+  const insertFiles = useCallback(
+    async (files: File[]) => {
+      const staged = await processFiles(files);
+      const editor = editorRef.current;
+      if (!staged.length || !insertRef.current || !editor) {
+        return;
+      }
+      if (staged.length === 1) {
+        editor.chain().focus().setImage({ src: staged[0].src, alt: staged[0].alt }).run();
+      } else {
+        editor
+          .chain()
+          .focus()
+          .setImageGallery(staged.map(image => ({ src: image.src, alt: image.alt })))
+          .run();
+      }
+    },
+    [processFiles],
+  );
+
+  // Explicit "Image gallery" command: always builds a gallery node (even a single
+  // pick) so the user can keep adding to it — distinct from the count-based insert.
+  const insertGallery = useCallback(
+    async (files: File[]) => {
+      const staged = await processFiles(files);
+      const editor = editorRef.current;
+      if (!staged.length || !insertRef.current || !editor) {
+        return;
+      }
+      editor
+        .chain()
+        .focus()
+        .setImageGallery(staged.map(image => ({ src: image.src, alt: image.alt })))
+        .run();
+    },
+    [processFiles],
   );
 
   const extensions = useMemo(
@@ -402,6 +455,7 @@ export default function TiptapEditor({
       }),
       Placeholder.configure({ placeholder }),
       StagedImage,
+      ImageGallery,
       TaskList,
       TaskItem.configure({ nested: true }),
       Table.configure({ resizable: false }),
@@ -409,9 +463,14 @@ export default function TiptapEditor({
       TableHeader,
       TableCell,
       Markdown,
-      SlashCommand.configure({ onImage: () => openFilePicker() }),
+      SlashCommand.configure({
+        onImage: () => openFilePicker(),
+        // Galleries only apply where inline images are inserted (posts/pages),
+        // not memos — omit the command there.
+        onImageGallery: insertUploadedImages ? () => openGalleryPicker() : undefined,
+      }),
     ],
-    [placeholder, openFilePicker],
+    [placeholder, openFilePicker, openGalleryPicker, insertUploadedImages],
   );
 
   const editor = useEditor({
@@ -429,7 +488,7 @@ export default function TiptapEditor({
         );
         if (files.length) {
           event.preventDefault();
-          stageFiles(files).catch(() => undefined);
+          insertFiles(files).catch(() => undefined);
           return true;
         }
         return false;
@@ -440,11 +499,19 @@ export default function TiptapEditor({
         );
         if (files.length) {
           event.preventDefault();
-          stageFiles(files).catch(() => undefined);
+          insertFiles(files).catch(() => undefined);
           return true;
         }
         return false;
       },
+    },
+    onCreate: ({ editor: instance }) => {
+      // Merge the consecutive images loaded from stored markdown into gallery
+      // nodes before the editor first renders, so individual images never paint
+      // and then collapse (no flash, no redundant node-view churn).
+      if (insertUploadedImages) {
+        groupAdjacentImages(instance);
+      }
     },
     onUpdate: ({ editor: instance }) => onChangeRef.current(instance.getMarkdown()),
     onFocus: () => setIsFocused(true),
@@ -454,6 +521,15 @@ export default function TiptapEditor({
   useEffect(() => {
     editorRef.current = editor;
   }, [editor]);
+
+  // Keep the gallery node's "add images" wired to the latest staging closure.
+  useEffect(() => {
+    if (editor) {
+      registerGalleryStaging(editor, async files =>
+        (await processFiles(files)).map(image => ({ src: image.src, alt: image.alt })),
+      );
+    }
+  }, [editor, processFiles]);
 
   // External "attach image" trigger.
   useEffect(() => {
@@ -509,6 +585,9 @@ export default function TiptapEditor({
         editor.commands.setContent(mdxImagesToMarkdown(valueRef.current), {
           contentType: 'markdown',
         });
+        if (insertUploadedImages) {
+          groupAdjacentImages(editor);
+        }
       }
       editor.setEditable(mode === 'wysiwyg');
       // Entering edit puts the caret in the doc so the user can type immediately.
@@ -519,7 +598,7 @@ export default function TiptapEditor({
       }
     }
     previousModeRef.current = mode;
-  }, [editor, mode, autoFocus]);
+  }, [editor, mode, autoFocus, insertUploadedImages]);
 
   if (!editor) {
     return <div className={cn('text-muted-foreground/60 text-sm', minHeightClassName)} />;
@@ -588,7 +667,23 @@ export default function TiptapEditor({
           const files = Array.from(event.target.files ?? []);
           event.target.value = '';
           if (files.length) {
-            stageFiles(files).catch(() => undefined);
+            insertFiles(files).catch(() => undefined);
+          }
+        }}
+      />
+
+      <input
+        id={galleryInputId}
+        type="file"
+        accept={SUPPORTED_IMAGE_TYPES.join(',')}
+        multiple
+        className="hidden"
+        aria-label="Upload gallery images"
+        onChange={event => {
+          const files = Array.from(event.target.files ?? []);
+          event.target.value = '';
+          if (files.length) {
+            insertGallery(files).catch(() => undefined);
           }
         }}
       />

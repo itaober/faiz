@@ -1,6 +1,6 @@
 'use client';
 
-import { PanelRightCloseIcon, PanelRightOpenIcon } from 'lucide-react';
+import { PinIcon, PinOffIcon } from 'lucide-react';
 import { motion } from 'motion/react';
 import { type MouseEvent, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 
@@ -202,7 +202,9 @@ export default function PostToc() {
                     <span
                       className={cn(
                         'ml-1 overflow-hidden text-ellipsis whitespace-nowrap transition-opacity duration-150',
-                        expanded ? 'max-w-[8.5rem] opacity-100' : 'max-w-0 opacity-0',
+                        expanded
+                          ? 'max-w-[8.5rem] opacity-100'
+                          : 'max-w-0 opacity-0 group-hover:max-w-[8.5rem] group-hover:opacity-100',
                       )}
                     >
                       {item.text}
@@ -217,19 +219,17 @@ export default function PostToc() {
         <button
           type="button"
           className={cn(
-            'focus-ring text-muted-foreground/45 hover:text-muted-foreground/90 border-border/45 bg-background/65 hover:border-border/70 hover:bg-background/85 ml-1 inline-flex items-center justify-center self-start rounded-full border p-1 backdrop-blur-sm transition-colors',
+            'focus-ring icon-button text-muted-foreground/50 hover:text-foreground bg-muted/60 hover:bg-muted ml-1 size-6 self-start',
             'pointer-events-none opacity-0',
             'group-hover:pointer-events-auto group-hover:opacity-100',
           )}
           onClick={() => setMode(prev => (prev === 'minimal' ? 'full' : 'minimal'))}
-          aria-label={
-            mode === 'minimal' ? 'Expand table of contents' : 'Collapse table of contents'
-          }
+          aria-label={mode === 'minimal' ? 'Pin table of contents open' : 'Unpin table of contents'}
         >
           {mode === 'minimal' ? (
-            <PanelRightOpenIcon className="size-3.5" />
+            <PinIcon className="size-3.5" />
           ) : (
-            <PanelRightCloseIcon className="size-3.5" />
+            <PinOffIcon className="size-3.5" />
           )}
         </button>
       </div>

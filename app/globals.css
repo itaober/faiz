@@ -10,6 +10,10 @@
   --muted-foreground: oklch(0.49 0.01 106);
   --border: oklch(0.89 0.004 106);
   --accent: oklch(0.58 0.05 252);
+  /* Letterbox fill for the gallery's fixed-ratio frame: a translucent wash of
+     the foreground over the page — same neutral tone, lets the background show
+     through so it never reads as a separate surface. Tune the 2% for presence. */
+  --fz-image-frame: color-mix(in oklch, var(--foreground) 2%, transparent);
   --danger: oklch(0.59 0.18 25);
   --danger-soft: oklch(0.95 0.018 25);
   --success: oklch(0.62 0.13 150);
@@ -1058,6 +1062,11 @@ button {
   .tiptap .ProseMirror-selectednode {
     outline: 2px solid var(--accent);
     border-radius: var(--fz-radius-sm);
+  }
+  /* Gallery node view fills the editor column so its fixed-ratio frame can size
+     (the node-view wrapper is otherwise shrink-to-fit and would collapse). */
+  .tiptap .react-renderer.node-imageGallery {
+    width: 100%;
   }
   /* Image with caption — mirrors the read-view <Image> (centered, captioned). */
   .tiptap figure.fz-editor-figure {

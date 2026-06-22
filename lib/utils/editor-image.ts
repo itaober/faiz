@@ -14,6 +14,12 @@ export interface StagedEditorImage {
   uploadEntityId: string;
 }
 
+export interface MdxImageGalleryItem {
+  alt?: string;
+  caption?: string;
+  src: string;
+}
+
 type EditorImageExtension = 'webp' | 'jpg' | 'jpeg' | 'png' | 'gif';
 
 export const sanitizeImageSegment = (value: string) =>
@@ -78,12 +84,16 @@ export const getImageCaptionFromFilename = (filename: string, fallback = 'image'
 export const escapeMdxAttribute = (value: string) =>
   value.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
 
-export const formatMdxImage = (src: string, alt: string) =>
-  `<Image src="${escapeMdxAttribute(unescapeMarkdownValue(src))}" alt="${escapeMdxAttribute(
+export const formatMdxImage = (src: string, alt: string, caption?: string) => {
+  const captionAttr = caption?.trim()
+    ? ` caption="${escapeMdxAttribute(unescapeMarkdownValue(caption))}"`
+    : '';
+  return `<Image src="${escapeMdxAttribute(unescapeMarkdownValue(src))}" alt="${escapeMdxAttribute(
     unescapeMarkdownValue(alt),
-  )}" />`;
+  )}"${captionAttr} />`;
+};
 
-const getMdxImageAttribute = (attributes: string, name: 'alt' | 'src') => {
+const getMdxImageAttribute = (attributes: string, name: string) => {
   const match = attributes.match(
     new RegExp(`\\b${name}\\s*=\\s*(?:"([^"]*)"|'([^']*)'|\\{\\s*\`([^\`]*)\`\\s*\\})`),
   );
@@ -91,12 +101,132 @@ const getMdxImageAttribute = (attributes: string, name: 'alt' | 'src') => {
   return unescapeMarkdownValue(match?.[1] ?? match?.[2] ?? match?.[3] ?? '');
 };
 
+const normalizeGalleryImageItem = (value: unknown): MdxImageGalleryItem | null => {
+  if (typeof value === 'string') {
+    const src = unescapeMarkdownValue(value).trim();
+    return src ? { src } : null;
+  }
+
+  if (!value || typeof value !== 'object') {
+    return null;
+  }
+
+  const item = value as Record<string, unknown>;
+  const src = typeof item.src === 'string' ? unescapeMarkdownValue(item.src).trim() : '';
+  if (!src) {
+    return null;
+  }
+
+  const alt = typeof item.alt === 'string' ? unescapeMarkdownValue(item.alt).trim() : '';
+  const caption =
+    typeof item.caption === 'string' ? unescapeMarkdownValue(item.caption).trim() : '';
+
+  return {
+    src,
+    ...(alt ? { alt } : {}),
+    ...(caption ? { caption } : {}),
+  };
+};
+
+const normalizeGalleryImages = (images: MdxImageGalleryItem[]) =>
+  images
+    .map(normalizeGalleryImageItem)
+    .filter((item): item is MdxImageGalleryItem => Boolean(item));
+
+export const formatMdxImageGallery = (images: MdxImageGalleryItem[]) => {
+  const normalizedImages = normalizeGalleryImages(images);
+  return `<ImageGallery images={${JSON.stringify(normalizedImages)}} />`;
+};
+
+const extractJsxExpression = (attributes: string, propName: string) => {
+  const propMatch = new RegExp(`\\b${propName}\\s*=\\s*\\{`).exec(attributes);
+  if (!propMatch) {
+    return '';
+  }
+
+  const start = propMatch.index + propMatch[0].lastIndexOf('{');
+  let depth = 0;
+  let quote: '"' | "'" | '`' | null = null;
+  let escaped = false;
+
+  for (let index = start; index < attributes.length; index += 1) {
+    const char = attributes[index];
+
+    if (quote) {
+      if (escaped) {
+        escaped = false;
+      } else if (char === '\\') {
+        escaped = true;
+      } else if (char === quote) {
+        quote = null;
+      }
+      continue;
+    }
+
+    if (char === '"' || char === "'" || char === '`') {
+      quote = char;
+      continue;
+    }
+
+    if (char === '{') {
+      depth += 1;
+      continue;
+    }
+
+    if (char === '}') {
+      depth -= 1;
+      if (depth === 0) {
+        return attributes.slice(start + 1, index).trim();
+      }
+    }
+  }
+
+  return '';
+};
+
+const parseMdxImageGalleryImages = (attributes: string): MdxImageGalleryItem[] => {
+  const expression = extractJsxExpression(attributes, 'images');
+  if (!expression.startsWith('[')) {
+    return [];
+  }
+
+  try {
+    const parsed = JSON.parse(expression);
+    return Array.isArray(parsed)
+      ? parsed
+          .map(normalizeGalleryImageItem)
+          .filter((item): item is MdxImageGalleryItem => Boolean(item))
+      : [];
+  } catch {
+    return [];
+  }
+};
+
+const parseMdxImageTag = (raw: string): MdxImageGalleryItem | null => {
+  const attributes = raw.match(/^<Image\b([\s\S]*?)\/>$/)?.[1] ?? '';
+  const src = getMdxImageAttribute(attributes, 'src');
+
+  if (!src) {
+    return null;
+  }
+
+  const alt = getMdxImageAttribute(attributes, 'alt');
+  const caption = getMdxImageAttribute(attributes, 'caption');
+
+  return {
+    src,
+    ...(alt ? { alt } : {}),
+    ...(caption ? { caption } : {}),
+  };
+};
+
 const normalizeMdxImageTags = (value: string) =>
   value.replace(/<Image\b([\s\S]*?)\/>/g, (raw, attributes: string) => {
     const src = getMdxImageAttribute(attributes, 'src');
     const alt = getMdxImageAttribute(attributes, 'alt');
+    const caption = getMdxImageAttribute(attributes, 'caption');
 
-    return src ? formatMdxImage(src, alt) : raw;
+    return src ? formatMdxImage(src, alt, caption) : raw;
   });
 
 const markdownImagesToMdx = (value: string) =>
@@ -148,14 +278,45 @@ const transformOutsideFencedCode = (value: string, transform: (segment: string) 
 export const normalizeEditorImageMarkup = (value: string) =>
   transformOutsideFencedCode(value, segment => markdownImagesToMdx(normalizeMdxImageTags(segment)));
 
+const mdxImageTagPattern = /<Image\b[\s\S]*?\/>/g;
+const mdxImageRunPattern = /(?:<Image\b[\s\S]*?\/>\s*){2,}/g;
+
+export const groupConsecutiveMdxImages = (value: string) =>
+  transformOutsideFencedCode(value, segment =>
+    segment.replace(mdxImageRunPattern, run => {
+      const imageTags = run.match(mdxImageTagPattern) ?? [];
+      const images = imageTags
+        .map(parseMdxImageTag)
+        .filter((item): item is MdxImageGalleryItem => Boolean(item));
+
+      if (images.length < 2 || images.length !== imageTags.length) {
+        return run;
+      }
+
+      return `${formatMdxImageGallery(images)}\n\n`;
+    }),
+  );
+
 /**
  * Converts MDX `<Image src="" alt="" />` tags back into plain markdown
  * `![alt](src)` so a markdown-based editor can load stored MDX content.
  */
 export const mdxImagesToMarkdown = (value: string) =>
-  value.replace(/<Image\b([\s\S]*?)\/>/g, (raw, attributes: string) => {
-    const src = getMdxImageAttribute(attributes, 'src');
-    const alt = getMdxImageAttribute(attributes, 'alt');
+  value
+    .replace(/<ImageGallery\b([\s\S]*?)\/>/g, (raw, attributes: string) => {
+      const images = parseMdxImageGalleryImages(attributes);
 
-    return src ? `![${alt}](${src})` : raw;
-  });
+      if (!images.length) {
+        return raw;
+      }
+
+      return images
+        .map(image => `![${image.caption || image.alt || ''}](${image.src})`)
+        .join('\n\n');
+    })
+    .replace(/<Image\b([\s\S]*?)\/>/g, (raw, attributes: string) => {
+      const src = getMdxImageAttribute(attributes, 'src');
+      const alt = getMdxImageAttribute(attributes, 'alt');
+
+      return src ? `![${alt}](${src})` : raw;
+    });

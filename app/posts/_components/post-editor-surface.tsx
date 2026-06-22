@@ -19,7 +19,12 @@ import { isMobileViewport } from '@/hooks/use-is-mobile';
 import type { PostMeta } from '@/lib/data/data';
 import { markdownTodoListsToMdx, mdxTodoListsToMarkdown } from '@/lib/mdx-editing';
 import { cn } from '@/lib/utils';
-import { mergeByPath, type StagedEditorImage } from '@/lib/utils/editor-image';
+import {
+  groupConsecutiveMdxImages,
+  mergeByPath,
+  normalizeEditorImageMarkup,
+  type StagedEditorImage,
+} from '@/lib/utils/editor-image';
 
 interface IPostEditorSurfaceProps {
   post?: PostMeta & { content: string };
@@ -112,8 +117,11 @@ export default function PostEditorSurface({ post, onExit }: IPostEditorSurfacePr
 
   const handleSubmit = () => {
     // Convert task lists back to MDX (<TodoList>) before saving; the server still
-    // normalises images (![](…) → <Image>).
-    const mdxContent = markdownTodoListsToMdx(content);
+    // normalises images (![](…) → <Image>). Consecutive post images are grouped
+    // into an ImageGallery for read mode, then expanded back to images when edited.
+    const mdxContent = groupConsecutiveMdxImages(
+      normalizeEditorImageMarkup(markdownTodoListsToMdx(content)),
+    );
     submit<PostMeta | undefined>({
       loading: isEdit ? 'Updating...' : 'Publishing...',
       success: isEdit ? 'Post updated' : 'Post published',

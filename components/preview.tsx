@@ -1,6 +1,6 @@
 'use client';
 
-import { XIcon } from 'lucide-react';
+import { ChevronLeftIcon, ChevronRightIcon, XIcon } from 'lucide-react';
 import { motion } from 'motion/react';
 import Image from 'next/image';
 import type {
@@ -88,6 +88,9 @@ interface IPreviewPortalProps {
   ariaLabel?: string;
   sidecar?: React.ReactNode;
   sidecarClassName?: string;
+  /** When provided, render prev/next controls (arrows + ←/→ keys) for galleries. */
+  onPrevious?: () => void;
+  onNext?: () => void;
 }
 
 interface IPreviewContentProps {
@@ -160,14 +163,24 @@ const PreviewPortal = ({
   ariaLabel = 'Image preview',
   sidecar,
   sidecarClassName,
+  onPrevious,
+  onNext,
 }: IPreviewPortalProps) => {
   const { isPreview, setIsPreview, triggerRef } = usePreview();
   const dialogRef = useRef<HTMLDivElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement | null>(null);
   const previewFrameRef = useRef<HTMLDivElement | null>(null);
   const hasSidecar = Boolean(sidecar);
+  const hasNavigation = Boolean(onPrevious || onNext);
   const [sidecarLayout, setSidecarLayout] = useState<ISidecarLayout>(DEFAULT_SIDECAR_LAYOUT);
   const sidecarPlacement = sidecarLayout.placement;
+  // Latest nav callbacks for the keyboard handler without re-subscribing.
+  const onPreviousRef = useRef(onPrevious);
+  const onNextRef = useRef(onNext);
+  useEffect(() => {
+    onPreviousRef.current = onPrevious;
+    onNextRef.current = onNext;
+  });
 
   const handleClose = useCallback(() => {
     setIsPreview(false);
@@ -216,6 +229,24 @@ const PreviewPortal = ({
     }
     closeButtonRef.current?.focus();
   }, [isPreview]);
+
+  // Arrow-key navigation for galleries.
+  useEffect(() => {
+    if (!isPreview || !hasNavigation) {
+      return;
+    }
+    const handleKey = (event: KeyboardEvent) => {
+      if (event.key === 'ArrowLeft') {
+        event.preventDefault();
+        onPreviousRef.current?.();
+      } else if (event.key === 'ArrowRight') {
+        event.preventDefault();
+        onNextRef.current?.();
+      }
+    };
+    document.addEventListener('keydown', handleKey);
+    return () => document.removeEventListener('keydown', handleKey);
+  }, [isPreview, hasNavigation]);
 
   useEffect(() => {
     if (!isPreview || !hasSidecar) {
@@ -357,6 +388,34 @@ const PreviewPortal = ({
         ) : (
           <PreviewContent className={contentClassName}>{children}</PreviewContent>
         )}
+        {onPrevious ? (
+          <motion.button
+            type="button"
+            aria-label="Previous image"
+            onClick={onPrevious}
+            className="focus-ring-overlay icon-button bg-overlay-control text-overlay-control-foreground hover:bg-overlay-control-hover absolute top-1/2 left-1 size-10 -translate-y-1/2 md:left-2"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.18, delay: 0.04, ease: ANIMATION.ease.out }}
+          >
+            <ChevronLeftIcon className="size-5" />
+          </motion.button>
+        ) : null}
+        {onNext ? (
+          <motion.button
+            type="button"
+            aria-label="Next image"
+            onClick={onNext}
+            className="focus-ring-overlay icon-button bg-overlay-control text-overlay-control-foreground hover:bg-overlay-control-hover absolute top-1/2 right-1 size-10 -translate-y-1/2 md:right-2"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.18, delay: 0.04, ease: ANIMATION.ease.out }}
+          >
+            <ChevronRightIcon className="size-5" />
+          </motion.button>
+        ) : null}
       </motion.div>
     </Overlay>
   );

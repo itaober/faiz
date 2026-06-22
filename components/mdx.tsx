@@ -5,11 +5,16 @@ import type { MDXRemoteProps } from 'next-mdx-remote/rsc';
 import { MDXRemote } from 'next-mdx-remote/rsc';
 import type { ImgHTMLAttributes } from 'react';
 
-import { unescapeMarkdownValue } from '@/lib/utils/editor-image';
+import { Preview, PreviewImage, PreviewPortal, PreviewTrigger } from '@/components/preview';
+import {
+  groupConsecutiveMdxImages,
+  normalizeEditorImageMarkup,
+  unescapeMarkdownValue,
+} from '@/lib/utils/editor-image';
 
 import type { ICheckboxRootProps } from './checkbox';
 import { Checkbox, CheckboxLabel, CheckboxRoot } from './checkbox';
-import { Preview, PreviewImage, PreviewPortal, PreviewTrigger } from './preview';
+import MDXImageGallery from './mdx-image-gallery';
 
 interface ITodoListProps {
   readonly?: boolean;
@@ -89,13 +94,20 @@ const components: MDXComponents = {
   CheckboxLabel,
   TodoList,
   Image,
+  ImageGallery: MDXImageGallery,
   img: Image,
 };
 
 export const MDX = (props: MDXRemoteProps) => {
+  const source =
+    typeof props.source === 'string'
+      ? groupConsecutiveMdxImages(normalizeEditorImageMarkup(props.source))
+      : props.source;
+
   return (
     <MDXRemote
       {...props}
+      source={source}
       components={{ ...components, ...(props.components || {}) }}
       options={{
         blockJS: false,
