@@ -1,4 +1,4 @@
-import { Extension, mergeAttributes } from '@tiptap/core';
+import { type Editor, Extension, mergeAttributes, type Range } from '@tiptap/core';
 import Image from '@tiptap/extension-image';
 import { ReactNodeViewRenderer, ReactRenderer } from '@tiptap/react';
 import Suggestion from '@tiptap/suggestion';
@@ -6,6 +6,7 @@ import {
   CodeIcon,
   Heading2Icon,
   ImageIcon,
+  ImagesIcon,
   ListIcon,
   ListTodoIcon,
   MinusIcon,
@@ -17,6 +18,9 @@ import { ImageNodeView } from './image-node-view';
 import { getImagePreviewSrc } from './image-preview-store';
 import { type SlashItem, SlashList, type SlashListRef } from './slash-list';
 
+export { registerGalleryStaging } from './gallery-staging-store';
+export { groupAdjacentImages } from './group-images';
+export { ImageGallery } from './image-gallery-extension';
 export { registerImagePreview } from './image-preview-store';
 
 export const StagedImage = Image.extend({
@@ -41,7 +45,7 @@ export const StagedImage = Image.extend({
   },
 });
 
-const buildSlashItems = (onImage: () => void): SlashItem[] => [
+const buildSlashItems = (onImage: () => void, onImageGallery?: () => void): SlashItem[] => [
   {
     id: 'heading',
     title: 'Heading',
@@ -87,6 +91,19 @@ const buildSlashItems = (onImage: () => void): SlashItem[] => [
       onImage();
     },
   },
+  ...(onImageGallery
+    ? [
+        {
+          id: 'imageGallery',
+          title: 'Image gallery',
+          icon: ImagesIcon,
+          run: ({ editor, range }: { editor: Editor; range: Range }) => {
+            editor.chain().focus().deleteRange(range).run();
+            onImageGallery();
+          },
+        },
+      ]
+    : []),
   {
     id: 'divider',
     title: 'Divider',
@@ -111,17 +128,20 @@ const filterSlashItems = (items: SlashItem[], query: string) => {
 
 interface SlashCommandOptions {
   onImage: () => void;
+  /** When provided, adds a separate "Image gallery" command (omitted for memos). */
+  onImageGallery?: () => void;
 }
 
 export const SlashCommand = Extension.create<SlashCommandOptions>({
   name: 'slashCommand',
 
   addOptions() {
-    return { onImage: () => undefined };
+    return { onImage: () => undefined, onImageGallery: undefined };
   },
 
   addProseMirrorPlugins() {
     const getOnImage = () => this.options.onImage;
+    const getOnImageGallery = () => this.options.onImageGallery;
 
     return [
       Suggestion<SlashItem>({
@@ -129,11 +149,16 @@ export const SlashCommand = Extension.create<SlashCommandOptions>({
         char: '/',
         allowSpaces: false,
         startOfLine: false,
-        items: ({ query }) =>
-          filterSlashItems(
-            buildSlashItems(() => getOnImage()()),
+        items: ({ query }) => {
+          const onImageGallery = getOnImageGallery();
+          return filterSlashItems(
+            buildSlashItems(
+              () => getOnImage()(),
+              onImageGallery ? () => onImageGallery() : undefined,
+            ),
             query,
-          ),
+          );
+        },
         command: ({ editor, range, props }) => props.run({ editor, range }),
         render: () => {
           let component: ReactRenderer<SlashListRef> | null = null;
