@@ -152,6 +152,14 @@
   ],
   "music": [
     {
+      "title": "GUOXIA",
+      "link": "https://music.douban.com/subject/37009682/",
+      "coverUrl": "/api/image/assets/records/music_guoxia.webp",
+      "createdTime": "2026-06-29",
+      "rating": 6.2,
+      "type": "music"
+    },
+    {
       "title": "民歌蔡琴",
       "link": "https://music.douban.com/subject/1404442/",
       "coverUrl": "/api/image/assets/records/music_民歌蔡琴_cover.webp",
