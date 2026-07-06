@@ -152,6 +152,15 @@
   ],
   "music": [
     {
+      "title": "答应我会幸福",
+      "link": "https://music.douban.com/subject/36033822/",
+      "coverUrl": "/api/image/assets/records/music_答应我会幸福.webp",
+      "createdTime": "2026-07-06",
+      "rating": 7.2,
+      "comment": "在我做到之前，真心话就是大冒险。",
+      "type": "music"
+    },
+    {
       "title": "GUOXIA",
       "link": "https://music.douban.com/subject/37009682/",
       "coverUrl": "/api/image/assets/records/music_guoxia.webp",
