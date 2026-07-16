@@ -1,6 +1,14 @@
 {
   "book": [
     {
+      "title": "龙族 Ⅰ",
+      "link": "https://www.douban.com/doubanapp/dispatch/book/4737329",
+      "coverUrl": "/api/image/assets/records/book_龙族-1.webp",
+      "createdTime": "2026-07-16",
+      "rating": 7.5,
+      "type": "book"
+    },
+    {
       "title": "噬谎者",
       "link": "https://book.douban.com/subject/3229590/",
       "coverUrl": "/api/image/assets/records/book_噬谎者.webp",
