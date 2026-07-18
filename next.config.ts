@@ -24,6 +24,11 @@ const allowedDevOrigins = getAllowedDevOrigins();
 
 const nextConfig: NextConfig = {
   ...(allowedDevOrigins ? { allowedDevOrigins } : {}),
+  // Pin the project root: the parent dir is itself a pnpm workspace, and letting
+  // Turbopack infer the root makes it watch ~6.5GB of sibling repos (OOM).
+  turbopack: {
+    root: __dirname,
+  },
   experimental: {
     serverActions: {
       // Keep this at Vercel's Function payload limit (request/response body max: 4.5 MB):
