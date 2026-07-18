@@ -192,6 +192,9 @@ export default function SearchCommand({ onClose }: ISearchCommandProps) {
   const router = useRouter();
   const [isMobile, setIsMobile] = useState<boolean>(isMobileViewport);
   const [drawerOpen, setDrawerOpen] = useState(true);
+  // Desktop mirror of the vaul pattern: closing plays the exit animation first,
+  // then onClose unmounts the palette (via Overlay's onExitComplete).
+  const [panelOpen, setPanelOpen] = useState(true);
   const [query, setQuery] = useState('');
   const [ready, setReady] = useState(index != null);
   const [filter, setFilter] = useState<Filter>('all');
@@ -228,6 +231,23 @@ export default function SearchCommand({ onClose }: ISearchCommandProps) {
       alive = false;
     };
   }, []);
+
+  // ⌘K while open closes through the same animated path as Esc/backdrop.
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault();
+        event.stopPropagation();
+        if (isMobile) {
+          setDrawerOpen(false);
+        } else {
+          setPanelOpen(false);
+        }
+      }
+    };
+    document.addEventListener('keydown', onKey, true);
+    return () => document.removeEventListener('keydown', onKey, true);
+  }, [isMobile]);
 
   // Derived during render rather than via effect+state: searching the in-memory
   // index is instant, so an extra render per keystroke is wasteful. `ready` is in
@@ -297,7 +317,11 @@ export default function SearchCommand({ onClose }: ISearchCommandProps) {
       url = `${hit.url}&focus=${encodeURIComponent(hit.id)}`;
     }
     router.push(url);
-    onClose();
+    if (isMobile) {
+      setDrawerOpen(false);
+    } else {
+      setPanelOpen(false);
+    }
   };
 
   const onKeyDown = (event: React.KeyboardEvent) => {
@@ -466,11 +490,18 @@ export default function SearchCommand({ onClose }: ISearchCommandProps) {
   }
 
   return (
-    <Overlay open onClose={onClose} ariaLabel="Search" className="fz-search-overlay">
+    <Overlay
+      open={panelOpen}
+      onClose={() => setPanelOpen(false)}
+      onExitComplete={onClose}
+      ariaLabel="Search"
+      className="fz-search-overlay"
+    >
       <motion.div
         className="fz-search"
         initial={{ opacity: 0, y: -8, scale: 0.98 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
+        exit={{ opacity: 0, y: -ANIMATION.distance.small, scale: 0.985 }}
         transition={{ duration: ANIMATION.duration.normal, ease: ANIMATION.ease.out }}
       >
         {body}

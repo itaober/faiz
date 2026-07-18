@@ -1,9 +1,11 @@
-/** Image utilities using @jsquash (WASM) for compression */
-
-import * as squooshJpeg from '@jsquash/jpeg';
-import * as squooshPng from '@jsquash/png';
-import resize from '@jsquash/resize';
-import * as squooshWebP from '@jsquash/webp';
+/**
+ * Image utilities using @jsquash (WASM) for compression.
+ *
+ * The codec packages are imported dynamically inside the functions that use
+ * them: statically importing them here used to drag the WASM glue into every
+ * bundle that merely touched this module (e.g. the records page via its side
+ * panel). Codecs now download on the first actual compression.
+ */
 
 export { isSupportedImageType, MAX_IMAGE_SIZE, SUPPORTED_IMAGE_TYPES } from '@/lib/constants/image';
 
@@ -64,10 +66,12 @@ async function decodeToImageData(file: File): Promise<ImageData> {
 
   // WASM Decoders
   if (file.type === 'image/jpeg' || file.type === 'image/jpg') {
-    return await squooshJpeg.decode(buffer);
+    const { decode } = await import('@jsquash/jpeg');
+    return await decode(buffer);
   }
   if (file.type === 'image/png') {
-    return await squooshPng.decode(buffer);
+    const { decode } = await import('@jsquash/png');
+    return await decode(buffer);
   }
 
   // Browser Fallback (e.g. for HEIC on Safari)
@@ -123,6 +127,7 @@ async function recursiveCompress(args: {
   // 2. Resize only if necessary (WASM)
   let workingData = imageData;
   if (imageData.width !== targetW || imageData.height !== targetH) {
+    const { default: resize } = await import('@jsquash/resize');
     workingData = await resize(imageData, {
       width: targetW,
       height: targetH,
@@ -130,7 +135,8 @@ async function recursiveCompress(args: {
   }
 
   // 3. Encode (WASM)
-  const buffer = await squooshWebP.encode(workingData, { quality });
+  const { encode } = await import('@jsquash/webp');
+  const buffer = await encode(workingData, { quality });
 
   // 4. Check & Retry Logic
   if (buffer.byteLength <= targetSizeBytes) {

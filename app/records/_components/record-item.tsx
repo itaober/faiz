@@ -67,7 +67,7 @@ export default function RecordItem({
       loading={preloadCover ? 'eager' : undefined}
       preload={preloadCover}
       className={cn(
-        'relative aspect-[2/3] w-full rounded object-cover transition-transform duration-300',
+        'fz-img-outline relative aspect-[2/3] w-full rounded-md object-cover transition-transform duration-(--fz-dur-slow)',
         isMusicTab && 'aspect-square',
         !canEdit && 'group-hover:scale-[1.015]',
       )}
@@ -77,16 +77,13 @@ export default function RecordItem({
   return (
     <motion.div
       className={cn(
-        'group relative flex flex-col gap-1 rounded-md border border-transparent p-1.5 transition-colors duration-200',
+        // rounded-xl keeps the card concentric with the rounded-md cover inside
+        // its 6px padding (12 = 6 + 6).
+        'group relative flex flex-col gap-1 rounded-xl border border-transparent p-1.5 transition-colors duration-(--fz-dur-normal)',
         canEdit ? 'cursor-pointer' : 'hover:bg-muted/45',
       )}
       data-selected={isSelected || undefined}
       data-record-key={`record:${type}:${createdTime}:${title}`}
-      variants={{
-        hidden: { opacity: 0, y: ANIMATION.distance.small },
-        visible: { opacity: 1, y: 0 },
-      }}
-      transition={{ duration: ANIMATION.duration.normal }}
       whileHover={
         canEdit
           ? undefined
@@ -153,7 +150,7 @@ export default function RecordItem({
           type="button"
           aria-label={`Edit ${title}`}
           onClick={openEditor}
-          className="focus-ring absolute inset-0 z-[2] rounded-md"
+          className="focus-ring absolute inset-0 z-[2] rounded-xl"
         />
       )}
     </motion.div>

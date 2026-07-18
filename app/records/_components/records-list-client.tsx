@@ -1,23 +1,23 @@
 'use client';
 import dayjs from 'dayjs';
-import { motion } from 'motion/react';
+import { useSearchParams } from 'next/navigation';
 import { useMemo } from 'react';
 
 import MotionWrapper from '@/components/motion-wrapper';
-import { ANIMATION } from '@/lib/constants/animation';
 import type { RecordItem as RecordDataItem, Records } from '@/lib/data/data';
 
-import { type Tab, tabList } from '../_constants';
+import { normalizeTab, type Tab, tabList } from '../_constants';
 import RecordItem from './record-item';
 import RecordsSidePanel from './records-side-panel';
 import { useRecordsInlineComposer } from './use-records-inline-composer';
 
 interface RecordsListClientProps {
   records: Records | null;
-  activeTab: Tab;
 }
 
-export function RecordsListClient({ records, activeTab }: RecordsListClientProps) {
+export function RecordsListClient({ records }: RecordsListClientProps) {
+  const searchParams = useSearchParams();
+  const activeTab = normalizeTab(searchParams.get('tab'));
   const { isComposerOpen, setComposerOpen, editingRecordKey, setEditingRecordKey } =
     useRecordsInlineComposer();
 
@@ -78,30 +78,15 @@ export function RecordsListClient({ records, activeTab }: RecordsListClientProps
     );
   }
 
+  // Tab switches swap content instantly (client-side filter, no animation) —
+  // the only motion is the sliding tab underline. Page entry fades in once via
+  // MotionWrapper.
   return (
     <>
       <MotionWrapper>
-        <motion.article
-          className="mt-8 space-y-8"
-          initial="hidden"
-          animate="visible"
-          variants={{
-            visible: {
-              transition: {
-                staggerChildren: ANIMATION.stagger.slow,
-              },
-            },
-          }}
-        >
+        <article className="mt-8 space-y-8">
           {sortedRecordsByYear.map(([year, recordList], sectionIndex) => (
-            <motion.section
-              key={year}
-              variants={{
-                hidden: { opacity: 0, y: ANIMATION.distance.normal },
-                visible: { opacity: 1, y: 0 },
-              }}
-              transition={{ duration: ANIMATION.duration.slow }}
-            >
+            <section key={year}>
               <h2 className="mb-4 text-2xl font-bold">{year}</h2>
               <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
                 {recordList.map((record, recordIndex) => (
@@ -114,9 +99,9 @@ export function RecordsListClient({ records, activeTab }: RecordsListClientProps
                   />
                 ))}
               </div>
-            </motion.section>
+            </section>
           ))}
-        </motion.article>
+        </article>
       </MotionWrapper>
       {panel}
     </>

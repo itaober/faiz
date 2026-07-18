@@ -28,3 +28,10 @@ export const tabList: { label: string; value: RecordType | 'all' }[] = [
 ] as const;
 
 export type Tab = (typeof tabList)[number]['value'];
+
+export const normalizeTab = (value: string | null | undefined): Tab => {
+  if (!value) {
+    return 'all';
+  }
+  return tabList.find(tab => tab.value === value)?.value ?? 'all';
+};

@@ -12,7 +12,7 @@ const navNodes = [
     key: 'lines',
     href: '/lines',
     node: (
-      <Link href="/lines" className="focus-ring rounded-sm">
+      <Link href="/lines" className="focus-ring -mx-1 inline-block rounded-sm px-1 py-1.5">
         Lines
       </Link>
     ),
@@ -21,7 +21,7 @@ const navNodes = [
     key: 'memos',
     href: '/memos',
     node: (
-      <Link href="/memos" className="focus-ring rounded-sm">
+      <Link href="/memos" className="focus-ring -mx-1 inline-block rounded-sm px-1 py-1.5">
         Memos
       </Link>
     ),
@@ -30,7 +30,7 @@ const navNodes = [
     key: 'posts',
     href: '/posts',
     node: (
-      <Link href="/posts" className="focus-ring rounded-sm">
+      <Link href="/posts" className="focus-ring -mx-1 inline-block rounded-sm px-1 py-1.5">
         Posts
       </Link>
     ),
@@ -39,7 +39,7 @@ const navNodes = [
     key: 'records',
     href: '/records',
     node: (
-      <Link href="/records" className="focus-ring rounded-sm">
+      <Link href="/records" className="focus-ring -mx-1 inline-block rounded-sm px-1 py-1.5">
         Records
       </Link>
     ),

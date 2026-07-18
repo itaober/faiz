@@ -43,6 +43,7 @@ export default function Segmented<T extends string>({
             key={option.value}
             type="button"
             data-active={active || undefined}
+            aria-pressed={active}
             disabled={option.disabled}
             onClick={() => onChange(option.value)}
           >

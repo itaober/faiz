@@ -17,6 +17,8 @@ interface IOverlayProps {
   ariaLabel?: string;
   /** Esc + backdrop-click close. Defaults to true. */
   dismissable?: boolean;
+  /** Fires after the fade-out finishes — lets consumers unmount post-exit. */
+  onExitComplete?: () => void;
 }
 
 /**
@@ -33,6 +35,7 @@ export default function Overlay({
   className,
   ariaLabel,
   dismissable = true,
+  onExitComplete,
 }: IOverlayProps) {
   // Keep the latest onClose in a ref so the Escape listener below doesn't
   // re-subscribe every render when a consumer passes an inline handler. (Kept as
@@ -71,7 +74,7 @@ export default function Overlay({
   }
 
   return createPortal(
-    <AnimatePresence>
+    <AnimatePresence onExitComplete={onExitComplete}>
       {open ? (
         <motion.div
           className={cn('fz-overlay', className)}

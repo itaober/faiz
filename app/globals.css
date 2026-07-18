@@ -117,21 +117,42 @@ button {
 }
 
 @utility icon-button {
-  @apply inline-flex items-center justify-center rounded-full;
+  @apply relative inline-flex items-center justify-center rounded-full;
   transition-property: transform, color, background-color, border-color, opacity;
-  transition-duration: 160ms;
+  transition-duration: var(--fz-dur-normal);
   transition-timing-function: var(--ease-out);
+  /* Extend the hit area past the visible circle (28px visual → ~38px target)
+     without moving layout. -5px keeps adjacent mobile nav targets (10px gap)
+     from overlapping. */
+  &::after {
+    content: '';
+    position: absolute;
+    inset: -5px;
+    border-radius: inherit;
+  }
 }
 
 @utility pressable {
   transition-property: transform, color, background-color, border-color, opacity;
-  transition-duration: 160ms;
+  transition-duration: var(--fz-dur-normal);
   transition-timing-function: var(--ease-out);
 }
 
 .icon-button:not(:disabled):active,
 .pressable:not(:disabled):active {
   transform: scale(0.97);
+}
+
+/* Hairline over image edges so light covers/photos don't float on the page.
+   Pure black/white per better-ui — a tinted neutral reads as dirt on the edge. */
+@layer components {
+  .fz-img-outline {
+    outline: 1px solid oklch(0 0 0 / 0.08);
+    outline-offset: -1px;
+  }
+  .dark .fz-img-outline {
+    outline-color: oklch(1 0 0 / 0.1);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -667,7 +688,12 @@ button {
     align-items: flex-start;
     justify-content: center;
     padding: 12vh 16px 16px;
-    background: color-mix(in oklch, black 8%, transparent);
+    background: color-mix(in oklch, black 14%, transparent);
+  }
+  .dark .fz-search-overlay {
+    /* 8-14% black is invisible over a near-black page; dark mode needs a real
+       scrim for the palette to read as a layer. */
+    background: color-mix(in oklch, black 50%, transparent);
   }
   .fz-search {
     display: flex;
@@ -697,6 +723,12 @@ button {
     background: transparent;
     color: var(--foreground);
     font-size: 15px;
+  }
+  /* ≥16px on touch widths, or iOS Safari zooms the page on focus. */
+  @media (max-width: 767px) {
+    .fz-search-input-row input {
+      font-size: 16px;
+    }
   }
   .fz-search-filters {
     padding: 8px 12px;

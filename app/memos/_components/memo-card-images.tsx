@@ -154,7 +154,7 @@ export default function MemoCardImages({ images }: MemoCardImagesProps) {
               })}
             >
               <div
-                className={cn({
+                className={cn('fz-img-outline', {
                   'bg-muted/30 w-fit max-w-full cursor-pointer overflow-hidden rounded-md':
                     columns === 1,
                   'bg-muted/30 aspect-square w-full cursor-pointer overflow-hidden rounded-md':
@@ -168,8 +168,8 @@ export default function MemoCardImages({ images }: MemoCardImagesProps) {
                   height={0}
                   sizes={imageSizes}
                   className={cn({
-                    'h-auto w-auto max-w-full rounded': columns === 1,
-                    'relative aspect-square w-full rounded object-cover': columns > 1,
+                    'h-auto w-auto max-w-full rounded-md': columns === 1,
+                    'relative aspect-square w-full rounded-md object-cover': columns > 1,
                   })}
                 />
               </div>
@@ -191,7 +191,7 @@ export default function MemoCardImages({ images }: MemoCardImagesProps) {
           initial={{ opacity: 0, y: ANIMATION.distance.small, scale: 0.985 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: ANIMATION.distance.minimal, scale: 0.99 }}
-          transition={{ duration: 0.24, ease: ANIMATION.ease.out }}
+          transition={{ duration: ANIMATION.duration.slow, ease: ANIMATION.ease.out }}
         >
           <motion.button
             type="button"
@@ -201,19 +201,32 @@ export default function MemoCardImages({ images }: MemoCardImagesProps) {
             initial={{ opacity: 0, y: -ANIMATION.distance.minimal }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -ANIMATION.distance.minimal }}
-            transition={{ duration: 0.18, delay: 0.03, ease: ANIMATION.ease.out }}
+            transition={{
+              duration: ANIMATION.duration.normal,
+              delay: 0.03,
+              ease: ANIMATION.ease.out,
+            }}
           >
             <XIcon className="size-4.5" />
           </motion.button>
 
           <div className="relative h-[min(72vh,36rem)] w-[min(92vw,36rem)] sm:h-[min(74vh,40rem)] sm:w-[min(90vw,40rem)] md:h-[min(78vh,48rem)] md:w-[min(86vw,58rem)]">
-            <Image
-              src={currentPreviewUrl}
-              alt={currentAlt}
-              fill
-              sizes="(max-width: 640px) 92vw, (max-width: 768px) 90vw, 86vw"
-              className="object-contain"
-            />
+            {/* Keyed by index so paging crossfades instead of hard-swapping. */}
+            <motion.div
+              key={currentIndex}
+              className="absolute inset-0"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: ANIMATION.duration.fast, ease: ANIMATION.ease.out }}
+            >
+              <Image
+                src={currentPreviewUrl}
+                alt={currentAlt}
+                fill
+                sizes="(max-width: 640px) 92vw, (max-width: 768px) 90vw, 86vw"
+                className="object-contain"
+              />
+            </motion.div>
 
             {visibleCount > 1 && (
               <>

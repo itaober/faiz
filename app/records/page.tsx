@@ -10,7 +10,6 @@ import { RecordsInlineComposerProvider } from './_components/records-inline-comp
 import RecordsList from './_components/records-list';
 import RecordsTabs from './_components/records-tabs';
 import RecordsTitleActions from './_components/records-title-actions';
-import { type Tab, tabList } from './_constants';
 
 export async function generateMetadata() {
   const metaInfo = await getMetaInfo();
@@ -29,17 +28,8 @@ interface RecordsPageProps {
   }>;
 }
 
-const normalizeTab = (value: string | undefined): Tab => {
-  if (!value) {
-    return 'all';
-  }
-  const matched = tabList.find(tab => tab.value === value);
-  return matched?.value ?? 'all';
-};
-
 export default async function RecordsPage({ searchParams }: RecordsPageProps) {
   const resolvedSearchParams = await searchParams;
-  const activeTab = normalizeTab(resolvedSearchParams?.tab);
   const focusKey = resolvedSearchParams?.focus;
 
   return (
@@ -47,9 +37,9 @@ export default async function RecordsPage({ searchParams }: RecordsPageProps) {
       <PostTitle title="Records">
         <RecordsTitleActions />
       </PostTitle>
-      <RecordsTabs activeTab={activeTab} />
+      <RecordsTabs />
       <Suspense fallback={null}>
-        <RecordsList activeTab={activeTab} />
+        <RecordsList />
       </Suspense>
       {focusKey ? <RecordFocusScroll focusKey={focusKey} /> : null}
     </RecordsInlineComposerProvider>

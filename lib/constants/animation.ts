@@ -1,8 +1,9 @@
 export const ANIMATION = {
+  // Single motion scale — keep in sync with --fz-dur-* in app/globals.css.
   duration: {
-    fast: 0.16,
-    normal: 0.22,
-    slow: 0.28,
+    fast: 0.12,
+    normal: 0.16,
+    slow: 0.26,
   },
   distance: {
     minimal: 2,

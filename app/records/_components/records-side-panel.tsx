@@ -18,9 +18,9 @@ import Segmented from '@/components/segmented';
 import { useContentEditor } from '@/hooks/use-content-editor';
 import { useCoverImage } from '@/hooks/use-cover-image';
 import { useSaveShortcut } from '@/hooks/use-save-shortcut';
+import { SUPPORTED_IMAGE_TYPES } from '@/lib/constants/image';
 import type { RecordItem } from '@/lib/data/data';
 import { buildEditorImageStoragePath } from '@/lib/utils/editor-image';
-import { SUPPORTED_IMAGE_TYPES } from '@/lib/utils/image';
 
 import { tabList } from '../_constants';
 

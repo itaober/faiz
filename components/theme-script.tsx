@@ -1,9 +1,9 @@
-'use client';
-
 /* eslint-disable react/no-danger */
 
-import { useEffect } from 'react';
-
+// Server component on purpose: rendering a <script> from a client component
+// makes React 19 log "Encountered a script tag while rendering" on every
+// client render. Keep the pre-hydration no-flash script server-only; the
+// client-side re-sync lives in components/theme-sync.tsx.
 const themeScript = `
 (function() {
   try {
@@ -24,22 +24,4 @@ const themeScript = `
 
 export function ThemeScript() {
   return <script suppressHydrationWarning dangerouslySetInnerHTML={{ __html: themeScript }} />;
-}
-
-export function ThemeSync() {
-  useEffect(() => {
-    const theme = localStorage.getItem('theme') || 'system';
-    const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches
-      ? 'dark'
-      : 'light';
-    const resolvedTheme = theme === 'system' ? systemTheme : theme;
-
-    if (resolvedTheme === 'dark') {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-  }, []);
-
-  return null;
 }

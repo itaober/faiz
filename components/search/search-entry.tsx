@@ -18,7 +18,9 @@ export default function SearchEntry() {
     const onKey = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
         event.preventDefault();
-        setOpen(current => !current);
+        // Only opens here; while open, SearchCommand owns ⌘K so closing plays
+        // its exit animation instead of a hard unmount.
+        setOpen(true);
       }
     };
     document.addEventListener('keydown', onKey);

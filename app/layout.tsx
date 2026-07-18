@@ -11,7 +11,8 @@ import { EditModeProvider } from '@/components/edit-mode-provider';
 import { EditDockProvider } from '@/components/editing/edit-dock';
 import { MotionProvider } from '@/components/motion-provider';
 import { ServiceWorkerRegistration } from '@/components/service-worker-registration';
-import { ThemeScript, ThemeSync } from '@/components/theme-script';
+import { ThemeScript } from '@/components/theme-script';
+import { ThemeSync } from '@/components/theme-sync';
 import { getMetaInfo } from '@/lib/data/data';
 import { buildDescription } from '@/lib/utils/seo';
 

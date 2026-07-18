@@ -73,7 +73,7 @@ const Image = ({ src, alt = '', caption }: IImageProps) => {
             width={0}
             height={0}
             sizes={imageSizes}
-            className="h-auto w-full max-w-xl rounded-md md:rounded-lg"
+            className="fz-img-outline h-auto w-full max-w-xl rounded-md md:rounded-lg"
           />
           {_caption ? (
             <span className="text-muted-foreground mt-2 block text-center text-sm">{_caption}</span>
