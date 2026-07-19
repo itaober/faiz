@@ -20,6 +20,15 @@
   ],
   "movie": [
     {
+      "title": "八仙！",
+      "link": "https://www.douban.com/doubanapp/dispatch/movie/36882191?dt_dapp=1",
+      "coverUrl": "/api/image/assets/records/movie_八仙.webp",
+      "createdTime": "2026-07-19",
+      "rating": 8.5,
+      "comment": "看到孙悟空出场的感受，跟看看到《镖人》李世民一样。",
+      "type": "movie"
+    },
+    {
       "title": "给阿嬷的情书",
       "link": "https://movie.douban.com/subject/37116446/",
       "coverUrl": "/api/image/assets/records/movie_给阿嬷的情书_cover.webp",
