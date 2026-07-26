@@ -11,11 +11,25 @@ import type {
   SetStateAction,
   TouchEventHandler,
 } from 'react';
-import { createContext, useCallback, useContext, useEffect, useId, useRef, useState } from 'react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from 'react';
 
 import Overlay from '@/components/overlay';
 import { ANIMATION } from '@/lib/constants/animation';
 import { cn } from '@/lib/utils';
+
+interface IActiveSourceImage {
+  src: string;
+  currentSrc: string;
+}
 
 interface IPreviewContext {
   isPreview: boolean;
@@ -25,6 +39,10 @@ interface IPreviewContext {
   setMediaAspectRatio: Dispatch<SetStateAction<number>>;
   activeLayoutId: string;
   setActiveLayoutId: Dispatch<SetStateAction<string>>;
+  sourceImages: ReadonlyMap<string, string>;
+  setSourceImage: (src: string, currentSrc: string) => void;
+  activeSourceImage: IActiveSourceImage | null;
+  setActiveSourceImage: Dispatch<SetStateAction<IActiveSourceImage | null>>;
 }
 
 const PreviewContext = createContext<IPreviewContext | null>(null);
@@ -54,6 +72,16 @@ const Preview = ({ children }: IPreviewProps) => {
   const [mediaAspectRatio, setMediaAspectRatio] = useState(1);
   const [activeLayoutId, setActiveLayoutId] = useState('preview-media');
   const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const [sourceImages, setSourceImages] = useState<ReadonlyMap<string, string>>(new Map());
+  const [activeSourceImage, setActiveSourceImage] = useState<IActiveSourceImage | null>(null);
+  const setSourceImage = useCallback((src: string, currentSrc: string) => {
+    setSourceImages(images => {
+      if (images.get(src) === currentSrc) {
+        return images;
+      }
+      return new Map(images).set(src, currentSrc);
+    });
+  }, []);
   const layoutGroupId = useId();
 
   return (
@@ -66,11 +94,33 @@ const Preview = ({ children }: IPreviewProps) => {
         setMediaAspectRatio,
         activeLayoutId,
         setActiveLayoutId,
+        sourceImages,
+        setSourceImage,
+        activeSourceImage,
+        setActiveSourceImage,
       }}
     >
       <LayoutGroup id={layoutGroupId}>{children}</LayoutGroup>
     </PreviewContext.Provider>
   );
+};
+
+const isImageLoaded = (image: HTMLImageElement | null | undefined) =>
+  Boolean(image?.complete && image.naturalWidth && image.naturalHeight);
+
+const getReusableImageSrc = (image: HTMLImageElement | null | undefined) => {
+  if (!isImageLoaded(image)) {
+    return undefined;
+  }
+
+  const src = image?.currentSrc || image?.src;
+
+  if (!src) {
+    return undefined;
+  }
+
+  const url = new URL(src, window.location.href);
+  return url.origin === window.location.origin ? `${url.pathname}${url.search}` : url.href;
 };
 
 interface IPreviewTriggerProps {
@@ -80,6 +130,7 @@ interface IPreviewTriggerProps {
   as?: 'div' | 'span';
   contained?: boolean;
   layoutId?: string;
+  previewSrc?: string;
   onOpen?: () => void;
 }
 
@@ -90,10 +141,18 @@ const PreviewTrigger = ({
   as = 'div',
   contained = false,
   layoutId = 'preview-media',
+  previewSrc,
   onOpen,
 }: IPreviewTriggerProps) => {
-  const { isPreview, setIsPreview, triggerRef, setMediaAspectRatio, setActiveLayoutId } =
-    usePreview();
+  const {
+    isPreview,
+    setIsPreview,
+    triggerRef,
+    setMediaAspectRatio,
+    setActiveLayoutId,
+    setSourceImage,
+    setActiveSourceImage,
+  } = usePreview();
   const [sourceAspectRatio, setSourceAspectRatio] = useState(1);
   const mediaRef = useRef<HTMLElement | null>(null);
   const buttonRef = useRef<HTMLButtonElement | null>(null);
@@ -114,10 +173,20 @@ const PreviewTrigger = ({
   useEffect(() => {
     const image = mediaRef.current?.querySelector('img');
 
-    syncSourceAspectRatio();
-    image?.addEventListener('load', syncSourceAspectRatio);
-    return () => image?.removeEventListener('load', syncSourceAspectRatio);
-  }, [children, syncSourceAspectRatio]);
+    const syncSourceImage = () => {
+      syncSourceAspectRatio();
+      const currentSrc = getReusableImageSrc(image);
+      if (previewSrc && currentSrc) {
+        setSourceImage(previewSrc, currentSrc);
+      }
+    };
+
+    if (isImageLoaded(image)) {
+      syncSourceImage();
+    }
+    image?.addEventListener('load', syncSourceImage);
+    return () => image?.removeEventListener('load', syncSourceImage);
+  }, [children, previewSrc, setSourceImage, syncSourceAspectRatio]);
 
   const mediaStyle = contained
     ? sourceAspectRatio >= 1
@@ -133,6 +202,7 @@ const PreviewTrigger = ({
           mediaRef.current = element;
         }}
         layoutId={layoutId}
+        layoutDependency={isPreview}
         className={mediaClassName}
         style={mediaStyle}
         transition={{ layout: PREVIEW_LAYOUT_TRANSITION }}
@@ -145,6 +215,7 @@ const PreviewTrigger = ({
           mediaRef.current = element;
         }}
         layoutId={layoutId}
+        layoutDependency={isPreview}
         className={mediaClassName}
         style={mediaStyle}
         transition={{ layout: PREVIEW_LAYOUT_TRANSITION }}
@@ -167,6 +238,14 @@ const PreviewTrigger = ({
           const aspectRatio = syncSourceAspectRatio();
           if (aspectRatio) {
             setMediaAspectRatio(aspectRatio);
+          }
+          const image = mediaRef.current?.querySelector('img');
+          const currentSrc = getReusableImageSrc(image);
+          if (previewSrc && currentSrc) {
+            setSourceImage(previewSrc, currentSrc);
+            setActiveSourceImage({ src: previewSrc, currentSrc });
+          } else {
+            setActiveSourceImage(null);
           }
           setActiveLayoutId(layoutId);
           onOpen?.();
@@ -246,12 +325,13 @@ const getFocusableElements = (container: HTMLElement) => {
 };
 
 const PreviewContent = ({ children, className, aspectRatio }: IPreviewContentProps) => {
-  const { mediaAspectRatio, activeLayoutId } = usePreview();
+  const { isPreview, mediaAspectRatio, activeLayoutId } = usePreview();
   const resolvedAspectRatio = aspectRatio ?? mediaAspectRatio;
 
   return (
     <motion.div
       layoutId={activeLayoutId}
+      layoutDependency={isPreview}
       className={cn('relative max-h-[82vh] max-w-[90vw]', className)}
       style={{
         aspectRatio: resolvedAspectRatio,
@@ -283,6 +363,7 @@ const PreviewPortal = ({
   const closeButtonRef = useRef<HTMLButtonElement | null>(null);
   const previewFrameRef = useRef<HTMLDivElement | null>(null);
   const closeRequestedRef = useRef(false);
+  const closeTimerRef = useRef<number | null>(null);
   const isLayoutSettledRef = useRef(false);
   const hasSidecar = Boolean(sidecar);
   const hasNavigation = Boolean(onPrevious || onNext);
@@ -302,7 +383,13 @@ const PreviewPortal = ({
     closeRequestedRef.current = false;
     isLayoutSettledRef.current = false;
     setIsMediaSettled(false);
-    setIsPreview(false);
+    if (closeTimerRef.current !== null) {
+      window.clearTimeout(closeTimerRef.current);
+    }
+    closeTimerRef.current = window.setTimeout(() => {
+      closeTimerRef.current = null;
+      setIsPreview(false);
+    }, 0);
   }, [setIsPreview]);
 
   const handleClose = useCallback(() => {
@@ -345,14 +432,18 @@ const PreviewPortal = ({
     }
   }, []);
 
-  // Esc + scroll-lock are handled by <Overlay>; here we just focus the close
-  // button when the lightbox opens (Tab focus-trap stays in handleDialogKeyDown).
-  useEffect(() => {
+  // Esc + scroll-lock are handled by <Overlay>. Keep focus on the dialog while
+  // shared layout settles, then move it to the controls when they appear.
+  useLayoutEffect(() => {
     if (!isPreview) {
       return;
     }
-    closeButtonRef.current?.focus();
-  }, [isPreview]);
+    if (isMediaSettled) {
+      closeButtonRef.current?.focus();
+    } else {
+      dialogRef.current?.focus();
+    }
+  }, [isMediaSettled, isPreview]);
 
   // Arrow-key navigation for galleries.
   useEffect(() => {
@@ -465,6 +556,53 @@ const PreviewPortal = ({
     };
   }, [hasSidecar, isMediaSettled, isPreview]);
 
+  useEffect(() => {
+    return () => {
+      if (closeTimerRef.current !== null) {
+        window.clearTimeout(closeTimerRef.current);
+      }
+    };
+  }, []);
+
+  const previousButton = onPrevious ? (
+    <button
+      type="button"
+      aria-label="Previous image"
+      aria-hidden={!isMediaSettled}
+      tabIndex={isMediaSettled ? 0 : -1}
+      onClick={onPrevious}
+      className={cn(
+        'focus-ring-overlay icon-button bg-overlay-control text-overlay-control-foreground hover:bg-overlay-control-hover absolute top-1/2 left-1 z-10 size-10 -translate-y-1/2 md:static md:shrink-0 md:translate-y-0',
+        !isMediaSettled && 'invisible pointer-events-none',
+      )}
+    >
+      <ChevronLeftIcon className="size-5" />
+    </button>
+  ) : null;
+  const nextButton = onNext ? (
+    <button
+      type="button"
+      aria-label="Next image"
+      aria-hidden={!isMediaSettled}
+      tabIndex={isMediaSettled ? 0 : -1}
+      onClick={onNext}
+      className={cn(
+        'focus-ring-overlay icon-button bg-overlay-control text-overlay-control-foreground hover:bg-overlay-control-hover absolute top-1/2 right-1 z-10 size-10 -translate-y-1/2 md:static md:shrink-0 md:translate-y-0',
+        !isMediaSettled && 'invisible pointer-events-none',
+      )}
+    >
+      <ChevronRightIcon className="size-5" />
+    </button>
+  ) : null;
+  const previewContent = (
+    <PreviewContent
+      className={cn(contentClassName, hasNavigation && 'md:max-w-[calc(100vw-8rem)]')}
+      aspectRatio={targetAspectRatio}
+    >
+      {children}
+    </PreviewContent>
+  );
+
   return (
     <Overlay
       open={isPreview}
@@ -479,6 +617,8 @@ const PreviewPortal = ({
     >
       <div
         ref={dialogRef}
+        role="document"
+        aria-label={ariaLabel}
         tabIndex={-1}
         onKeyDown={handleDialogKeyDown}
         onTouchStart={onTouchStart}
@@ -489,64 +629,49 @@ const PreviewPortal = ({
           ref={closeButtonRef}
           type="button"
           aria-label="Close preview"
+          aria-hidden={!isMediaSettled}
+          tabIndex={isMediaSettled ? 0 : -1}
           onClick={handleClose}
-          className="focus-ring-overlay icon-button bg-overlay-control text-overlay-control-foreground hover:bg-overlay-control-hover hover:text-overlay-control-foreground size-11 md:size-10"
+          className={cn(
+            'focus-ring-overlay icon-button bg-overlay-control text-overlay-control-foreground hover:bg-overlay-control-hover hover:text-overlay-control-foreground size-11 md:size-10',
+            !isMediaSettled && 'invisible pointer-events-none',
+          )}
         >
           <XIcon className="size-4.5" />
         </button>
-        {hasSidecar ? (
-          <div
-            className={cn(
-              'relative flex max-w-[calc(100vw-2rem)] flex-col items-center overflow-visible pb-1',
-              sidecarPlacement === 'right' && 'overflow-visible',
-            )}
-          >
-            <div ref={previewFrameRef} className="relative shrink-0">
-              <PreviewContent className={contentClassName} aspectRatio={targetAspectRatio}>
-                {children}
-              </PreviewContent>
-              {isSidecarReady ? (
-                <aside
-                  style={sidecarLayout.style}
-                  className={cn(
-                    'text-left',
-                    sidecarPlacement === 'right'
-                      ? 'absolute max-h-[min(78vh,48rem)] max-w-56 overflow-y-auto'
-                      : 'relative max-w-full',
-                    sidecarClassName,
-                  )}
-                >
-                  {sidecar}
-                </aside>
-              ) : null}
+        <div className={cn('relative flex items-center', hasNavigation && 'md:gap-3')}>
+          {previousButton}
+          {hasSidecar ? (
+            <div
+              className={cn(
+                'relative flex max-w-[calc(100vw-2rem)] flex-col items-center overflow-visible pb-1',
+                sidecarPlacement === 'right' && 'overflow-visible',
+              )}
+            >
+              <div ref={previewFrameRef} className="relative shrink-0">
+                {previewContent}
+                {isSidecarReady ? (
+                  <aside
+                    style={sidecarLayout.style}
+                    className={cn(
+                      'text-left',
+                      sidecarPlacement === 'right'
+                        ? 'absolute max-h-[min(78vh,48rem)] max-w-56 overflow-y-auto'
+                        : 'relative max-w-full',
+                      sidecarClassName,
+                    )}
+                  >
+                    {sidecar}
+                  </aside>
+                ) : null}
+              </div>
             </div>
-          </div>
-        ) : (
-          <PreviewContent className={contentClassName} aspectRatio={targetAspectRatio}>
-            {children}
-          </PreviewContent>
-        )}
+          ) : (
+            previewContent
+          )}
+          {nextButton}
+        </div>
         {footer ? <div className="w-full">{footer}</div> : null}
-        {onPrevious ? (
-          <button
-            type="button"
-            aria-label="Previous image"
-            onClick={onPrevious}
-            className="focus-ring-overlay icon-button bg-overlay-control text-overlay-control-foreground hover:bg-overlay-control-hover absolute top-1/2 left-1 size-10 -translate-y-1/2 md:left-2"
-          >
-            <ChevronLeftIcon className="size-5" />
-          </button>
-        ) : null}
-        {onNext ? (
-          <button
-            type="button"
-            aria-label="Next image"
-            onClick={onNext}
-            className="focus-ring-overlay icon-button bg-overlay-control text-overlay-control-foreground hover:bg-overlay-control-hover absolute top-1/2 right-1 size-10 -translate-y-1/2 md:right-2"
-          >
-            <ChevronRightIcon className="size-5" />
-          </button>
-        ) : null}
       </div>
     </Overlay>
   );
@@ -562,20 +687,63 @@ interface IPreviewImageProps {
 
 const isExternalImage = (src: string) => /^(https?:)?\/\//.test(src);
 
-const PreviewImage = ({
+type PreviewImageStatus = 'loading' | 'loaded' | 'error';
+
+const ProgressivePreviewImage = ({
   src,
   alt,
   className,
+  sizes,
+  unoptimized,
+}: Required<IPreviewImageProps>) => {
+  const { activeSourceImage, sourceImages } = usePreview();
+  const placeholderSrc =
+    activeSourceImage?.src === src ? activeSourceImage.currentSrc : sourceImages.get(src);
+  const [status, setStatus] = useState<PreviewImageStatus>('loading');
+  const showPlaceholder = Boolean(placeholderSrc) && status !== 'loaded';
+  const showPreview = status === 'loaded' || (status === 'error' && !placeholderSrc);
+
+  return (
+    <>
+      {showPlaceholder ? (
+        <Image
+          src={placeholderSrc!}
+          alt=""
+          aria-hidden="true"
+          fill
+          sizes={sizes}
+          className={cn('object-contain', className)}
+          unoptimized
+        />
+      ) : null}
+      <Image
+        src={src}
+        alt={alt}
+        fill
+        sizes={sizes}
+        className={cn('object-contain', showPreview ? 'opacity-100' : 'opacity-0', className)}
+        unoptimized={unoptimized}
+        onLoad={() => setStatus('loaded')}
+        onError={() => setStatus('error')}
+      />
+    </>
+  );
+};
+
+const PreviewImage = ({
+  src,
+  alt,
+  className = '',
   sizes = '(max-width: 640px) 92vw, (max-width: 768px) 90vw, 86vw',
   unoptimized = isExternalImage(src),
 }: IPreviewImageProps) => {
   return (
-    <Image
+    <ProgressivePreviewImage
+      key={src}
       src={src}
       alt={alt}
-      fill
+      className={className}
       sizes={sizes}
-      className={cn('object-contain', className)}
       unoptimized={unoptimized}
     />
   );

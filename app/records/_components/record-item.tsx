@@ -103,7 +103,11 @@ export default function RecordItem({
         </div>
       ) : (
         <Preview>
-          <PreviewTrigger ariaLabel={`Open cover preview: ${title}`} className="rounded-md">
+          <PreviewTrigger
+            previewSrc={coverUrl}
+            ariaLabel={`Open cover preview: ${title}`}
+            className="rounded-md"
+          >
             <div className="overflow-hidden rounded-md">{coverImage}</div>
           </PreviewTrigger>
           <PreviewPortal

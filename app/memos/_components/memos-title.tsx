@@ -59,7 +59,7 @@ export default function MemosTitle() {
           </header>
           <div className="flex w-full gap-2 md:gap-4">
             <div className="flex h-auto w-3 shrink-0 justify-center">
-              <div className="bg-border h-full w-px" />
+              <div className="border-border h-full border-l" />
             </div>
             <div className="min-w-0 flex-1">
               <MemoEditorSurface onCancel={() => setEditingId(null)} />

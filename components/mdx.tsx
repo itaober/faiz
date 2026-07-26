@@ -64,6 +64,7 @@ const Image = ({ src, alt = '', caption }: IImageProps) => {
       <span className="not-prose mb-4 block w-full px-2">
         <PreviewTrigger
           as="span"
+          previewSrc={imageSrc}
           ariaLabel={previewLabel}
           className="mx-auto block w-full max-w-xl overflow-hidden rounded-md md:rounded-lg"
         >
