@@ -1,7 +1,7 @@
 'use client';
 
 import { AnimatePresence, motion } from 'motion/react';
-import { type ReactNode, useCallback, useEffect, useLayoutEffect, useRef } from 'react';
+import { type ReactNode, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
 import { ANIMATION } from '@/lib/constants/animation';
@@ -25,6 +25,8 @@ interface IOverlayProps {
   deferScrollUnlock?: boolean;
   /** Fires after the fade-out finishes — lets consumers unmount post-exit. */
   onExitComplete?: () => void;
+  /** Hard cleanup fallback for interrupted nested layout animations. Disabled by default. */
+  exitTimeoutMs?: number;
 }
 
 /**
@@ -45,6 +47,7 @@ export default function Overlay({
   scrollLockMode = 'fixed',
   deferScrollUnlock = false,
   onExitComplete,
+  exitTimeoutMs = 0,
 }: IOverlayProps) {
   // Keep the latest onClose in a ref so the Escape listener below doesn't
   // re-subscribe every render when a consumer passes an inline handler. (Kept as
@@ -54,10 +57,12 @@ export default function Overlay({
   const scrollLockedRef = useRef(false);
   const lockedModeRef = useRef<ScrollLockMode | null>(null);
   const wasOpenRef = useRef(open);
+  const [forceUnmount, setForceUnmount] = useState(false);
   useLayoutEffect(() => {
     onCloseRef.current = onClose;
     if (open) {
       wasOpenRef.current = true;
+      setForceUnmount(false);
     }
   }, [onClose, open]);
 
@@ -102,11 +107,7 @@ export default function Overlay({
     return () => document.removeEventListener('keydown', onKey, true);
   }, [open, dismissable]);
 
-  if (typeof document === 'undefined') {
-    return null;
-  }
-
-  const handleExitComplete = () => {
+  const handleExitComplete = useCallback(() => {
     if (!wasOpenRef.current) {
       return;
     }
@@ -115,7 +116,27 @@ export default function Overlay({
       releaseScrollLock();
     }
     onExitComplete?.();
-  };
+  }, [deferScrollUnlock, onExitComplete, open, releaseScrollLock]);
+
+  useEffect(() => {
+    if (open || !wasOpenRef.current || exitTimeoutMs <= 0) {
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      if (!wasOpenRef.current) {
+        return;
+      }
+      handleExitComplete();
+      setForceUnmount(true);
+    }, exitTimeoutMs);
+
+    return () => window.clearTimeout(timer);
+  }, [exitTimeoutMs, handleExitComplete, open]);
+
+  if (typeof document === 'undefined' || forceUnmount) {
+    return null;
+  }
 
   return createPortal(
     <AnimatePresence onExitComplete={handleExitComplete}>
