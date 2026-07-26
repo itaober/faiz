@@ -61,25 +61,25 @@ const Image = ({ src, alt = '', caption }: IImageProps) => {
 
   return (
     <Preview>
-      <PreviewTrigger
-        as="span"
-        ariaLabel={previewLabel}
-        className="not-prose mb-4 block w-full rounded-lg px-2"
-      >
-        <span className="relative flex w-full flex-col items-center">
+      <span className="not-prose mb-4 block w-full px-2">
+        <PreviewTrigger
+          as="span"
+          ariaLabel={previewLabel}
+          className="mx-auto block w-full max-w-xl overflow-hidden rounded-md md:rounded-lg"
+        >
           <NextImage
             src={imageSrc}
             alt={resolvedAlt}
             width={0}
             height={0}
             sizes={imageSizes}
-            className="fz-img-outline h-auto w-full max-w-xl rounded-md md:rounded-lg"
+            className="fz-img-outline h-auto w-full"
           />
-          {_caption ? (
-            <span className="text-muted-foreground mt-2 block text-center text-sm">{_caption}</span>
-          ) : null}
-        </span>
-      </PreviewTrigger>
+        </PreviewTrigger>
+        {_caption ? (
+          <span className="text-muted-foreground mt-2 block text-center text-sm">{_caption}</span>
+        ) : null}
+      </span>
       <PreviewPortal ariaLabel={`Image preview: ${resolvedAlt}`}>
         <PreviewImage src={imageSrc} alt={resolvedAlt} />
       </PreviewPortal>

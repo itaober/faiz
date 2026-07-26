@@ -182,7 +182,8 @@ export default function MemoCardImages({ images }: MemoCardImagesProps) {
         open={isPreviewOpen}
         onClose={handleClosePreview}
         ariaLabel="Image preview"
-        className="bg-overlay-backdrop items-center justify-center px-4 py-4 backdrop-blur md:px-6 md:py-6"
+        className="items-center justify-center px-4 py-4 md:px-6 md:py-6"
+        backdropClassName="bg-overlay-backdrop dark:backdrop-blur"
       >
         <motion.div
           onTouchStart={handleTouchStart}

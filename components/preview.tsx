@@ -1,7 +1,7 @@
 'use client';
 
 import { ChevronLeftIcon, ChevronRightIcon, XIcon } from 'lucide-react';
-import { motion } from 'motion/react';
+import { AnimatePresence, LayoutGroup, motion } from 'motion/react';
 import Image from 'next/image';
 import type {
   CSSProperties,
@@ -10,7 +10,7 @@ import type {
   RefObject,
   SetStateAction,
 } from 'react';
-import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useId, useRef, useState } from 'react';
 
 import Overlay from '@/components/overlay';
 import { ANIMATION } from '@/lib/constants/animation';
@@ -20,6 +20,8 @@ interface IPreviewContext {
   isPreview: boolean;
   setIsPreview: Dispatch<SetStateAction<boolean>>;
   triggerRef: RefObject<HTMLButtonElement | null>;
+  mediaAspectRatio: number;
+  setMediaAspectRatio: Dispatch<SetStateAction<number>>;
 }
 
 const PreviewContext = createContext<IPreviewContext | null>(null);
@@ -34,17 +36,33 @@ const usePreview = () => {
   return context;
 };
 
+const PREVIEW_LAYOUT_TRANSITION = {
+  type: 'tween',
+  duration: 0.28,
+  ease: ANIMATION.ease.out,
+} as const;
+
 interface IPreviewProps {
   children: React.ReactNode;
 }
 
 const Preview = ({ children }: IPreviewProps) => {
   const [isPreview, setIsPreview] = useState(false);
+  const [mediaAspectRatio, setMediaAspectRatio] = useState(1);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const layoutGroupId = useId();
 
   return (
-    <PreviewContext.Provider value={{ isPreview, setIsPreview, triggerRef }}>
-      {children}
+    <PreviewContext.Provider
+      value={{
+        isPreview,
+        setIsPreview,
+        triggerRef,
+        mediaAspectRatio,
+        setMediaAspectRatio,
+      }}
+    >
+      <LayoutGroup id={layoutGroupId}>{children}</LayoutGroup>
     </PreviewContext.Provider>
   );
 };
@@ -54,6 +72,7 @@ interface IPreviewTriggerProps {
   className?: string;
   ariaLabel?: string;
   as?: 'div' | 'span';
+  contained?: boolean;
 }
 
 const PreviewTrigger = ({
@@ -61,20 +80,76 @@ const PreviewTrigger = ({
   className,
   ariaLabel = 'Open preview',
   as = 'div',
+  contained = false,
 }: IPreviewTriggerProps) => {
-  const { isPreview, setIsPreview, triggerRef } = usePreview();
+  const { isPreview, setIsPreview, triggerRef, mediaAspectRatio, setMediaAspectRatio } =
+    usePreview();
+  const mediaRef = useRef<HTMLElement | null>(null);
   const Component = as;
+
+  const syncMediaAspectRatio = useCallback(() => {
+    const image = mediaRef.current?.querySelector('img');
+
+    if (image?.naturalWidth && image.naturalHeight) {
+      setMediaAspectRatio(image.naturalWidth / image.naturalHeight);
+    }
+  }, [setMediaAspectRatio]);
+
+  useEffect(() => {
+    const image = mediaRef.current?.querySelector('img');
+
+    syncMediaAspectRatio();
+    image?.addEventListener('load', syncMediaAspectRatio);
+    return () => image?.removeEventListener('load', syncMediaAspectRatio);
+  }, [children, syncMediaAspectRatio]);
+
+  const mediaStyle = contained
+    ? mediaAspectRatio >= 1
+      ? { width: '100%', height: 'auto', aspectRatio: mediaAspectRatio }
+      : { width: 'auto', height: '100%', aspectRatio: mediaAspectRatio }
+    : undefined;
+
+  const mediaClassName = contained ? 'absolute inset-0 m-auto block' : 'relative block w-full';
+  const media =
+    as === 'span' ? (
+      <motion.span
+        ref={element => {
+          mediaRef.current = element;
+        }}
+        layoutId="preview-media"
+        className={mediaClassName}
+        style={mediaStyle}
+        transition={{ layout: PREVIEW_LAYOUT_TRANSITION }}
+      >
+        {children}
+      </motion.span>
+    ) : (
+      <motion.div
+        ref={element => {
+          mediaRef.current = element;
+        }}
+        layoutId="preview-media"
+        className={mediaClassName}
+        style={mediaStyle}
+        transition={{ layout: PREVIEW_LAYOUT_TRANSITION }}
+      >
+        {children}
+      </motion.div>
+    );
 
   return (
     <Component data-preview={isPreview} className={cn('relative', className)}>
-      {children}
+      {media}
       <button
         ref={triggerRef}
         type="button"
         aria-label={ariaLabel}
         aria-haspopup="dialog"
         aria-expanded={isPreview}
-        onClick={() => setIsPreview(true)}
+        onClick={() => {
+          syncMediaAspectRatio();
+          setIsPreview(true);
+        }}
         className="focus-ring absolute inset-0 z-10 cursor-pointer rounded-[inherit]"
       />
     </Component>
@@ -144,15 +219,20 @@ const getFocusableElements = (container: HTMLElement) => {
 };
 
 const PreviewContent = ({ children, className }: IPreviewContentProps) => {
+  const { mediaAspectRatio } = usePreview();
+
   return (
-    <div
-      className={cn(
-        'relative h-[min(72vh,36rem)] w-[min(92vw,36rem)] sm:h-[min(74vh,40rem)] sm:w-[min(90vw,40rem)] md:h-[min(84vh,54rem)] md:w-[min(86vw,64rem)]',
-        className,
-      )}
+    <motion.div
+      layoutId="preview-media"
+      className={cn('relative max-h-[82vh] max-w-[90vw]', className)}
+      style={{
+        aspectRatio: mediaAspectRatio,
+        width: `min(90vw, ${82 * mediaAspectRatio}vh, 64rem)`,
+      }}
+      transition={{ layout: PREVIEW_LAYOUT_TRANSITION }}
     >
       {children}
-    </div>
+    </motion.div>
   );
 };
 
@@ -173,7 +253,9 @@ const PreviewPortal = ({
   const hasSidecar = Boolean(sidecar);
   const hasNavigation = Boolean(onPrevious || onNext);
   const [sidecarLayout, setSidecarLayout] = useState<ISidecarLayout>(DEFAULT_SIDECAR_LAYOUT);
+  const [isMediaSettled, setIsMediaSettled] = useState(false);
   const sidecarPlacement = sidecarLayout.placement;
+  const isSidecarReady = isMediaSettled && sidecarLayout !== DEFAULT_SIDECAR_LAYOUT;
   // Latest nav callbacks for the keyboard handler without re-subscribing.
   const onPreviousRef = useRef(onPrevious);
   const onNextRef = useRef(onNext);
@@ -183,11 +265,9 @@ const PreviewPortal = ({
   });
 
   const handleClose = useCallback(() => {
+    setIsMediaSettled(false);
     setIsPreview(false);
-    requestAnimationFrame(() => {
-      triggerRef.current?.focus();
-    });
-  }, [setIsPreview, triggerRef]);
+  }, [setIsPreview]);
 
   const handleDialogKeyDown = useCallback((event: ReactKeyboardEvent<HTMLDivElement>) => {
     if (event.key !== 'Tab' || !dialogRef.current) {
@@ -250,6 +330,17 @@ const PreviewPortal = ({
 
   useEffect(() => {
     if (!isPreview || !hasSidecar) {
+      return;
+    }
+    const timer = window.setTimeout(
+      () => setIsMediaSettled(true),
+      PREVIEW_LAYOUT_TRANSITION.duration * 1000,
+    );
+    return () => window.clearTimeout(timer);
+  }, [hasSidecar, isPreview]);
+
+  useEffect(() => {
+    if (!isPreview || !hasSidecar || !isMediaSettled) {
       setSidecarLayout(DEFAULT_SIDECAR_LAYOUT);
       return;
     }
@@ -323,27 +414,24 @@ const PreviewPortal = ({
       image?.removeEventListener('load', schedulePlacement);
       window.removeEventListener('resize', schedulePlacement);
     };
-  }, [hasSidecar, isPreview]);
+  }, [hasSidecar, isMediaSettled, isPreview]);
 
   return (
     <Overlay
       open={isPreview}
       onClose={handleClose}
+      onExitComplete={() => triggerRef.current?.focus({ preventScroll: true })}
       ariaLabel={ariaLabel}
-      className={cn(
-        'bg-overlay-backdrop items-center justify-center px-4 py-4 backdrop-blur md:px-6 md:py-6',
-        className,
-      )}
+      scrollLockMode="overflow"
+      deferScrollUnlock
+      className={cn('items-center justify-center px-4 py-4 md:px-6 md:py-6', className)}
+      backdropClassName="bg-overlay-backdrop dark:backdrop-blur"
     >
-      <motion.div
+      <div
         ref={dialogRef}
         tabIndex={-1}
         onKeyDown={handleDialogKeyDown}
         className="relative flex max-h-full max-w-full flex-col items-end justify-center gap-2 md:gap-3"
-        initial={{ opacity: 0, y: ANIMATION.distance.small, scale: 0.985 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        exit={{ opacity: 0, y: ANIMATION.distance.minimal, scale: 0.99 }}
-        transition={{ duration: 0.24, ease: ANIMATION.ease.out }}
       >
         <motion.button
           ref={closeButtonRef}
@@ -354,7 +442,7 @@ const PreviewPortal = ({
           initial={{ opacity: 0, y: -ANIMATION.distance.minimal }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -ANIMATION.distance.minimal }}
-          transition={{ duration: 0.18, delay: 0.03, ease: ANIMATION.ease.out }}
+          transition={{ duration: 0.18, delay: 0.08, ease: ANIMATION.ease.out }}
         >
           <XIcon className="size-4.5" />
         </motion.button>
@@ -367,22 +455,26 @@ const PreviewPortal = ({
           >
             <div ref={previewFrameRef} className="relative shrink-0">
               <PreviewContent className={contentClassName}>{children}</PreviewContent>
-              <motion.aside
-                style={sidecarLayout.style}
-                className={cn(
-                  'text-left',
-                  sidecarPlacement === 'right'
-                    ? 'absolute max-h-[min(78vh,48rem)] max-w-56 overflow-y-auto'
-                    : 'relative max-w-full',
-                  sidecarClassName,
-                )}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.2, delay: 0.04, ease: ANIMATION.ease.out }}
-              >
-                {sidecar}
-              </motion.aside>
+              <AnimatePresence initial={false}>
+                {isSidecarReady ? (
+                  <motion.aside
+                    style={sidecarLayout.style}
+                    className={cn(
+                      'text-left',
+                      sidecarPlacement === 'right'
+                        ? 'absolute max-h-[min(78vh,48rem)] max-w-56 overflow-y-auto'
+                        : 'relative max-w-full',
+                      sidecarClassName,
+                    )}
+                    initial={{ opacity: 0, y: ANIMATION.distance.minimal }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.18, ease: ANIMATION.ease.out }}
+                  >
+                    {sidecar}
+                  </motion.aside>
+                ) : null}
+              </AnimatePresence>
             </div>
           </div>
         ) : (
@@ -397,7 +489,7 @@ const PreviewPortal = ({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.18, delay: 0.04, ease: ANIMATION.ease.out }}
+            transition={{ duration: 0.18, delay: 0.08, ease: ANIMATION.ease.out }}
           >
             <ChevronLeftIcon className="size-5" />
           </motion.button>
@@ -411,12 +503,12 @@ const PreviewPortal = ({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.18, delay: 0.04, ease: ANIMATION.ease.out }}
+            transition={{ duration: 0.18, delay: 0.08, ease: ANIMATION.ease.out }}
           >
             <ChevronRightIcon className="size-5" />
           </motion.button>
         ) : null}
-      </motion.div>
+      </div>
     </Overlay>
   );
 };

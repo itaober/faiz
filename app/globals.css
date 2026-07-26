@@ -20,10 +20,10 @@
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
   --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
-  --overlay-backdrop: color-mix(in oklch, black 90%, transparent);
-  --overlay-control: color-mix(in oklch, black 28%, transparent);
-  --overlay-control-hover: color-mix(in oklch, black 42%, transparent);
-  --overlay-control-foreground: color-mix(in oklch, white 82%, transparent);
+  --overlay-backdrop: color-mix(in oklch, white 92%, transparent);
+  --overlay-control: color-mix(in oklch, black 8%, transparent);
+  --overlay-control-hover: color-mix(in oklch, black 14%, transparent);
+  --overlay-control-foreground: color-mix(in oklch, black 78%, transparent);
 
   /* Edit-mode design scale — formalised from the design handoff (tokens.css). */
   --fz-dur-fast: 120ms;
@@ -1007,9 +1007,9 @@ button {
     color: inherit;
   }
 
-  /* ── Record detail — review white text beside the centered cover ────────── */
+  /* ── Record detail — theme-aware review text beside the centered cover ─── */
   .fz-review-overlay {
-    color: oklch(0.92 0.003 106);
+    color: var(--foreground);
     font-size: 15px;
     line-height: 1.85;
   }

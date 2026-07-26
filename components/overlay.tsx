@@ -1,22 +1,28 @@
 'use client';
 
 import { AnimatePresence, motion } from 'motion/react';
-import { type ReactNode, useEffect, useRef } from 'react';
+import { type ReactNode, useCallback, useEffect, useLayoutEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 
 import { ANIMATION } from '@/lib/constants/animation';
-import { lockScroll, unlockScroll } from '@/lib/scroll-lock';
+import { lockScroll, type ScrollLockMode, unlockScroll } from '@/lib/scroll-lock';
 import { cn } from '@/lib/utils';
 
 interface IOverlayProps {
   open: boolean;
   onClose: () => void;
   children: ReactNode;
-  /** Backdrop layout/colour/alignment classes (e.g. centering, dim, blur, padding). */
+  /** Dialog layout/alignment classes (e.g. centering and padding). */
   className?: string;
+  /** Optional backdrop layer kept separate so content can animate at full opacity. */
+  backdropClassName?: string;
   ariaLabel?: string;
   /** Esc + backdrop-click close. Defaults to true. */
   dismissable?: boolean;
+  /** Use overflow locking when shared-layout children must keep viewport coordinates. */
+  scrollLockMode?: ScrollLockMode;
+  /** Keep the lock through the exit animation. Defaults to false. */
+  deferScrollUnlock?: boolean;
   /** Fires after the fade-out finishes — lets consumers unmount post-exit. */
   onExitComplete?: () => void;
 }
@@ -33,8 +39,11 @@ export default function Overlay({
   onClose,
   children,
   className,
+  backdropClassName,
   ariaLabel,
   dismissable = true,
+  scrollLockMode = 'fixed',
+  deferScrollUnlock = false,
   onExitComplete,
 }: IOverlayProps) {
   // Keep the latest onClose in a ref so the Escape listener below doesn't
@@ -42,19 +51,43 @@ export default function Overlay({
   // a raw ref rather than a useLatest hook so the React Compiler still treats it
   // as stable.)
   const onCloseRef = useRef(onClose);
-  useEffect(() => {
+  const scrollLockedRef = useRef(false);
+  const lockedModeRef = useRef<ScrollLockMode | null>(null);
+  const wasOpenRef = useRef(open);
+  useLayoutEffect(() => {
     onCloseRef.current = onClose;
-  });
+    if (open) {
+      wasOpenRef.current = true;
+    }
+  }, [onClose, open]);
 
-  useEffect(() => {
-    if (!open) {
+  const releaseScrollLock = useCallback(() => {
+    if (!scrollLockedRef.current || !lockedModeRef.current) {
       return;
     }
-    lockScroll();
-    return () => unlockScroll();
-  }, [open]);
+    unlockScroll(lockedModeRef.current);
+    scrollLockedRef.current = false;
+    lockedModeRef.current = null;
+  }, []);
 
   useEffect(() => {
+    if (!open || scrollLockedRef.current) {
+      return;
+    }
+    lockScroll(scrollLockMode);
+    scrollLockedRef.current = true;
+    lockedModeRef.current = scrollLockMode;
+
+    return () => {
+      if (!deferScrollUnlock) {
+        releaseScrollLock();
+      }
+    };
+  }, [deferScrollUnlock, open, releaseScrollLock, scrollLockMode]);
+
+  useEffect(() => releaseScrollLock, [releaseScrollLock]);
+
+  useLayoutEffect(() => {
     if (!open || !dismissable) {
       return;
     }
@@ -64,7 +97,7 @@ export default function Overlay({
         onCloseRef.current();
       }
     };
-    // Capture phase so a nested input's own keydown doesn't swallow Escape first.
+    // Install before paint so Escape can reverse even the first opening frame.
     document.addEventListener('keydown', onKey, true);
     return () => document.removeEventListener('keydown', onKey, true);
   }, [open, dismissable]);
@@ -73,20 +106,32 @@ export default function Overlay({
     return null;
   }
 
+  const handleExitComplete = () => {
+    if (!wasOpenRef.current) {
+      return;
+    }
+    wasOpenRef.current = false;
+    if (!open && deferScrollUnlock) {
+      releaseScrollLock();
+    }
+    onExitComplete?.();
+  };
+
   return createPortal(
-    <AnimatePresence onExitComplete={onExitComplete}>
+    <AnimatePresence onExitComplete={handleExitComplete}>
       {open ? (
         <motion.div
+          layoutRoot
           className={cn('fz-overlay', className)}
           role="dialog"
           aria-modal="true"
           aria-label={ariaLabel}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
+          initial={backdropClassName ? false : { opacity: 0 }}
+          animate={backdropClassName ? undefined : { opacity: 1 }}
+          exit={backdropClassName ? undefined : { opacity: 0 }}
           transition={{ duration: ANIMATION.duration.fast, ease: ANIMATION.ease.out }}
           onMouseDown={
-            dismissable
+            dismissable && !backdropClassName
               ? event => {
                   if (event.target === event.currentTarget) {
                     onClose();
@@ -95,6 +140,17 @@ export default function Overlay({
               : undefined
           }
         >
+          {backdropClassName ? (
+            <motion.div
+              aria-hidden="true"
+              className={cn('absolute inset-0', backdropClassName)}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: ANIMATION.duration.fast, ease: ANIMATION.ease.out }}
+              onMouseDown={dismissable ? onClose : undefined}
+            />
+          ) : null}
           {children}
         </motion.div>
       ) : null}

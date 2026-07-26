@@ -77,6 +77,7 @@ export default function MDXImageGallery({ images }: MDXImageGalleryProps) {
           {isGallery ? (
             <PreviewTrigger
               as="span"
+              contained
               ariaLabel={previewLabel}
               className="relative block aspect-square w-full overflow-hidden rounded-md bg-[var(--fz-image-frame)] md:rounded-lg"
             >
