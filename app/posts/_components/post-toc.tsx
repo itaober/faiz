@@ -169,8 +169,11 @@ export default function PostToc() {
       transition={{ duration: 0.2, ease: 'easeOut' }}
     >
       <div className="group flex w-40 flex-col items-stretch gap-2 rounded-lg">
-        <nav aria-label="Table of contents" className="px-1 py-1">
-          <ul className="space-y-1.5">
+        <nav
+          aria-label="Table of contents"
+          className="max-h-[calc(100vh-16rem)] overflow-y-auto px-1 py-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        >
+          <ul className="space-y-0.5">
             {tocItems.map(item => {
               const active = item.id === activeId;
               return (
