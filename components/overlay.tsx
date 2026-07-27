@@ -1,7 +1,7 @@
 'use client';
 
 import { AnimatePresence, motion } from 'motion/react';
-import { type ReactNode, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { type ReactNode, useCallback, useEffect, useLayoutEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 
 import { ANIMATION } from '@/lib/constants/animation';
@@ -16,17 +16,17 @@ interface IOverlayProps {
   className?: string;
   /** Optional backdrop layer kept separate so content can animate at full opacity. */
   backdropClassName?: string;
+  /** Controls the backdrop independently while the modal and scroll lock stay active. */
+  backdropOpen?: boolean;
   ariaLabel?: string;
   /** Esc + backdrop-click close. Defaults to true. */
   dismissable?: boolean;
   /** Use overflow locking when shared-layout children must keep viewport coordinates. */
   scrollLockMode?: ScrollLockMode;
-  /** Keep the lock through the exit animation. Defaults to false. */
-  deferScrollUnlock?: boolean;
   /** Fires after the fade-out finishes — lets consumers unmount post-exit. */
   onExitComplete?: () => void;
-  /** Hard cleanup fallback for interrupted nested layout animations. Disabled by default. */
-  exitTimeoutMs?: number;
+  /** Keep the portal content mounted while this Overlay remains mounted. */
+  persistent?: boolean;
 }
 
 /**
@@ -42,12 +42,12 @@ export default function Overlay({
   children,
   className,
   backdropClassName,
+  backdropOpen,
   ariaLabel,
   dismissable = true,
   scrollLockMode = 'fixed',
-  deferScrollUnlock = false,
   onExitComplete,
-  exitTimeoutMs = 0,
+  persistent = false,
 }: IOverlayProps) {
   // Keep the latest onClose in a ref so the Escape listener below doesn't
   // re-subscribe every render when a consumer passes an inline handler. (Kept as
@@ -57,12 +57,11 @@ export default function Overlay({
   const scrollLockedRef = useRef(false);
   const lockedModeRef = useRef<ScrollLockMode | null>(null);
   const wasOpenRef = useRef(open);
-  const [forceUnmount, setForceUnmount] = useState(false);
+  const resolvedBackdropOpen = backdropOpen ?? open;
   useLayoutEffect(() => {
     onCloseRef.current = onClose;
     if (open) {
       wasOpenRef.current = true;
-      setForceUnmount(false);
     }
   }, [onClose, open]);
 
@@ -83,12 +82,8 @@ export default function Overlay({
     scrollLockedRef.current = true;
     lockedModeRef.current = scrollLockMode;
 
-    return () => {
-      if (!deferScrollUnlock) {
-        releaseScrollLock();
-      }
-    };
-  }, [deferScrollUnlock, open, releaseScrollLock, scrollLockMode]);
+    return releaseScrollLock;
+  }, [open, releaseScrollLock, scrollLockMode]);
 
   useEffect(() => releaseScrollLock, [releaseScrollLock]);
 
@@ -112,30 +107,40 @@ export default function Overlay({
       return;
     }
     wasOpenRef.current = false;
-    if (!open && deferScrollUnlock) {
-      releaseScrollLock();
-    }
     onExitComplete?.();
-  }, [deferScrollUnlock, onExitComplete, open, releaseScrollLock]);
+  }, [onExitComplete]);
 
-  useEffect(() => {
-    if (open || !wasOpenRef.current || exitTimeoutMs <= 0) {
-      return;
-    }
-
-    const timer = window.setTimeout(() => {
-      if (!wasOpenRef.current) {
-        return;
-      }
-      handleExitComplete();
-      setForceUnmount(true);
-    }, exitTimeoutMs);
-
-    return () => window.clearTimeout(timer);
-  }, [exitTimeoutMs, handleExitComplete, open]);
-
-  if (typeof document === 'undefined' || forceUnmount) {
+  if (typeof document === 'undefined') {
     return null;
+  }
+
+  if (persistent) {
+    return createPortal(
+      <div
+        className={cn('fz-overlay', !open && 'invisible pointer-events-none', className)}
+        role="dialog"
+        aria-modal={open ? 'true' : undefined}
+        aria-hidden={!open}
+        aria-label={ariaLabel}
+      >
+        <AnimatePresence>
+          {resolvedBackdropOpen ? (
+            <motion.div
+              key="backdrop"
+              aria-hidden="true"
+              className={cn('absolute inset-0', backdropClassName)}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: ANIMATION.duration.fast, ease: ANIMATION.ease.out }}
+              onMouseDown={dismissable ? onClose : undefined}
+            />
+          ) : null}
+        </AnimatePresence>
+        {children}
+      </div>,
+      document.body,
+    );
   }
 
   return createPortal(

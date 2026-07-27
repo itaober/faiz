@@ -1,14 +1,11 @@
 'use client';
 
 import { ChevronLeftIcon, ChevronRightIcon, XIcon } from 'lucide-react';
-import { LayoutGroup, motion } from 'motion/react';
 import Image from 'next/image';
 import type {
   CSSProperties,
-  Dispatch,
   KeyboardEvent as ReactKeyboardEvent,
   RefObject,
-  SetStateAction,
   TouchEventHandler,
 } from 'react';
 import {
@@ -16,7 +13,6 @@ import {
   useCallback,
   useContext,
   useEffect,
-  useId,
   useLayoutEffect,
   useRef,
   useState,
@@ -26,23 +22,38 @@ import Overlay from '@/components/overlay';
 import { ANIMATION } from '@/lib/constants/animation';
 import { cn } from '@/lib/utils';
 
+type PreviewPhase = 'closed' | 'opening' | 'open' | 'closing';
+
+interface IPreviewRect {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+}
+
 interface IActiveSourceImage {
   src: string;
   currentSrc: string;
+  objectFit?: CSSProperties['objectFit'];
+  objectPosition?: CSSProperties['objectPosition'];
 }
 
 interface IPreviewContext {
+  phase: PreviewPhase;
+  phaseRef: RefObject<PreviewPhase>;
+  setPhase: (phase: PreviewPhase) => void;
   isPreview: boolean;
-  setIsPreview: Dispatch<SetStateAction<boolean>>;
+  portalMounted: boolean;
+  setPortalMounted: (mounted: boolean) => void;
   triggerRef: RefObject<HTMLButtonElement | null>;
+  sourceMediaRef: RefObject<HTMLElement | null>;
+  originRectRef: RefObject<IPreviewRect | null>;
   mediaAspectRatio: number;
-  setMediaAspectRatio: Dispatch<SetStateAction<number>>;
-  activeLayoutId: string;
-  setActiveLayoutId: Dispatch<SetStateAction<string>>;
+  setMediaAspectRatio: (aspectRatio: number) => void;
   sourceImages: ReadonlyMap<string, string>;
   setSourceImage: (src: string, currentSrc: string) => void;
   activeSourceImage: IActiveSourceImage | null;
-  setActiveSourceImage: Dispatch<SetStateAction<IActiveSourceImage | null>>;
+  setActiveSourceImage: (image: IActiveSourceImage | null) => void;
 }
 
 const PreviewContext = createContext<IPreviewContext | null>(null);
@@ -51,29 +62,62 @@ const usePreview = () => {
   const context = useContext(PreviewContext);
 
   if (!context) {
-    throw new Error('usePreview must be used within an Preview');
+    throw new Error('usePreview must be used within a Preview');
   }
 
   return context;
 };
 
-const PREVIEW_LAYOUT_TRANSITION = {
-  type: 'tween',
-  duration: 0.28,
-  ease: ANIMATION.ease.out,
-} as const;
+const PREVIEW_DURATION_MS = 280;
+const PREVIEW_CLOSE_TIMEOUT_MS = 1000;
+const PREVIEW_EASING = `cubic-bezier(${ANIMATION.ease.out.join(',')})`;
+
+const toPreviewRect = (rect: DOMRect): IPreviewRect => ({
+  left: rect.left,
+  top: rect.top,
+  width: rect.width,
+  height: rect.height,
+});
+
+const isValidRect = (rect: IPreviewRect | null | undefined): rect is IPreviewRect =>
+  Boolean(rect?.width && rect.height);
+
+const getFlipTransform = (source: IPreviewRect, target: IPreviewRect) => {
+  const scaleX = source.width / target.width;
+  const scaleY = source.height / target.height;
+  const translateX = source.left - target.left;
+  const translateY = source.top - target.top;
+
+  return `translate(${translateX}px, ${translateY}px) scale(${scaleX}, ${scaleY})`;
+};
+
+const areRectsEqual = (first: IPreviewRect, second: IPreviewRect) =>
+  Math.abs(first.left - second.left) < 0.5 &&
+  Math.abs(first.top - second.top) < 0.5 &&
+  Math.abs(first.width - second.width) < 0.5 &&
+  Math.abs(first.height - second.height) < 0.5;
+
+const prefersReducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 interface IPreviewProps {
   children: React.ReactNode;
 }
 
 const Preview = ({ children }: IPreviewProps) => {
-  const [isPreview, setIsPreview] = useState(false);
-  const [mediaAspectRatio, setMediaAspectRatio] = useState(1);
-  const [activeLayoutId, setActiveLayoutId] = useState('preview-media');
+  const [phase, setPhaseState] = useState<PreviewPhase>('closed');
+  const phaseRef = useRef<PreviewPhase>('closed');
+  const [portalMounted, setPortalMounted] = useState(false);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const sourceMediaRef = useRef<HTMLElement | null>(null);
+  const originRectRef = useRef<IPreviewRect | null>(null);
+  const [mediaAspectRatio, setMediaAspectRatio] = useState(1);
   const [sourceImages, setSourceImages] = useState<ReadonlyMap<string, string>>(new Map());
   const [activeSourceImage, setActiveSourceImage] = useState<IActiveSourceImage | null>(null);
+
+  const setPhase = useCallback((nextPhase: PreviewPhase) => {
+    phaseRef.current = nextPhase;
+    setPhaseState(nextPhase);
+  }, []);
   const setSourceImage = useCallback((src: string, currentSrc: string) => {
     setSourceImages(images => {
       if (images.get(src) === currentSrc) {
@@ -82,25 +126,29 @@ const Preview = ({ children }: IPreviewProps) => {
       return new Map(images).set(src, currentSrc);
     });
   }, []);
-  const layoutGroupId = useId();
+  const isPreview = phase === 'opening' || phase === 'open' || phase === 'closing';
 
   return (
     <PreviewContext.Provider
       value={{
+        phase,
+        phaseRef,
+        setPhase,
         isPreview,
-        setIsPreview,
+        portalMounted,
+        setPortalMounted,
         triggerRef,
+        sourceMediaRef,
+        originRectRef,
         mediaAspectRatio,
         setMediaAspectRatio,
-        activeLayoutId,
-        setActiveLayoutId,
         sourceImages,
         setSourceImage,
         activeSourceImage,
         setActiveSourceImage,
       }}
     >
-      <LayoutGroup id={layoutGroupId}>{children}</LayoutGroup>
+      {children}
     </PreviewContext.Provider>
   );
 };
@@ -109,12 +157,7 @@ const isImageLoaded = (image: HTMLImageElement | null | undefined) =>
   Boolean(image?.complete && image.naturalWidth && image.naturalHeight);
 
 const getReusableImageSrc = (image: HTMLImageElement | null | undefined) => {
-  if (!isImageLoaded(image)) {
-    return undefined;
-  }
-
   const src = image?.currentSrc || image?.src;
-
   if (!src) {
     return undefined;
   }
@@ -129,7 +172,6 @@ interface IPreviewTriggerProps {
   ariaLabel?: string;
   as?: 'div' | 'span';
   contained?: boolean;
-  layoutId?: string;
   previewSrc?: string;
   onOpen?: () => void;
 }
@@ -140,16 +182,18 @@ const PreviewTrigger = ({
   ariaLabel = 'Open preview',
   as = 'div',
   contained = false,
-  layoutId = 'preview-media',
   previewSrc,
   onOpen,
 }: IPreviewTriggerProps) => {
   const {
+    phaseRef,
+    setPhase,
     isPreview,
-    setIsPreview,
+    setPortalMounted,
     triggerRef,
+    sourceMediaRef,
+    originRectRef,
     setMediaAspectRatio,
-    setActiveLayoutId,
     setSourceImage,
     setActiveSourceImage,
   } = usePreview();
@@ -160,7 +204,6 @@ const PreviewTrigger = ({
 
   const syncSourceAspectRatio = useCallback(() => {
     const image = mediaRef.current?.querySelector('img');
-
     if (!image?.naturalWidth || !image.naturalHeight) {
       return undefined;
     }
@@ -172,11 +215,10 @@ const PreviewTrigger = ({
 
   useEffect(() => {
     const image = mediaRef.current?.querySelector('img');
-
     const syncSourceImage = () => {
-      syncSourceAspectRatio();
+      const aspectRatio = syncSourceAspectRatio();
       const currentSrc = getReusableImageSrc(image);
-      if (previewSrc && currentSrc) {
+      if (aspectRatio && previewSrc && currentSrc) {
         setSourceImage(previewSrc, currentSrc);
       }
     };
@@ -193,36 +235,18 @@ const PreviewTrigger = ({
       ? { width: '100%', height: 'auto', aspectRatio: sourceAspectRatio }
       : { width: 'auto', height: '100%', aspectRatio: sourceAspectRatio }
     : undefined;
-
   const mediaClassName = contained ? 'absolute inset-0 m-auto block' : 'relative block w-full';
-  const media =
-    as === 'span' ? (
-      <motion.span
-        ref={element => {
-          mediaRef.current = element;
-        }}
-        layoutId={layoutId}
-        layoutDependency={isPreview}
-        className={mediaClassName}
-        style={mediaStyle}
-        transition={{ layout: PREVIEW_LAYOUT_TRANSITION }}
-      >
-        {children}
-      </motion.span>
-    ) : (
-      <motion.div
-        ref={element => {
-          mediaRef.current = element;
-        }}
-        layoutId={layoutId}
-        layoutDependency={isPreview}
-        className={mediaClassName}
-        style={mediaStyle}
-        transition={{ layout: PREVIEW_LAYOUT_TRANSITION }}
-      >
-        {children}
-      </motion.div>
-    );
+  const media = (
+    <Component
+      ref={element => {
+        mediaRef.current = element;
+      }}
+      className={mediaClassName}
+      style={mediaStyle}
+    >
+      {children}
+    </Component>
+  );
 
   return (
     <Component data-preview={isPreview} className={cn('relative', className)}>
@@ -234,22 +258,42 @@ const PreviewTrigger = ({
         aria-haspopup="dialog"
         aria-expanded={isPreview}
         onClick={() => {
-          triggerRef.current = buttonRef.current;
-          const aspectRatio = syncSourceAspectRatio();
-          if (aspectRatio) {
-            setMediaAspectRatio(aspectRatio);
+          if (phaseRef.current !== 'closed' || !mediaRef.current) {
+            return;
           }
-          const image = mediaRef.current?.querySelector('img');
+
+          const sourceRect = toPreviewRect(mediaRef.current.getBoundingClientRect());
+          if (!isValidRect(sourceRect)) {
+            return;
+          }
+
+          triggerRef.current = buttonRef.current;
+          sourceMediaRef.current = mediaRef.current;
+          originRectRef.current = sourceRect;
+
+          const aspectRatio = syncSourceAspectRatio() ?? sourceRect.width / sourceRect.height;
+          setMediaAspectRatio(aspectRatio);
+
+          const image = mediaRef.current.querySelector('img');
           const currentSrc = getReusableImageSrc(image);
           if (previewSrc && currentSrc) {
-            setSourceImage(previewSrc, currentSrc);
-            setActiveSourceImage({ src: previewSrc, currentSrc });
+            const imageStyle = image ? getComputedStyle(image) : undefined;
+            setActiveSourceImage({
+              src: previewSrc,
+              currentSrc,
+              objectFit: imageStyle?.objectFit as CSSProperties['objectFit'],
+              objectPosition: imageStyle?.objectPosition,
+            });
+            if (isImageLoaded(image)) {
+              setSourceImage(previewSrc, currentSrc);
+            }
           } else {
             setActiveSourceImage(null);
           }
-          setActiveLayoutId(layoutId);
+
           onOpen?.();
-          setIsPreview(true);
+          setPortalMounted(true);
+          setPhase('opening');
         }}
         className="focus-ring absolute inset-0 z-10 cursor-pointer rounded-[inherit]"
       />
@@ -268,15 +312,8 @@ interface IPreviewPortalProps {
   footer?: React.ReactNode;
   onTouchStart?: TouchEventHandler<HTMLDivElement>;
   onTouchEnd?: TouchEventHandler<HTMLDivElement>;
-  /** When provided, render prev/next controls (arrows + ←/→ keys) for galleries. */
   onPrevious?: () => void;
   onNext?: () => void;
-}
-
-interface IPreviewContentProps {
-  children: React.ReactNode;
-  className?: string;
-  aspectRatio?: number;
 }
 
 type SidecarPlacement = 'right' | 'bottom';
@@ -288,7 +325,7 @@ interface ISidecarLayout {
 
 const DEFAULT_SIDECAR_LAYOUT: ISidecarLayout = {
   placement: 'bottom',
-  style: { marginTop: 8, width: '100%' },
+  style: { left: 0, top: 'calc(100% + 8px)', width: '100%' },
 };
 
 const getContainedImageRect = (image: HTMLImageElement) => {
@@ -305,44 +342,21 @@ const getContainedImageRect = (image: HTMLImageElement) => {
 
   if (imageRatio > frameRatio) {
     const height = rect.width / imageRatio;
-    const y = rect.top + (rect.height - height) / 2;
-    return new DOMRect(rect.left, y, rect.width, height);
+    return new DOMRect(rect.left, rect.top + (rect.height - height) / 2, rect.width, height);
   }
 
   const width = rect.height * imageRatio;
-  const x = rect.left + (rect.width - width) / 2;
-  return new DOMRect(x, rect.top, width, rect.height);
+  return new DOMRect(rect.left + (rect.width - width) / 2, rect.top, width, rect.height);
 };
 
-const getFocusableElements = (container: HTMLElement) => {
-  return Array.from(
+const getFocusableElements = (container: HTMLElement) =>
+  Array.from(
     container.querySelectorAll<HTMLElement>(
       'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
     ),
   ).filter(
     element => !element.hasAttribute('disabled') && element.getAttribute('aria-hidden') !== 'true',
   );
-};
-
-const PreviewContent = ({ children, className, aspectRatio }: IPreviewContentProps) => {
-  const { isPreview, mediaAspectRatio, activeLayoutId } = usePreview();
-  const resolvedAspectRatio = aspectRatio ?? mediaAspectRatio;
-
-  return (
-    <motion.div
-      layoutId={activeLayoutId}
-      layoutDependency={isPreview}
-      className={cn('relative max-h-[82vh] max-w-[90vw]', className)}
-      style={{
-        aspectRatio: resolvedAspectRatio,
-        width: `min(90vw, ${82 * resolvedAspectRatio}vh, 64rem)`,
-      }}
-      transition={{ layout: PREVIEW_LAYOUT_TRANSITION }}
-    >
-      {children}
-    </motion.div>
-  );
-};
 
 const PreviewPortal = ({
   children,
@@ -358,47 +372,289 @@ const PreviewPortal = ({
   onPrevious,
   onNext,
 }: IPreviewPortalProps) => {
-  const { isPreview, setIsPreview, triggerRef } = usePreview();
+  const {
+    phase,
+    phaseRef,
+    setPhase,
+    isPreview,
+    portalMounted,
+    triggerRef,
+    sourceMediaRef,
+    originRectRef,
+    mediaAspectRatio,
+    setActiveSourceImage,
+  } = usePreview();
+  const anchorAspectRatio = targetAspectRatio ?? mediaAspectRatio;
   const dialogRef = useRef<HTMLDivElement>(null);
+  const anchorRef = useRef<HTMLDivElement>(null);
+  const mediaFrameRef = useRef<HTMLDivElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement | null>(null);
+  const animationRef = useRef<Animation | null>(null);
+  const animationGenerationRef = useRef(0);
+  const isReversingOpeningRef = useRef(false);
   const previewFrameRef = useRef<HTMLDivElement | null>(null);
-  const closeRequestedRef = useRef(false);
-  const closeTimerRef = useRef<number | null>(null);
-  const isLayoutSettledRef = useRef(false);
   const hasSidecar = Boolean(sidecar);
   const hasNavigation = Boolean(onPrevious || onNext);
+  const interactive = phase === 'opening' || phase === 'open';
+  const controlsVisible = phase === 'open';
   const [sidecarLayout, setSidecarLayout] = useState<ISidecarLayout>(DEFAULT_SIDECAR_LAYOUT);
-  const [isMediaSettled, setIsMediaSettled] = useState(false);
-  const sidecarPlacement = sidecarLayout.placement;
-  const isSidecarReady = isMediaSettled && sidecarLayout !== DEFAULT_SIDECAR_LAYOUT;
-  // Latest nav callbacks for the keyboard handler without re-subscribing.
   const onPreviousRef = useRef(onPrevious);
   const onNextRef = useRef(onNext);
+
   useEffect(() => {
     onPreviousRef.current = onPrevious;
     onNextRef.current = onNext;
   });
 
-  const finishClose = useCallback(() => {
-    closeRequestedRef.current = false;
-    isLayoutSettledRef.current = false;
-    setIsMediaSettled(false);
-    if (closeTimerRef.current !== null) {
-      window.clearTimeout(closeTimerRef.current);
+  const restoreSource = useCallback(() => {
+    if (sourceMediaRef.current) {
+      sourceMediaRef.current.style.visibility = '';
     }
-    closeTimerRef.current = window.setTimeout(() => {
-      closeTimerRef.current = null;
-      setIsPreview(false);
-    }, 0);
-  }, [setIsPreview]);
+  }, [sourceMediaRef]);
 
-  const handleClose = useCallback(() => {
-    if (!isLayoutSettledRef.current) {
-      closeRequestedRef.current = true;
+  const cancelAnimation = useCallback(() => {
+    animationGenerationRef.current += 1;
+    animationRef.current?.cancel();
+    animationRef.current = null;
+    isReversingOpeningRef.current = false;
+  }, []);
+
+  const getReturnRect = useCallback(() => {
+    const source = sourceMediaRef.current;
+    if (source?.isConnected) {
+      const liveRect = toPreviewRect(source.getBoundingClientRect());
+      if (isValidRect(liveRect)) {
+        return liveRect;
+      }
+    }
+    return originRectRef.current;
+  }, [originRectRef, sourceMediaRef]);
+
+  const restoreTriggerFocus = useCallback(() => {
+    const trigger = triggerRef.current;
+    if (trigger?.isConnected) {
+      trigger.focus({ preventScroll: true });
       return;
     }
-    finishClose();
-  }, [finishClose]);
+
+    const activeElement = document.activeElement;
+    if (activeElement instanceof HTMLElement && dialogRef.current?.contains(activeElement)) {
+      activeElement.blur();
+    }
+  }, [triggerRef]);
+
+  const finishClose = useCallback(
+    (frame: HTMLDivElement | null, endTransform: string) => {
+      if (phaseRef.current !== 'closing') {
+        return;
+      }
+      if (frame) {
+        frame.style.transform = endTransform;
+        frame.style.willChange = '';
+      }
+      restoreSource();
+      if (frame) {
+        frame.style.visibility = 'hidden';
+      }
+      restoreTriggerFocus();
+      originRectRef.current = null;
+      sourceMediaRef.current = null;
+      setActiveSourceImage(null);
+      setPhase('closed');
+    },
+    [
+      originRectRef,
+      phaseRef,
+      restoreSource,
+      restoreTriggerFocus,
+      setActiveSourceImage,
+      setPhase,
+      sourceMediaRef,
+    ],
+  );
+
+  // Watchdog: a close that never reports back would leave the modal and the
+  // scroll lock stuck, so tear down from wherever the media currently sits.
+  useEffect(() => {
+    if (phase !== 'closing') {
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      const frame = mediaFrameRef.current;
+      const endTransform = frame ? getComputedStyle(frame).transform : 'none';
+      cancelAnimation();
+      finishClose(frame, endTransform);
+    }, PREVIEW_CLOSE_TIMEOUT_MS);
+
+    return () => window.clearTimeout(timer);
+  }, [cancelAnimation, finishClose, phase]);
+
+  const handleClose = useCallback(() => {
+    const currentPhase = phaseRef.current;
+    if ((currentPhase !== 'opening' && currentPhase !== 'open') || !mediaFrameRef.current) {
+      return;
+    }
+
+    const frame = mediaFrameRef.current;
+    const animation = animationRef.current;
+    const returnRect = getReturnRect();
+    const openingRect = originRectRef.current;
+
+    if (
+      currentPhase === 'opening' &&
+      animation &&
+      isValidRect(returnRect) &&
+      isValidRect(openingRect) &&
+      areRectsEqual(returnRect, openingRect)
+    ) {
+      const generation = ++animationGenerationRef.current;
+      isReversingOpeningRef.current = true;
+      setPhase('closing');
+      animation.pause();
+      animation.playbackRate = -1;
+      animation.play();
+      animation.finished
+        .then(() => {
+          if (
+            animationGenerationRef.current !== generation ||
+            phaseRef.current !== 'closing' ||
+            !isReversingOpeningRef.current
+          ) {
+            return;
+          }
+          const endTransform = frame.style.transform;
+          animationRef.current = null;
+          isReversingOpeningRef.current = false;
+          animation.cancel();
+          finishClose(frame, endTransform);
+        })
+        .catch(() => undefined);
+      return;
+    }
+
+    const currentTransform = getComputedStyle(frame).transform;
+    frame.style.transform = currentTransform === 'none' ? 'none' : currentTransform;
+    cancelAnimation();
+    setPhase('closing');
+  }, [cancelAnimation, finishClose, getReturnRect, originRectRef, phaseRef, setPhase]);
+
+  useLayoutEffect(() => {
+    if (phase !== 'opening' || !anchorRef.current || !mediaFrameRef.current) {
+      return;
+    }
+
+    const sourceRect = originRectRef.current;
+    const targetRect = toPreviewRect(anchorRef.current.getBoundingClientRect());
+    if (!isValidRect(sourceRect) || !isValidRect(targetRect)) {
+      restoreSource();
+      setPhase('open');
+      return;
+    }
+
+    const frame = mediaFrameRef.current;
+    const source = sourceMediaRef.current;
+    const fromTransform = getFlipTransform(sourceRect, targetRect);
+    frame.style.visibility = 'visible';
+    frame.style.transformOrigin = '0 0';
+    frame.style.transform = fromTransform;
+    frame.style.willChange = 'transform';
+    if (source) {
+      source.style.visibility = 'hidden';
+    }
+
+    if (prefersReducedMotion()) {
+      frame.style.transform = 'none';
+      frame.style.willChange = '';
+      setPhase('open');
+      return;
+    }
+
+    const generation = ++animationGenerationRef.current;
+    const animation = frame.animate([{ transform: fromTransform }, { transform: 'none' }], {
+      duration: PREVIEW_DURATION_MS,
+      easing: PREVIEW_EASING,
+      fill: 'forwards',
+    });
+    animationRef.current = animation;
+    animation.finished
+      .then(() => {
+        if (animationGenerationRef.current !== generation || phaseRef.current !== 'opening') {
+          return;
+        }
+        animationRef.current = null;
+        frame.style.transform = 'none';
+        frame.style.willChange = '';
+        animation.cancel();
+        setPhase('open');
+      })
+      .catch(() => undefined);
+
+    return () => {
+      if (animationRef.current === animation && !isReversingOpeningRef.current) {
+        cancelAnimation();
+      }
+    };
+  }, [cancelAnimation, originRectRef, phase, phaseRef, restoreSource, setPhase, sourceMediaRef]);
+
+  useLayoutEffect(() => {
+    if (
+      phase !== 'closing' ||
+      isReversingOpeningRef.current ||
+      !anchorRef.current ||
+      !mediaFrameRef.current
+    ) {
+      return;
+    }
+
+    const frame = mediaFrameRef.current;
+    const returnRect = getReturnRect();
+    const targetRect = toPreviewRect(anchorRef.current.getBoundingClientRect());
+    if (!isValidRect(returnRect) || !isValidRect(targetRect)) {
+      finishClose(frame, getComputedStyle(frame).transform);
+      return;
+    }
+
+    const fromTransform = getComputedStyle(frame).transform;
+    const toTransform = getFlipTransform(returnRect, targetRect);
+    frame.style.willChange = 'transform';
+
+    if (prefersReducedMotion()) {
+      finishClose(frame, toTransform);
+      return;
+    }
+
+    const generation = ++animationGenerationRef.current;
+    const animation = frame.animate([{ transform: fromTransform }, { transform: toTransform }], {
+      duration: PREVIEW_DURATION_MS,
+      easing: PREVIEW_EASING,
+      fill: 'forwards',
+    });
+    animationRef.current = animation;
+    animation.finished
+      .then(() => {
+        if (animationGenerationRef.current !== generation || phaseRef.current !== 'closing') {
+          return;
+        }
+        animationRef.current = null;
+        animation.cancel();
+        finishClose(frame, toTransform);
+      })
+      .catch(() => undefined);
+
+    return () => {
+      if (animationRef.current === animation) {
+        cancelAnimation();
+      }
+    };
+  }, [cancelAnimation, finishClose, getReturnRect, phase, phaseRef]);
+
+  useLayoutEffect(() => {
+    if (phase === 'open') {
+      closeButtonRef.current?.focus({ preventScroll: true });
+    } else if (phase === 'opening' || phase === 'closing') {
+      dialogRef.current?.focus({ preventScroll: true });
+    }
+  }, [phase]);
 
   const handleDialogKeyDown = useCallback((event: ReactKeyboardEvent<HTMLDivElement>) => {
     if (event.key !== 'Tab' || !dialogRef.current) {
@@ -406,10 +662,9 @@ const PreviewPortal = ({
     }
 
     const focusableElements = getFocusableElements(dialogRef.current);
-
     if (focusableElements.length === 0) {
       event.preventDefault();
-      dialogRef.current.focus();
+      dialogRef.current.focus({ preventScroll: true });
       return;
     }
 
@@ -423,31 +678,14 @@ const PreviewPortal = ({
     ) {
       event.preventDefault();
       lastElement.focus();
-      return;
-    }
-
-    if (!event.shiftKey && currentElement === lastElement) {
+    } else if (!event.shiftKey && currentElement === lastElement) {
       event.preventDefault();
       firstElement.focus();
     }
   }, []);
 
-  // Esc + scroll-lock are handled by <Overlay>. Keep focus on the dialog while
-  // shared layout settles, then move it to the controls when they appear.
-  useLayoutEffect(() => {
-    if (!isPreview) {
-      return;
-    }
-    if (isMediaSettled) {
-      closeButtonRef.current?.focus();
-    } else {
-      dialogRef.current?.focus();
-    }
-  }, [isMediaSettled, isPreview]);
-
-  // Arrow-key navigation for galleries.
   useEffect(() => {
-    if (!isPreview || !hasNavigation) {
+    if (!interactive || !hasNavigation) {
       return;
     }
     const handleKey = (event: KeyboardEvent) => {
@@ -461,51 +699,30 @@ const PreviewPortal = ({
     };
     document.addEventListener('keydown', handleKey);
     return () => document.removeEventListener('keydown', handleKey);
-  }, [isPreview, hasNavigation]);
+  }, [hasNavigation, interactive]);
 
   useEffect(() => {
-    if (!isPreview) {
-      return;
-    }
-
-    const timer = window.setTimeout(() => {
-      isLayoutSettledRef.current = true;
-      setIsMediaSettled(true);
-      if (closeRequestedRef.current) {
-        finishClose();
-      }
-    }, PREVIEW_LAYOUT_TRANSITION.duration * 1000);
-
-    return () => window.clearTimeout(timer);
-  }, [finishClose, isPreview]);
-
-  useEffect(() => {
-    if (!isPreview || !hasSidecar || !isMediaSettled) {
+    if (phase !== 'open' || !hasSidecar || !previewFrameRef.current) {
       setSidecarLayout(DEFAULT_SIDECAR_LAYOUT);
       return;
     }
 
     let frameId = 0;
-
     const updatePlacement = () => {
       const frame = previewFrameRef.current;
-
       if (!frame) {
         return;
       }
 
-      const content = frame.firstElementChild as HTMLElement | null;
       const image = frame.querySelector('img');
       const frameRect = frame.getBoundingClientRect();
-      const contentRect = content?.getBoundingClientRect() ?? frameRect;
-      const mediaRect = image ? getContainedImageRect(image) : contentRect;
+      const mediaRect = image ? getContainedImageRect(image) : frameRect;
       const sidecarWidth = 224;
       const sidecarGap = 16;
       const viewportPadding = 16;
       const rightSpace = window.innerWidth - mediaRect.right;
-      const canPlaceRight = rightSpace >= sidecarWidth + sidecarGap + viewportPadding;
 
-      if (canPlaceRight) {
+      if (rightSpace >= sidecarWidth + sidecarGap + viewportPadding) {
         setSidecarLayout({
           placement: 'right',
           style: {
@@ -514,38 +731,27 @@ const PreviewPortal = ({
             width: sidecarWidth,
           },
         });
-        return;
+      } else {
+        setSidecarLayout({
+          placement: 'bottom',
+          style: {
+            left: mediaRect.left - frameRect.left,
+            top: mediaRect.bottom - frameRect.top + 8,
+            width: mediaRect.width,
+          },
+        });
       }
-
-      const visibleBottomOffset = Math.max(0, contentRect.bottom - mediaRect.bottom);
-
-      setSidecarLayout({
-        placement: 'bottom',
-        style: {
-          marginLeft: mediaRect.left - frameRect.left,
-          marginTop: 8 - visibleBottomOffset,
-          width: mediaRect.width,
-        },
-      });
     };
-
     const schedulePlacement = () => {
       cancelAnimationFrame(frameId);
       frameId = requestAnimationFrame(updatePlacement);
     };
 
     schedulePlacement();
-
     const resizeObserver = new ResizeObserver(schedulePlacement);
-    const frame = previewFrameRef.current;
-    const image = frame?.querySelector('img');
-
-    if (frame) {
-      resizeObserver.observe(frame);
-    }
-
+    resizeObserver.observe(previewFrameRef.current);
+    const image = previewFrameRef.current.querySelector('img');
     image?.addEventListener('load', schedulePlacement);
-
     window.addEventListener('resize', schedulePlacement);
 
     return () => {
@@ -554,26 +760,29 @@ const PreviewPortal = ({
       image?.removeEventListener('load', schedulePlacement);
       window.removeEventListener('resize', schedulePlacement);
     };
-  }, [hasSidecar, isMediaSettled, isPreview]);
+  }, [hasSidecar, phase]);
 
   useEffect(() => {
     return () => {
-      if (closeTimerRef.current !== null) {
-        window.clearTimeout(closeTimerRef.current);
-      }
+      cancelAnimation();
+      restoreSource();
     };
-  }, []);
+  }, [cancelAnimation, restoreSource]);
+
+  if (!portalMounted) {
+    return null;
+  }
 
   const previousButton = onPrevious ? (
     <button
       type="button"
       aria-label="Previous image"
-      aria-hidden={!isMediaSettled}
-      tabIndex={isMediaSettled ? 0 : -1}
+      aria-hidden={!controlsVisible}
+      tabIndex={controlsVisible ? 0 : -1}
       onClick={onPrevious}
       className={cn(
-        'focus-ring-overlay icon-button bg-overlay-control text-overlay-control-foreground hover:bg-overlay-control-hover absolute top-1/2 left-1 z-10 size-10 -translate-y-1/2 md:static md:shrink-0 md:translate-y-0',
-        !isMediaSettled && 'invisible pointer-events-none',
+        'focus-ring-overlay icon-button bg-overlay-control text-overlay-control-foreground hover:bg-overlay-control-hover absolute top-1/2 left-1 z-10 size-10 -translate-y-1/2 md:-left-[3.25rem]',
+        !controlsVisible && 'invisible pointer-events-none',
       )}
     >
       <ChevronLeftIcon className="size-5" />
@@ -583,35 +792,27 @@ const PreviewPortal = ({
     <button
       type="button"
       aria-label="Next image"
-      aria-hidden={!isMediaSettled}
-      tabIndex={isMediaSettled ? 0 : -1}
+      aria-hidden={!controlsVisible}
+      tabIndex={controlsVisible ? 0 : -1}
       onClick={onNext}
       className={cn(
-        'focus-ring-overlay icon-button bg-overlay-control text-overlay-control-foreground hover:bg-overlay-control-hover absolute top-1/2 right-1 z-10 size-10 -translate-y-1/2 md:static md:shrink-0 md:translate-y-0',
-        !isMediaSettled && 'invisible pointer-events-none',
+        'focus-ring-overlay icon-button bg-overlay-control text-overlay-control-foreground hover:bg-overlay-control-hover absolute top-1/2 right-1 z-10 size-10 -translate-y-1/2 md:-right-[3.25rem]',
+        !controlsVisible && 'invisible pointer-events-none',
       )}
     >
       <ChevronRightIcon className="size-5" />
     </button>
   ) : null;
-  const previewContent = (
-    <PreviewContent
-      className={cn(contentClassName, hasNavigation && 'md:max-w-[calc(100vw-8rem)]')}
-      aspectRatio={targetAspectRatio}
-    >
-      {children}
-    </PreviewContent>
-  );
 
   return (
     <Overlay
       open={isPreview}
+      // Dim leaves on the first closing frame; the media keeps flying home under it.
+      backdropOpen={interactive}
       onClose={handleClose}
-      onExitComplete={() => triggerRef.current?.focus({ preventScroll: true })}
       ariaLabel={ariaLabel}
       scrollLockMode="overflow"
-      deferScrollUnlock
-      exitTimeoutMs={400}
+      persistent
       className={cn('items-center justify-center px-4 py-4 md:px-6 md:py-6', className)}
       backdropClassName="bg-overlay-backdrop dark:backdrop-blur"
     >
@@ -621,57 +822,59 @@ const PreviewPortal = ({
         aria-label={ariaLabel}
         tabIndex={-1}
         onKeyDown={handleDialogKeyDown}
-        onTouchStart={onTouchStart}
-        onTouchEnd={onTouchEnd}
-        className="relative flex max-h-full max-w-full flex-col items-end justify-center gap-2 md:gap-3"
+        onTouchStart={interactive ? onTouchStart : undefined}
+        onTouchEnd={interactive ? onTouchEnd : undefined}
+        className="relative flex max-h-full max-w-full items-center justify-center"
       >
-        <button
-          ref={closeButtonRef}
-          type="button"
-          aria-label="Close preview"
-          aria-hidden={!isMediaSettled}
-          tabIndex={isMediaSettled ? 0 : -1}
-          onClick={handleClose}
+        <div
+          ref={anchorRef}
           className={cn(
-            'focus-ring-overlay icon-button bg-overlay-control text-overlay-control-foreground hover:bg-overlay-control-hover hover:text-overlay-control-foreground size-11 md:size-10',
-            !isMediaSettled && 'invisible pointer-events-none',
+            'relative max-h-[82vh] max-w-[90vw]',
+            contentClassName,
+            hasNavigation ? 'md:max-w-[calc(100vw-8rem)]' : 'md:max-w-[calc(100vw-7rem)]',
           )}
+          style={{
+            aspectRatio: anchorAspectRatio,
+            width: `min(90vw, ${82 * anchorAspectRatio}vh, 64rem)`,
+          }}
         >
-          <XIcon className="size-4.5" />
-        </button>
-        <div className={cn('relative flex items-center', hasNavigation && 'md:gap-3')}>
+          <div ref={previewFrameRef} className="absolute inset-0">
+            <div ref={mediaFrameRef} className="absolute inset-0">
+              {children}
+            </div>
+          </div>
+          <button
+            ref={closeButtonRef}
+            type="button"
+            aria-label="Close preview"
+            aria-hidden={!controlsVisible}
+            tabIndex={controlsVisible ? 0 : -1}
+            onClick={handleClose}
+            className={cn(
+              'focus-ring-overlay icon-button bg-overlay-control text-overlay-control-foreground hover:bg-overlay-control-hover hover:text-overlay-control-foreground absolute top-2 right-2 z-20 size-11 md:-top-12 md:-right-12 md:size-10',
+              !controlsVisible && 'invisible pointer-events-none',
+            )}
+          >
+            <XIcon className="size-4.5" />
+          </button>
           {previousButton}
-          {hasSidecar ? (
-            <div
+          {nextButton}
+          {footer ? <div className="absolute top-full left-0 mt-2 w-full">{footer}</div> : null}
+          {sidecar && phase === 'open' ? (
+            <aside
+              style={sidecarLayout.style}
               className={cn(
-                'relative flex max-w-[calc(100vw-2rem)] flex-col items-center overflow-visible pb-1',
-                sidecarPlacement === 'right' && 'overflow-visible',
+                'absolute max-w-full overflow-y-auto text-left',
+                sidecarLayout.placement === 'right'
+                  ? 'max-h-[min(78vh,48rem)] max-w-56'
+                  : 'max-h-[min(30vh,16rem)]',
+                sidecarClassName,
               )}
             >
-              <div ref={previewFrameRef} className="relative shrink-0">
-                {previewContent}
-                {isSidecarReady ? (
-                  <aside
-                    style={sidecarLayout.style}
-                    className={cn(
-                      'text-left',
-                      sidecarPlacement === 'right'
-                        ? 'absolute max-h-[min(78vh,48rem)] max-w-56 overflow-y-auto'
-                        : 'relative max-w-full',
-                      sidecarClassName,
-                    )}
-                  >
-                    {sidecar}
-                  </aside>
-                ) : null}
-              </div>
-            </div>
-          ) : (
-            previewContent
-          )}
-          {nextButton}
+              {sidecar}
+            </aside>
+          ) : null}
         </div>
-        {footer ? <div className="w-full">{footer}</div> : null}
       </div>
     </Overlay>
   );
@@ -687,8 +890,6 @@ interface IPreviewImageProps {
 
 const isExternalImage = (src: string) => /^(https?:)?\/\//.test(src);
 
-type PreviewImageStatus = 'loading' | 'loaded' | 'error';
-
 const ProgressivePreviewImage = ({
   src,
   alt,
@@ -696,12 +897,19 @@ const ProgressivePreviewImage = ({
   sizes,
   unoptimized,
 }: Required<IPreviewImageProps>) => {
-  const { activeSourceImage, sourceImages } = usePreview();
-  const placeholderSrc =
-    activeSourceImage?.src === src ? activeSourceImage.currentSrc : sourceImages.get(src);
-  const [status, setStatus] = useState<PreviewImageStatus>('loading');
-  const showPlaceholder = Boolean(placeholderSrc) && status !== 'loaded';
-  const showPreview = status === 'loaded' || (status === 'error' && !placeholderSrc);
+  const { phase, activeSourceImage, sourceImages } = usePreview();
+  const isActiveSource = activeSourceImage?.src === src;
+  const placeholderSrc = isActiveSource ? activeSourceImage.currentSrc : sourceImages.get(src);
+  const [isLoaded, setIsLoaded] = useState(false);
+  const preserveSourceCrop = isActiveSource && phase === 'opening';
+  const showPlaceholder = Boolean(placeholderSrc) && (!isLoaded || preserveSourceCrop);
+  const showPreview = !placeholderSrc || (isLoaded && !preserveSourceCrop);
+  const placeholderStyle = preserveSourceCrop
+    ? {
+        objectFit: activeSourceImage?.objectFit,
+        objectPosition: activeSourceImage?.objectPosition,
+      }
+    : undefined;
 
   return (
     <>
@@ -713,6 +921,7 @@ const ProgressivePreviewImage = ({
           fill
           sizes={sizes}
           className={cn('object-contain', className)}
+          style={placeholderStyle}
           unoptimized
         />
       ) : null}
@@ -723,8 +932,7 @@ const ProgressivePreviewImage = ({
         sizes={sizes}
         className={cn('object-contain', showPreview ? 'opacity-100' : 'opacity-0', className)}
         unoptimized={unoptimized}
-        onLoad={() => setStatus('loaded')}
-        onError={() => setStatus('error')}
+        onLoad={() => setIsLoaded(true)}
       />
     </>
   );
@@ -736,17 +944,15 @@ const PreviewImage = ({
   className = '',
   sizes = '(max-width: 640px) 92vw, (max-width: 768px) 90vw, 86vw',
   unoptimized = isExternalImage(src),
-}: IPreviewImageProps) => {
-  return (
-    <ProgressivePreviewImage
-      key={src}
-      src={src}
-      alt={alt}
-      className={className}
-      sizes={sizes}
-      unoptimized={unoptimized}
-    />
-  );
-};
+}: IPreviewImageProps) => (
+  <ProgressivePreviewImage
+    key={src}
+    src={src}
+    alt={alt}
+    className={className}
+    sizes={sizes}
+    unoptimized={unoptimized}
+  />
+);
 
-export { Preview, PreviewContent, PreviewImage, PreviewPortal, PreviewTrigger };
+export { Preview, PreviewImage, PreviewPortal, PreviewTrigger };
