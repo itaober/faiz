@@ -829,13 +829,16 @@ const PreviewPortal = ({
         <div
           ref={anchorRef}
           className={cn(
-            'relative max-h-[82vh] max-w-[90vw]',
+            'relative max-h-[80svh] max-w-[90vw]',
             contentClassName,
             hasNavigation ? 'md:max-w-[calc(100vw-8rem)]' : 'md:max-w-[calc(100vw-7rem)]',
           )}
           style={{
             aspectRatio: anchorAspectRatio,
-            width: `min(90vw, ${82 * anchorAspectRatio}vh, 64rem)`,
+            // svh, not vh: iOS resolves vh against the URL-bar-hidden viewport, which is taller
+            // than the fixed overlay actually gets — the close button above the media would be
+            // pushed off screen.
+            width: `min(90vw, ${80 * anchorAspectRatio}svh, 64rem)`,
           }}
         >
           <div ref={previewFrameRef} className="absolute inset-0">
@@ -851,7 +854,7 @@ const PreviewPortal = ({
             tabIndex={controlsVisible ? 0 : -1}
             onClick={handleClose}
             className={cn(
-              'focus-ring-overlay icon-button bg-overlay-control text-overlay-control-foreground hover:bg-overlay-control-hover hover:text-overlay-control-foreground absolute top-2 right-2 z-20 size-11 md:-top-12 md:-right-12 md:size-10',
+              'focus-ring-overlay icon-button bg-overlay-control text-overlay-control-foreground hover:bg-overlay-control-hover hover:text-overlay-control-foreground absolute -top-12 right-0 z-20 size-11 md:-right-12 md:size-10',
               !controlsVisible && 'invisible pointer-events-none',
             )}
           >
@@ -859,7 +862,17 @@ const PreviewPortal = ({
           </button>
           {previousButton}
           {nextButton}
-          {footer ? <div className="absolute top-full left-0 mt-2 w-full">{footer}</div> : null}
+          {footer ? (
+            <div
+              aria-hidden={!controlsVisible}
+              className={cn(
+                'absolute top-full left-0 mt-2 w-full',
+                !controlsVisible && 'invisible',
+              )}
+            >
+              {footer}
+            </div>
+          ) : null}
           {sidecar && phase === 'open' ? (
             <aside
               style={sidecarLayout.style}
