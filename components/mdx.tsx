@@ -1,9 +1,9 @@
 import type { MDXComponents } from 'mdx/types';
 import NextImage from 'next/image';
-import Link from 'next/link';
+import NextLink from 'next/link';
 import type { MDXRemoteProps } from 'next-mdx-remote/rsc';
 import { MDXRemote } from 'next-mdx-remote/rsc';
-import type { ImgHTMLAttributes } from 'react';
+import type { AnchorHTMLAttributes, ImgHTMLAttributes } from 'react';
 
 import { Preview, PreviewImage, PreviewPortal, PreviewTrigger } from '@/components/preview';
 import {
@@ -38,6 +38,28 @@ const TodoList = ({ readonly = false, items }: ITodoListProps) => {
         );
       })}
     </div>
+  );
+};
+
+const MarkdownLink = ({
+  href = '',
+  children,
+  ...props
+}: AnchorHTMLAttributes<HTMLAnchorElement>) => {
+  const external = /^(https?:)?\/\//i.test(href);
+
+  if (external) {
+    return (
+      <a {...props} href={href} target="_blank" rel="noopener noreferrer">
+        {children}
+      </a>
+    );
+  }
+
+  return (
+    <NextLink href={href} {...props}>
+      {children}
+    </NextLink>
   );
 };
 
@@ -89,7 +111,8 @@ const Image = ({ src, alt = '', caption }: IImageProps) => {
 };
 
 const components: MDXComponents = {
-  Link,
+  a: MarkdownLink,
+  Link: MarkdownLink,
   CheckboxRoot,
   Checkbox,
   CheckboxLabel,
