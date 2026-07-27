@@ -70,6 +70,7 @@ const usePreview = () => {
 
 const PREVIEW_DURATION_MS = 280;
 const PREVIEW_CLOSE_TIMEOUT_MS = 1000;
+const PREVIEW_PAINT_WAIT_MS = 300;
 const PREVIEW_EASING = `cubic-bezier(${ANIMATION.ease.out.join(',')})`;
 
 const toPreviewRect = (rect: DOMRect): IPreviewRect => ({
@@ -98,6 +99,25 @@ const areRectsEqual = (first: IPreviewRect, second: IPreviewRect) =>
   Math.abs(first.height - second.height) < 0.5;
 
 const prefersReducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/**
+ * Resolves once the frame's image can be painted. The portal's `<img>` is created on the same tick
+ * the preview opens, so on anything slower than localhost it needs a fetch and a decode first —
+ * without this wait the FLIP runs against an empty box and the media only appears once it is over.
+ * Capped so a stalled image can never trap the user in a dimmed overlay whose controls are hidden.
+ */
+const whenPaintable = (frame: HTMLElement) => {
+  const image = frame.querySelector('img');
+  if (!image || typeof image.decode !== 'function') {
+    return Promise.resolve();
+  }
+
+  return Promise.race([
+    // decode() waits for the load too, so it covers an image that hasn't arrived yet.
+    image.decode().catch(() => undefined),
+    new Promise(resolve => window.setTimeout(resolve, PREVIEW_PAINT_WAIT_MS)),
+  ]);
+};
 
 interface IPreviewProps {
   children: React.ReactNode;
@@ -157,7 +177,10 @@ const isImageLoaded = (image: HTMLImageElement | null | undefined) =>
   Boolean(image?.complete && image.naturalWidth && image.naturalHeight);
 
 const getReusableImageSrc = (image: HTMLImageElement | null | undefined) => {
-  const src = image?.currentSrc || image?.src;
+  // currentSrc only — it is the candidate the browser actually painted, so reusing it is a cache
+  // hit. `src` is next/image's fallback, which is the *largest* srcset entry (w=3840 for a box a
+  // tenth that size): reusing it would fetch and decode an image the page never displayed.
+  const src = image?.currentSrc;
   if (!src) {
     return undefined;
   }
@@ -558,39 +581,62 @@ const PreviewPortal = ({
     frame.style.transformOrigin = '0 0';
     frame.style.transform = fromTransform;
     frame.style.willChange = 'transform';
-    if (source) {
-      source.style.visibility = 'hidden';
-    }
-
-    if (prefersReducedMotion()) {
-      frame.style.transform = 'none';
-      frame.style.willChange = '';
-      setPhase('open');
-      return;
-    }
 
     const generation = ++animationGenerationRef.current;
-    const animation = frame.animate([{ transform: fromTransform }, { transform: 'none' }], {
-      duration: PREVIEW_DURATION_MS,
-      easing: PREVIEW_EASING,
-      fill: 'forwards',
-    });
-    animationRef.current = animation;
-    animation.finished
-      .then(() => {
-        if (animationGenerationRef.current !== generation || phaseRef.current !== 'opening') {
-          return;
-        }
-        animationRef.current = null;
+    let cancelled = false;
+
+    const startFlip = () => {
+      if (
+        cancelled ||
+        animationGenerationRef.current !== generation ||
+        phaseRef.current !== 'opening'
+      ) {
+        return;
+      }
+
+      // Hand over only now. The frame sits exactly over the source at this point, so hiding the
+      // source before the frame can paint is what leaves a hole where the media should be.
+      if (source) {
+        source.style.visibility = 'hidden';
+      }
+
+      if (prefersReducedMotion()) {
         frame.style.transform = 'none';
         frame.style.willChange = '';
-        animation.cancel();
         setPhase('open');
-      })
-      .catch(() => undefined);
+        return;
+      }
+
+      const animation = frame.animate([{ transform: fromTransform }, { transform: 'none' }], {
+        duration: PREVIEW_DURATION_MS,
+        easing: PREVIEW_EASING,
+        fill: 'forwards',
+      });
+      animationRef.current = animation;
+      animation.finished
+        .then(() => {
+          if (animationGenerationRef.current !== generation || phaseRef.current !== 'opening') {
+            return;
+          }
+          animationRef.current = null;
+          frame.style.transform = 'none';
+          frame.style.willChange = '';
+          animation.cancel();
+          setPhase('open');
+        })
+        .catch(() => undefined);
+    };
+
+    whenPaintable(frame).then(startFlip);
 
     return () => {
-      if (animationRef.current === animation && !isReversingOpeningRef.current) {
+      // Stops a pending handover from hiding the source after this preview is gone.
+      cancelled = true;
+      if (
+        animationRef.current &&
+        animationGenerationRef.current === generation &&
+        !isReversingOpeningRef.current
+      ) {
         cancelAnimation();
       }
     };
@@ -935,6 +981,8 @@ const ProgressivePreviewImage = ({
           sizes={sizes}
           className={cn('object-contain', className)}
           style={placeholderStyle}
+          loading="eager"
+          fetchPriority="high"
           unoptimized
         />
       ) : null}
@@ -944,6 +992,10 @@ const ProgressivePreviewImage = ({
         fill
         sizes={sizes}
         className={cn('object-contain', showPreview ? 'opacity-100' : 'opacity-0', className)}
+        // This portal only exists because the user asked to see the image; nothing in it is
+        // below the fold, so lazy loading would only delay the handover.
+        loading="eager"
+        fetchPriority="high"
         unoptimized={unoptimized}
         onLoad={() => setIsLoaded(true)}
       />
