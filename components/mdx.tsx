@@ -5,6 +5,7 @@ import type { MDXRemoteProps } from 'next-mdx-remote/rsc';
 import { MDXRemote } from 'next-mdx-remote/rsc';
 import type { AnchorHTMLAttributes, ImgHTMLAttributes } from 'react';
 
+import ExternalLinkHoverCard from '@/components/external-link-hover-card';
 import { Preview, PreviewImage, PreviewPortal, PreviewTrigger } from '@/components/preview';
 import {
   groupConsecutiveMdxImages,
@@ -41,16 +42,63 @@ const TodoList = ({ readonly = false, items }: ITodoListProps) => {
   );
 };
 
-const MarkdownLink = ({
-  href = '',
-  children,
-  ...props
-}: AnchorHTMLAttributes<HTMLAnchorElement>) => {
-  const external = /^(https?:)?\/\//i.test(href);
+const isValidExternalWebLink = (href: string) => {
+  try {
+    const url = new URL(href.startsWith('//') ? `https:${href}` : href);
+    return Boolean(url.hostname);
+  } catch {
+    return false;
+  }
+};
 
-  if (external) {
+const normalizeAbsoluteHref = (href: string) => {
+  let normalized = '';
+  for (const character of href) {
+    const code = character.charCodeAt(0);
+    if (code > 0x20 && code !== 0x7f) {
+      normalized += character;
+    }
+  }
+  return normalized;
+};
+
+interface MarkdownLinkProps extends AnchorHTMLAttributes<HTMLAnchorElement> {
+  hoverCard?: boolean;
+}
+
+const MarkdownLink = ({ href = '', children, hoverCard = true, ...props }: MarkdownLinkProps) => {
+  const normalizedAbsoluteHref = normalizeAbsoluteHref(href);
+  const externalWebLink = /^(https?:)?\/\//i.test(normalizedAbsoluteHref);
+
+  if (externalWebLink) {
+    if (hoverCard && isValidExternalWebLink(normalizedAbsoluteHref)) {
+      return (
+        <ExternalLinkHoverCard {...props} href={normalizedAbsoluteHref}>
+          {children}
+        </ExternalLinkHoverCard>
+      );
+    }
     return (
-      <a {...props} href={href} target="_blank" rel="noopener noreferrer">
+      <a {...props} href={normalizedAbsoluteHref} target="_blank" rel="noopener noreferrer">
+        {children}
+      </a>
+    );
+  }
+
+  if (/^(mailto|tel):/i.test(normalizedAbsoluteHref)) {
+    return (
+      <a {...props} href={normalizedAbsoluteHref}>
+        {children}
+      </a>
+    );
+  }
+
+  if (/^[a-z][a-z\d+.-]*:/i.test(normalizedAbsoluteHref)) {
+    if (/^(javascript|data|vbscript):/i.test(normalizedAbsoluteHref)) {
+      return <span>{children}</span>;
+    }
+    return (
+      <a {...props} href={normalizedAbsoluteHref} target="_blank" rel="noopener noreferrer">
         {children}
       </a>
     );

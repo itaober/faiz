@@ -4,7 +4,9 @@ export const ANIMATION = {
     fast: 0.12,
     normal: 0.16,
     slow: 0.26,
+    morph: 0.4,
   },
+
   distance: {
     minimal: 2,
     small: 4,
@@ -15,6 +17,7 @@ export const ANIMATION = {
     out: [0.23, 1, 0.32, 1] as const,
     inOut: [0.77, 0, 0.175, 1] as const,
     drawer: [0.32, 0.72, 0, 1] as const,
+    morph: [0.19, 1, 0.22, 1] as const,
   },
   spring: {
     stiffness: 400,

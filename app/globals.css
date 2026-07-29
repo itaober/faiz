@@ -29,6 +29,7 @@
   --fz-dur-fast: 120ms;
   --fz-dur-normal: 160ms;
   --fz-dur-slow: 260ms;
+  --fz-dur-morph: 400ms;
 
   --fz-radius-xs: 4px;
   --fz-radius-sm: 6px;
