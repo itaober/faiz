@@ -16,6 +16,9 @@ interface TocItem {
 }
 
 const STORAGE_KEY = 'faiz:toc-mode';
+const VIEWPORT_PADDING = 16;
+const TOC_BOTTOM_PADDING = 32;
+const MIN_TOC_HEIGHT = 32;
 
 const slugify = (value: string) =>
   value
@@ -69,35 +72,51 @@ export default function PostToc() {
   const [tocItems, setTocItems] = useState<TocItem[]>([]);
   const [activeId, setActiveId] = useState<string>('');
   const [tocLeft, setTocLeft] = useState<number | null>(null);
+  const [tocTop, setTocTop] = useState<number | null>(null);
+  const [tocMaxHeight, setTocMaxHeight] = useState<number | null>(null);
 
   useLayoutEffect(() => {
     const article = document.getElementById('post-content');
-    if (!article) {
+    const title = document.querySelector<HTMLElement>('[data-post-title-anchor]');
+    if (!article || !title) {
       return;
     }
 
-    const recalculateTocLeft = () => {
+    const recalculateTocPosition = () => {
       const rect = article.getBoundingClientRect();
       const horizontalGap = 120;
       const rightPadding = 12;
       const tocWidth = 160;
       const preferredLeft = rect.right + horizontalGap;
       const maxLeft = window.innerWidth - tocWidth - rightPadding;
+      const titleTop = Math.max(
+        VIEWPORT_PADDING,
+        title.getBoundingClientRect().top + window.scrollY,
+      );
+      const maxTop = Math.max(
+        VIEWPORT_PADDING,
+        window.innerHeight - TOC_BOTTOM_PADDING - MIN_TOC_HEIGHT,
+      );
+      const top = Math.min(titleTop, maxTop);
+
       setTocLeft(Math.min(preferredLeft, maxLeft));
+      setTocTop(top);
+      setTocMaxHeight(Math.max(1, window.innerHeight - top - TOC_BOTTOM_PADDING));
     };
 
     setTocItems(collectTocFromArticle(article));
-    recalculateTocLeft();
+    recalculateTocPosition();
 
-    const resizeObserver = new ResizeObserver(recalculateTocLeft);
+    const resizeObserver = new ResizeObserver(recalculateTocPosition);
     resizeObserver.observe(article);
-    window.addEventListener('resize', recalculateTocLeft);
+    resizeObserver.observe(title);
+    window.addEventListener('resize', recalculateTocPosition);
 
     setIsReady(true);
 
     return () => {
       resizeObserver.disconnect();
-      window.removeEventListener('resize', recalculateTocLeft);
+      window.removeEventListener('resize', recalculateTocPosition);
     };
   }, []);
 
@@ -156,14 +175,20 @@ export default function PostToc() {
     setActiveId(id);
   }, []);
 
-  if (!isReady || tocItems.length < 3 || tocLeft === null) {
+  if (
+    !isReady ||
+    tocItems.length < 3 ||
+    tocLeft === null ||
+    tocTop === null ||
+    tocMaxHeight === null
+  ) {
     return null;
   }
 
   return (
     <motion.aside
-      className="pointer-events-auto fixed top-56 z-20 hidden xl:block"
-      style={{ left: tocLeft }}
+      className="pointer-events-auto fixed z-20 hidden xl:block"
+      style={{ left: tocLeft, top: tocTop }}
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.2, ease: 'easeOut' }}
@@ -171,7 +196,8 @@ export default function PostToc() {
       <div className="group flex w-40 flex-col items-stretch gap-2 rounded-lg">
         <nav
           aria-label="Table of contents"
-          className="max-h-[calc(100vh-16rem)] overflow-y-auto px-1 py-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          style={{ maxHeight: tocMaxHeight }}
+          className="overflow-y-auto px-1 py-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         >
           <ul className="space-y-0.5">
             {tocItems.map(item => {

@@ -14,6 +14,7 @@ interface IPostTitleProps extends Partial<MDXData> {
   title: string;
   titleNode?: ReactNode;
   metaNode?: ReactNode;
+  tocAnchor?: boolean;
   className?: string;
   children?: ReactNode;
 }
@@ -22,6 +23,7 @@ const PostTitle = ({
   title,
   titleNode,
   metaNode,
+  tocAnchor = false,
   createdTime,
   updatedTime,
   tags,
@@ -72,7 +74,7 @@ const PostTitle = ({
   }
 
   return (
-    <div className={cn('mb-8', className)}>
+    <div data-post-title-anchor={tocAnchor || undefined} className={cn('mb-8', className)}>
       <div className="flex items-start justify-between gap-4">
         <h1
           className="cursor-default text-4xl font-bold tracking-tight select-none"

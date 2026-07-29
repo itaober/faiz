@@ -32,7 +32,7 @@ export default function PostDetailInlineSection({ post, children }: IPostDetailI
 
   return (
     <>
-      <PostTitle {...post} />
+      <PostTitle {...post} tocAnchor />
       {children}
     </>
   );
