@@ -182,7 +182,7 @@ export default function ExternalLinkHoverCard({
       loading={isLoading}
       loadingLabel="Loading link preview"
       fallback={
-        <div className="motion-safe:animate-pulse">
+        <div className="motion-safe:animate-pulse motion-safe:[animation-duration:1s]">
           <div className="flex h-5 items-center gap-2">
             <span className="bg-muted size-5 rounded-sm" />
             <span className="bg-muted h-3 w-20 rounded-sm" />

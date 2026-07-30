@@ -37,6 +37,7 @@ const ESTIMATED_CARD_HEIGHT = 144;
 const BOUNDS_TRANSITION = {
   duration: ANIMATION.duration.morph,
   ease: ANIMATION.ease.morph,
+  delay: 0.05,
 } as const;
 
 export default function HoverCard({
@@ -52,7 +53,6 @@ export default function HoverCard({
   const cardRef = useRef<HTMLDivElement>(null);
   const openTimerRef = useRef<number | null>(null);
   const closeTimerRef = useRef<number | null>(null);
-  const placementRef = useRef<'above' | 'below' | null>(null);
   const tooltipId = useId();
   const reducedMotion = useReducedMotion();
   const [contentRef, contentBounds] = useMeasure(content);
@@ -77,9 +77,15 @@ export default function HoverCard({
   const closeCard = useCallback(() => {
     clearOpenTimer();
     clearCloseTimer();
-    placementRef.current = null;
-    setIsOpen(false);
-  }, [clearCloseTimer, clearOpenTimer]);
+    if (isOpen) {
+      setIsOpen(false);
+      // Position doubles as the placement lock — clearing it lets the next
+      // open pick a fresh side. The exiting card keeps its last-rendered
+      // position via the AnimatePresence snapshot.
+      setPosition(null);
+      onOpenChange?.(false);
+    }
+  }, [clearCloseTimer, clearOpenTimer, isOpen, onOpenChange]);
 
   const updatePosition = useCallback(() => {
     const trigger = triggerRef.current;
@@ -95,13 +101,15 @@ export default function HoverCard({
     );
     const spaceAbove = Math.max(0, rect.top - CARD_GAP - VIEWPORT_PADDING);
     const spaceBelow = Math.max(0, window.innerHeight - rect.bottom - CARD_GAP - VIEWPORT_PADDING);
-    const placement =
-      placementRef.current ??
-      (spaceAbove >= ESTIMATED_CARD_HEIGHT || spaceAbove >= spaceBelow ? 'above' : 'below');
-    placementRef.current = placement;
+    setPosition(current => {
+      // Placement locks for the lifetime of one open card: recalculations
+      // (window resize) keep the current side; closing clears position and
+      // the lock with it.
+      const placement =
+        current?.placement ??
+        (spaceAbove >= ESTIMATED_CARD_HEIGHT || spaceAbove >= spaceBelow ? 'above' : 'below');
 
-    setPosition(
-      placement === 'above'
+      return placement === 'above'
         ? {
             placement,
             bottom: window.innerHeight - rect.top + CARD_GAP,
@@ -109,8 +117,8 @@ export default function HoverCard({
             width,
             maxHeight: spaceAbove,
           }
-        : { placement, top: rect.bottom + CARD_GAP, left, width, maxHeight: spaceBelow },
-    );
+        : { placement, top: rect.bottom + CARD_GAP, left, width, maxHeight: spaceBelow };
+    });
   }, []);
 
   const openCard = useCallback(() => {
@@ -120,8 +128,19 @@ export default function HoverCard({
     clearOpenTimer();
     clearCloseTimer();
     updatePosition();
-    setIsOpen(true);
-  }, [clearCloseTimer, clearOpenTimer, disabled, supportsHover, updatePosition]);
+    if (!isOpen) {
+      setIsOpen(true);
+      onOpenChange?.(true);
+    }
+  }, [
+    clearCloseTimer,
+    clearOpenTimer,
+    disabled,
+    isOpen,
+    onOpenChange,
+    supportsHover,
+    updatePosition,
+  ]);
 
   const scheduleOpen = useCallback(() => {
     if (disabled || !supportsHover) {
@@ -143,26 +162,19 @@ export default function HoverCard({
     const sync = () => {
       setSupportsHover(query.matches);
       if (!query.matches) {
-        clearOpenTimer();
-        clearCloseTimer();
-        placementRef.current = null;
-        setIsOpen(false);
+        closeCard();
       }
     };
     sync();
     query.addEventListener('change', sync);
     return () => query.removeEventListener('change', sync);
-  }, [clearCloseTimer, clearOpenTimer]);
+  }, [closeCard]);
 
   useEffect(() => {
     if (disabled) {
       closeCard();
     }
   }, [closeCard, disabled]);
-
-  useEffect(() => {
-    onOpenChange?.(isOpen);
-  }, [isOpen, onOpenChange]);
 
   useEffect(() => {
     if (!isOpen) {
