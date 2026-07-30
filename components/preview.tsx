@@ -660,17 +660,29 @@ const PreviewPortal = ({
       return;
     }
 
-    const fromTransform = getComputedStyle(frame).transform;
-    const toTransform = getFlipTransform(returnRect, targetRect);
-    frame.style.willChange = 'transform';
+    // Fly home by animating the frame's box, not a transform: a scale FLIP is
+    // non-uniform whenever the source box crops the media (a square cover in a
+    // 2:3 cell), so the media lands visibly squashed for its final frames.
+    // Box keyframes let object-fit re-crop every frame instead — together with
+    // the source-crop placeholder the landing frame matches the cell exactly.
+    const currentRect = toPreviewRect(frame.getBoundingClientRect());
+    const fromBox = isValidRect(currentRect) ? currentRect : targetRect;
+    frame.style.transform = 'none';
+
+    const toBoxKeyframe = (rect: IPreviewRect) => ({
+      left: `${rect.left - targetRect.left}px`,
+      top: `${rect.top - targetRect.top}px`,
+      width: `${rect.width}px`,
+      height: `${rect.height}px`,
+    });
 
     if (prefersReducedMotion()) {
-      finishClose(frame, toTransform);
+      finishClose(frame, 'none');
       return;
     }
 
     const generation = ++animationGenerationRef.current;
-    const animation = frame.animate([{ transform: fromTransform }, { transform: toTransform }], {
+    const animation = frame.animate([toBoxKeyframe(fromBox), toBoxKeyframe(returnRect)], {
       duration: PREVIEW_DURATION_MS,
       easing: PREVIEW_EASING,
       fill: 'forwards',
@@ -683,7 +695,7 @@ const PreviewPortal = ({
         }
         animationRef.current = null;
         animation.cancel();
-        finishClose(frame, toTransform);
+        finishClose(frame, 'none');
       })
       .catch(() => undefined);
 
@@ -960,7 +972,9 @@ const ProgressivePreviewImage = ({
   const isActiveSource = activeSourceImage?.src === src;
   const placeholderSrc = isActiveSource ? activeSourceImage.currentSrc : sourceImages.get(src);
   const [isLoaded, setIsLoaded] = useState(false);
-  const preserveSourceCrop = isActiveSource && phase === 'opening';
+  // Closing keeps the source crop too, so the media flying home re-crops
+  // toward the exact rendition the grid cell will show at handover.
+  const preserveSourceCrop = isActiveSource && (phase === 'opening' || phase === 'closing');
   const showPlaceholder = Boolean(placeholderSrc) && (!isLoaded || preserveSourceCrop);
   const showPreview = !placeholderSrc || (isLoaded && !preserveSourceCrop);
   const placeholderStyle = preserveSourceCrop
