@@ -9,7 +9,8 @@ interface RateLimitEntry {
 
 const rateLimits = new Map<string, RateLimitEntry>();
 
-export const isLinkPreviewRateLimited = (headers: Headers) => {
+/** Consumes one rate-limit slot and reports whether the request may proceed. */
+export const allowLinkPreviewRequest = (headers: Headers) => {
   const now = Date.now();
   if (rateLimits.size >= MAX_RATE_LIMIT_ENTRIES) {
     for (const [key, entry] of rateLimits) {
@@ -36,9 +37,9 @@ export const isLinkPreviewRateLimited = (headers: Headers) => {
   if (!entry || entry.resetAt <= now) {
     rateLimits.delete(key);
     rateLimits.set(key, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
-    return false;
+    return true;
   }
 
   entry.count += 1;
-  return entry.count > RATE_LIMIT_MAX_REQUESTS;
+  return entry.count <= RATE_LIMIT_MAX_REQUESTS;
 };

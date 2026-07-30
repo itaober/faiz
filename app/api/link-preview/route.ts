@@ -2,14 +2,14 @@ import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 
 import { getLinkPreview } from '@/lib/server/link-preview';
-import { isLinkPreviewRateLimited } from '@/lib/server/link-preview-rate-limit';
+import { allowLinkPreviewRequest } from '@/lib/server/link-preview-rate-limit';
 
 export const runtime = 'nodejs';
 
 const MAX_URL_LENGTH = 2048;
 
 export async function GET(request: NextRequest) {
-  if (isLinkPreviewRateLimited(request.headers)) {
+  if (!allowLinkPreviewRequest(request.headers)) {
     return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
   }
 

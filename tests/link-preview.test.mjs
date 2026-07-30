@@ -45,3 +45,16 @@ test('rejects direct private-network preview targets', async () => {
     /Private network links are not allowed/,
   );
 });
+
+test('rejects invalid preview URLs before any request is made', async () => {
+  await assert.rejects(getLinkPreview('ftp://example.com/'), /Unsupported link protocol/);
+  await assert.rejects(
+    getLinkPreview('http://user:pass@example.com/'),
+    /Link credentials are not allowed/,
+  );
+  await assert.rejects(
+    getLinkPreview('http://example.com:8080/'),
+    /Non-standard link ports are not allowed/,
+  );
+  await assert.rejects(getLinkPreview('http://staging.localhost/'), /Local links are not allowed/);
+});
