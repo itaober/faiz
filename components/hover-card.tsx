@@ -283,7 +283,7 @@ export default function HoverCard({
                     ref={contentRef}
                     style={{ maxHeight: position.maxHeight }}
                     className={cn(
-                      'border-border bg-surface overflow-y-auto rounded-lg border p-3',
+                      'border-border bg-surface shrink-0 overflow-y-auto rounded-lg border p-3',
                       className,
                     )}
                   >
