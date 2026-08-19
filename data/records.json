@@ -179,6 +179,14 @@
   ],
   "music": [
     {
+      "title": "哥们废了",
+      "link": "https://music.douban.com/subject/36365699/",
+      "coverUrl": "/api/image/assets/records/music_哥们废了.webp",
+      "createdTime": "2026-08-19",
+      "rating": 7,
+      "type": "music"
+    },
+    {
       "title": "答应我会幸福",
       "link": "https://music.douban.com/subject/36033822/",
       "coverUrl": "/api/image/assets/records/music_答应我会幸福.webp",
