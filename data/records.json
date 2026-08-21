@@ -29,6 +29,14 @@
   ],
   "movie": [
     {
+      "title": "欢迎来龙餐馆",
+      "link": "https://www.douban.com/doubanapp/dispatch/movie/35811064?dt_dapp=1",
+      "coverUrl": "/api/image/assets/records/movie_欢迎来龙餐馆.webp",
+      "createdTime": "2026-08-21",
+      "rating": 8.2,
+      "type": "movie"
+    },
+    {
       "title": "八仙！",
       "link": "https://www.douban.com/doubanapp/dispatch/movie/36882191?dt_dapp=1",
       "coverUrl": "/api/image/assets/records/movie_八仙.webp",
