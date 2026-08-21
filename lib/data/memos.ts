@@ -9,6 +9,7 @@ import {
 } from '@/lib/data/common';
 import { deleteImages } from '@/lib/data/images';
 import dayjs, { formatTime, TIMEZONE } from '@/lib/dayjs';
+import { NotFoundError } from '@/lib/errors';
 
 export const MemoSchema = z.object({
   id: z.string(),
@@ -186,7 +187,7 @@ export const updateMemo = async (input: IUpdateMemoInput): Promise<IUpdateMemoRe
 
   const memoIndex = list.findIndex(m => m.id === input.id);
   if (memoIndex === -1) {
-    throw new Error('Memo not found');
+    throw new NotFoundError('Memo not found');
   }
 
   const oldMemo = list[memoIndex];
@@ -231,7 +232,7 @@ export const deleteMemo = async (input: IDeleteMemoInput): Promise<Memo> => {
 
   const memoToDelete = list.find(m => m.id === input.id);
   if (!memoToDelete) {
-    throw new Error('Memo not found');
+    throw new NotFoundError('Memo not found');
   }
 
   const filteredList = list.filter(m => m.id !== input.id);

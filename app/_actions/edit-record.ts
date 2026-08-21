@@ -12,6 +12,7 @@ import {
   type ActionError,
   type ActionResult,
   createActionError,
+  notFoundError,
   validationError,
 } from '@/lib/types/action-result';
 
@@ -183,7 +184,7 @@ export async function updateRecordAction(
     const existing = findRecord(records, input.original);
 
     if (!existing) {
-      return { success: false, error: 'Record not found', code: 'NOT_FOUND', retryable: false };
+      return notFoundError('Record not found');
     }
 
     const withoutOriginal = removeRecord(records, input.original);
@@ -213,7 +214,7 @@ export async function deleteRecordAction(input: IDeleteRecordInput): Promise<Act
     const existing = findRecord(records, input.original);
 
     if (!existing) {
-      return { success: false, error: 'Record not found', code: 'NOT_FOUND', retryable: false };
+      return notFoundError('Record not found');
     }
 
     await writeRecords(removeRecord(records, input.original), token);

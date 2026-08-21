@@ -25,6 +25,13 @@ interface IUploadEditorImageInput {
 const isAllowedScope = (scope: string): scope is EditorImageScope =>
   ALLOWED_SCOPES.includes(scope as EditorImageScope);
 
+// `revalidate` arrives from the client, so keep it to the paths the editors
+// actually ask for rather than handing arbitrary input to revalidatePath.
+const REVALIDATABLE_PATHS = new Set(['/', '/posts', '/memos', '/lines', '/records']);
+
+const isRevalidatablePath = (path: string) =>
+  REVALIDATABLE_PATHS.has(path) || /^\/posts\/[^/]+$/.test(path);
+
 export async function uploadEditorImageAction(
   input: IUploadEditorImageInput,
 ): Promise<ActionResult<string>> {
@@ -51,7 +58,7 @@ export async function uploadEditorImageAction(
       token,
     });
 
-    if (input.revalidate) {
+    if (input.revalidate && isRevalidatablePath(input.revalidate)) {
       revalidatePath(input.revalidate);
     }
 

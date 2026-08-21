@@ -7,6 +7,9 @@ export type EditableRecordType = (typeof RECORD_TYPES)[number];
 export const CONTENT_IMAGE_SCOPES = ['memos', 'posts', 'pages', 'records'] as const;
 export type ContentImageScope = (typeof CONTENT_IMAGE_SCOPES)[number];
 
+/** Upper bound on memo body length, shared by the create and update actions. */
+export const MAX_MEMO_CONTENT_LENGTH = 10000;
+
 export const CONTENT_IMAGE_EXTENSIONS = ['webp', 'jpg', 'jpeg', 'png', 'gif'] as const;
 export type ContentImageExtension = (typeof CONTENT_IMAGE_EXTENSIONS)[number];
 

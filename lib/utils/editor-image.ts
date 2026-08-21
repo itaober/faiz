@@ -84,6 +84,15 @@ export const getImageCaptionFromFilename = (filename: string, fallback = 'image'
 export const escapeMdxAttribute = (value: string) =>
   value.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
 
+/**
+ * Inverse of {@link escapeMdxAttribute}. Without it the pair is asymmetric —
+ * `unescapeMarkdownValue` only undoes backslash escapes — so re-saving a caption
+ * containing `"` or `&` escaped it again on every save (`&` → `&amp;` →
+ * `&amp;amp;`). `&amp;` must be decoded last, or `&amp;quot;` over-decodes to `"`.
+ */
+export const unescapeMdxAttribute = (value: string) =>
+  value.replace(/&quot;/g, '"').replace(/&amp;/g, '&');
+
 export const formatMdxImage = (src: string, alt: string, caption?: string) => {
   const captionAttr = caption?.trim()
     ? ` caption="${escapeMdxAttribute(unescapeMarkdownValue(caption))}"`
@@ -98,7 +107,7 @@ const getMdxImageAttribute = (attributes: string, name: string) => {
     new RegExp(`\\b${name}\\s*=\\s*(?:"([^"]*)"|'([^']*)'|\\{\\s*\`([^\`]*)\`\\s*\\})`),
   );
 
-  return unescapeMarkdownValue(match?.[1] ?? match?.[2] ?? match?.[3] ?? '');
+  return unescapeMdxAttribute(unescapeMarkdownValue(match?.[1] ?? match?.[2] ?? match?.[3] ?? ''));
 };
 
 const normalizeGalleryImageItem = (value: unknown): MdxImageGalleryItem | null => {

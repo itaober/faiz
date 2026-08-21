@@ -11,6 +11,7 @@ import {
   type ActionError,
   type ActionResult,
   createActionError,
+  notFoundError,
   validationError,
 } from '@/lib/types/action-result';
 
@@ -177,7 +178,7 @@ export async function updatePostAction(input: IUpdatePostInput): Promise<ActionR
     const existingPost = posts.find(post => post.slug === originalSlug);
 
     if (!existingPost) {
-      return { success: false, error: 'Post not found', code: 'NOT_FOUND', retryable: false };
+      return notFoundError('Post not found');
     }
 
     if (slug !== originalSlug && posts.some(post => post.slug === slug)) {
@@ -235,7 +236,7 @@ export async function deletePostAction(input: IDeletePostInput): Promise<ActionR
     const nextPosts = posts.filter(post => post.slug !== slug);
 
     if (nextPosts.length === posts.length) {
-      return { success: false, error: 'Post not found', code: 'NOT_FOUND', retryable: false };
+      return notFoundError('Post not found');
     }
 
     await deleteGitHubFile(buildPostPath(slug), `docs: delete post ${slug}`, token);

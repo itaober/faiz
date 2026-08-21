@@ -1,6 +1,6 @@
 // Relative + explicit extension so tests/ can import this under bare Node's TS
 // type-stripping, which does not resolve the `@/` alias.
-import { GitHubApiError } from '../errors.ts';
+import { GitHubApiError, NotFoundError } from '../errors.ts';
 
 export type ActionErrorCode =
   | 'AUTH_INVALID'
@@ -29,10 +29,22 @@ export const validationError = (error: string): ActionError => ({
   retryable: false,
 });
 
+/** For the "we read the file and the row isn't in it" checks inside actions. */
+export const notFoundError = (error: string): ActionError => ({
+  success: false,
+  error,
+  code: 'NOT_FOUND',
+  retryable: false,
+});
+
 export function createActionError(
   error: unknown,
   fallbackMessage = 'An error occurred',
 ): ActionError {
+  if (error instanceof NotFoundError) {
+    return { success: false, error: error.message, code: 'NOT_FOUND', retryable: false };
+  }
+
   // Classify on the status, never the message: these messages carry the post
   // slug and file path, so a slug like "top-404-pages" used to be reported as a
   // missing resource.

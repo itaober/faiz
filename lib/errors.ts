@@ -17,6 +17,17 @@ export class GitHubApiError extends Error {
   }
 }
 
+/**
+ * Raised when a record exists in the repo but not in the file we just read —
+ * a memo id that is gone, say. Typed so actions stop matching on the message.
+ */
+export class NotFoundError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'NotFoundError';
+  }
+}
+
 export const gitHubApiError = (res: Response, context: string) =>
   new GitHubApiError(res.status, `${context}: ${res.status} ${res.statusText}`, {
     // GitHub answers 403 both for "out of quota" and "token lacks permission";
