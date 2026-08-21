@@ -2,6 +2,7 @@ import { updateTag } from 'next/cache';
 import { cache } from 'react';
 
 import { formatTimeForId } from '@/lib/dayjs';
+import { gitHubApiError } from '@/lib/errors';
 
 import { fetchWithRetry } from './fetch-with-retry';
 
@@ -140,7 +141,7 @@ export const fetchGitHubApi = async (path: string, init?: RequestInit, token?: s
     const res = await fetchWithRetry(url, requestInit);
 
     if (!res.ok) {
-      throw new Error(`GitHub API error: ${res.status} ${res.statusText}`);
+      throw gitHubApiError(res, 'GitHub API error');
     }
     return res;
   } catch (error) {
@@ -249,7 +250,7 @@ const fetchGitHubContentsMeta = async (
         return null;
       }
 
-      throw new Error(`GitHub contents meta error: ${res.status} ${res.statusText}`);
+      throw gitHubApiError(res, 'GitHub contents meta error');
     }
 
     const data = (await res.json()) as { sha?: string };
@@ -317,7 +318,7 @@ export const putGitHubFile = async (
   if (!res.ok) {
     const errorText = await res.text();
     console.error('Failed to put GitHub file:', path, res.status, res.statusText, errorText);
-    throw new Error(`Failed to put GitHub file: ${path} - ${res.status} ${res.statusText}`);
+    throw gitHubApiError(res, `Failed to put GitHub file: ${path}`);
   }
 
   revalidateGitHubContent(path);
@@ -402,7 +403,7 @@ export const deleteGitHubFile = async (
     }
     const errorText = await res.text();
     console.error('Failed to delete GitHub file:', path, res.status, res.statusText, errorText);
-    throw new Error(`Failed to delete GitHub file: ${path} - ${res.status} ${res.statusText}`);
+    throw gitHubApiError(res, `Failed to delete GitHub file: ${path}`);
   }
 
   revalidateGitHubContent(path);
