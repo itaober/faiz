@@ -27,7 +27,9 @@ import {
 } from '@/lib/utils/editor-image';
 
 interface IPostEditorSurfaceProps {
-  post?: PostMeta & { content: string };
+  post?: PostMeta;
+  /** Raw MDX body, loaded on demand rather than shipped with every page view. */
+  initialContent?: string;
   onExit: () => void;
 }
 
@@ -58,7 +60,11 @@ const buildPostCreatedTime = (dateValue: string, previousValue?: string) => {
   return `${date} ${time}`;
 };
 
-export default function PostEditorSurface({ post, onExit }: IPostEditorSurfaceProps) {
+export default function PostEditorSurface({
+  post,
+  initialContent,
+  onExit,
+}: IPostEditorSurfaceProps) {
   const router = useRouter();
   const { token } = useEditMode();
   const isEdit = !!post;
@@ -80,7 +86,7 @@ export default function PostEditorSurface({ post, onExit }: IPostEditorSurfacePr
   const [pinned, setPinned] = useState(Boolean(post?.pinned));
   const [createdTime, setCreatedTime] = useState(formatPostDateInput(post?.createdTime));
   // Checkboxes (<TodoList>/<CheckboxRoot>) edit as markdown task lists, like pages.
-  const [content, setContent] = useState(() => mdxTodoListsToMarkdown(post?.content ?? ''));
+  const [content, setContent] = useState(() => mdxTodoListsToMarkdown(initialContent ?? ''));
   const [stagedImages, setStagedImages] = useState<StagedEditorImage[]>([]);
   const postDateInputRef = useRef<HTMLInputElement>(null);
 
@@ -98,9 +104,9 @@ export default function PostEditorSurface({ post, onExit }: IPostEditorSurfacePr
     setTags(post?.tags.join(', ') ?? '');
     setPinned(Boolean(post?.pinned));
     setCreatedTime(formatPostDateInput(post?.createdTime));
-    setContent(mdxTodoListsToMarkdown(post?.content ?? ''));
+    setContent(mdxTodoListsToMarkdown(initialContent ?? ''));
     setStagedImages([]);
-  }, [post]);
+  }, [post, initialContent]);
 
   const openPostDatePicker = () => {
     const input = postDateInputRef.current;

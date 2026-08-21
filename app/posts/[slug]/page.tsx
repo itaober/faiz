@@ -56,7 +56,7 @@ export default async function PostPage({ params, searchParams }: IPostPageProps)
     <>
       <MotionWrapper>
         <div className="relative">
-          <PostDetailInlineSection post={{ ...data, content }}>
+          <PostDetailInlineSection post={data}>
             <article id="post-content" className="prose dark:prose-invert">
               <MDX source={content} />
             </article>

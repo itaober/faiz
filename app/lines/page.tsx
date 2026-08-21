@@ -32,7 +32,7 @@ const LinesPage = async () => {
 
   return (
     <MotionWrapper>
-      <PageMdxInlineSection page="lines" title={data.title} content={content}>
+      <PageMdxInlineSection page="lines" title={data.title}>
         <article className="prose dark:prose-invert">
           <MDX source={content} />
         </article>

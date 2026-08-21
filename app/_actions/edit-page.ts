@@ -3,19 +3,16 @@
 import matter from 'gray-matter';
 import { revalidatePath } from 'next/cache';
 
-import { isEditablePage } from '@/lib/content-editing-validation';
+import {
+  EDITABLE_PAGE_PATHS,
+  type EditablePage,
+  isEditablePage,
+} from '@/lib/content-editing-validation';
 import { fetchGitHubText } from '@/lib/data/common';
 import { formatTime } from '@/lib/dayjs';
 import { requireAuth } from '@/lib/server/content-edit-token';
 import { createMutationFetchInit, normalizeOptionalString, writeMdx } from '@/lib/server/mdx-write';
 import { type ActionResult, createActionError, validationError } from '@/lib/types/action-result';
-
-const PAGE_PATHS = {
-  about: 'pages/about.mdx',
-  lines: 'pages/lines.mdx',
-} as const;
-
-type EditablePage = keyof typeof PAGE_PATHS;
 
 interface IUpdatePageInput {
   page: EditablePage;
@@ -43,7 +40,7 @@ export async function updatePageAction(input: IUpdatePageInput): Promise<ActionR
   }
 
   try {
-    const path = PAGE_PATHS[input.page];
+    const path = EDITABLE_PAGE_PATHS[input.page];
     const raw = await fetchGitHubText(path, createMutationFetchInit(), token).catch(() => '');
     const parsed = matter(raw);
     const now = formatTime();

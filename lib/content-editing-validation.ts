@@ -1,6 +1,12 @@
 export const EDITABLE_PAGES = ['about', 'lines'] as const;
 export type EditablePage = (typeof EDITABLE_PAGES)[number];
 
+/** Lives here rather than in the action: a 'use server' file can only export async functions. */
+export const EDITABLE_PAGE_PATHS: Record<EditablePage, string> = {
+  about: 'pages/about.mdx',
+  lines: 'pages/lines.mdx',
+};
+
 export const RECORD_TYPES = ['book', 'movie', 'tv', 'music', 'game'] as const;
 export type EditableRecordType = (typeof RECORD_TYPES)[number];
 
