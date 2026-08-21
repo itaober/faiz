@@ -1,0 +1,93 @@
+{
+  "$schema": "https://biomejs.dev/schemas/2.5.9/schema.json",
+  "vcs": {
+    "enabled": true,
+    "clientKind": "git",
+    "useIgnoreFile": true
+  },
+  "files": {
+    "ignoreUnknown": true,
+    "includes": ["**", "!.docs", "!**/*.tsx.snap"]
+  },
+  "formatter": {
+    "enabled": true,
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineWidth": 100,
+    "lineEnding": "lf"
+  },
+  "linter": {
+    "enabled": true,
+    "domains": {
+      "react": "recommended",
+      "next": "recommended"
+    },
+    "rules": {
+      "preset": "recommended",
+      "complexity": {
+        // globals.css needs !important for the prefers-reduced-motion reset and the
+        // prose max-width override; both must beat Tailwind utility specificity.
+        "noImportantStyles": "off"
+      },
+      "style": {
+        // globals.css is one hand-ordered file where later, less specific rules are
+        // deliberate overrides.
+        "noDescendingSpecificity": "off",
+        // Was `ts/no-non-null-assertion: off` under ESLint.
+        "noNonNullAssertion": "off"
+      },
+      "suspicious": {
+        "noConsole": {
+          "level": "warn",
+          "options": { "allow": ["warn", "error"] }
+        }
+      }
+    }
+  },
+  "javascript": {
+    "formatter": {
+      "quoteStyle": "single",
+      "jsxQuoteStyle": "double",
+      "semicolons": "always",
+      "trailingCommas": "all",
+      "arrowParentheses": "asNeeded",
+      "bracketSpacing": true,
+      "bracketSameLine": false,
+      "quoteProperties": "asNeeded"
+    }
+  },
+  "css": {
+    "formatter": {
+      "quoteStyle": "single"
+    },
+    "parser": {
+      // Tailwind v4 at-rules: @plugin, @custom-variant, @theme, @utility, @apply.
+      "tailwindDirectives": true
+    }
+  },
+  "assist": {
+    "enabled": true,
+    "actions": {
+      "source": {
+        "organizeImports": "on"
+      }
+    }
+  },
+  "overrides": [
+    {
+      // Test runners print their results to stdout.
+      "includes": ["tests/**"],
+      "linter": {
+        "rules": {
+          "suspicious": { "noConsole": "off" }
+        }
+      }
+    },
+    {
+      "includes": ["public/sw.js"],
+      "javascript": {
+        "globals": ["self", "clients", "caches", "skipWaiting", "registration"]
+      }
+    }
+  ]
+}

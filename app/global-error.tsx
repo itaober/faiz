@@ -8,12 +8,13 @@ export default function GlobalError({
   reset: () => void;
 }) {
   return (
-    <html>
+    <html lang="en">
       <body className="bg-background text-foreground flex min-h-screen items-center justify-center">
         <div className="flex flex-col items-center gap-4 p-6">
           <h2 className="text-lg font-medium">Critical Error</h2>
           <p className="text-sm opacity-60">{error.message}</p>
           <button
+            type="button"
             onClick={reset}
             className="bg-foreground/10 hover:bg-foreground/20 rounded-md px-4 py-2 text-sm transition-colors"
           >

@@ -2,7 +2,7 @@
 
 import { CheckIcon } from 'lucide-react';
 import type { ButtonHTMLAttributes, HTMLAttributes } from 'react';
-import { createContext, forwardRef, useCallback, useContext, useState } from 'react';
+import { createContext, forwardRef, useCallback, useContext, useId, useState } from 'react';
 
 import { cn } from '@/lib/utils';
 
@@ -10,6 +10,8 @@ interface ICheckboxContext {
   checked: boolean;
   disabled?: boolean;
   readonly?: boolean;
+  /** Ties CheckboxLabel's text to the checkbox button as its accessible name. */
+  labelId: string;
   onToggle: () => void;
 }
 
@@ -17,6 +19,7 @@ const CheckboxContext = createContext<ICheckboxContext>({
   checked: false,
   disabled: false,
   readonly: false,
+  labelId: '',
   onToggle: () => {},
 });
 
@@ -53,6 +56,7 @@ const CheckboxRoot = forwardRef<HTMLDivElement, ICheckboxRootProps>(
     ref,
   ) => {
     const [internalChecked, setInternalChecked] = useState(defaultChecked);
+    const labelId = useId();
 
     const isControlled = checked !== undefined;
     const isChecked = isControlled ? checked : internalChecked;
@@ -78,7 +82,9 @@ const CheckboxRoot = forwardRef<HTMLDivElement, ICheckboxRootProps>(
         data-readonly={readonly ? '' : undefined}
         {...props}
       >
-        <CheckboxContext.Provider value={{ checked: isChecked, disabled, readonly, onToggle }}>
+        <CheckboxContext.Provider
+          value={{ checked: isChecked, disabled, readonly, labelId, onToggle }}
+        >
           {children}
         </CheckboxContext.Provider>
       </div>
@@ -91,13 +97,15 @@ CheckboxRoot.displayName = 'CheckboxRoot';
 export interface ICheckboxProps extends ButtonHTMLAttributes<HTMLButtonElement> {}
 
 const Checkbox = forwardRef<HTMLButtonElement, ICheckboxProps>(({ className, ...props }, ref) => {
-  const { checked, disabled, onToggle } = useCheckboxContext();
+  const { checked, disabled, labelId, onToggle } = useCheckboxContext();
 
   return (
+    // biome-ignore lint/a11y/useSemanticElements: styled design-system checkbox; a focusable button with aria-checked and Enter/Space handling implements the same contract
     <button
       ref={ref}
       type="button"
       role="checkbox"
+      aria-labelledby={labelId || undefined}
       data-state={checked ? 'checked' : 'unchecked'}
       data-disabled={disabled ? '' : undefined}
       aria-checked={checked}
@@ -134,14 +142,19 @@ const Checkbox = forwardRef<HTMLButtonElement, ICheckboxProps>(({ className, ...
 
 Checkbox.displayName = 'Checkbox';
 
-export interface CheckboxLabelProps extends HTMLAttributes<HTMLLabelElement> {}
+export interface CheckboxLabelProps extends HTMLAttributes<HTMLSpanElement> {}
 
-const CheckboxLabel = forwardRef<HTMLLabelElement, CheckboxLabelProps>(
+// A <span>, not a <label>: it names the sibling button via aria-labelledby, and
+// label/htmlFor cannot target a button.
+const CheckboxLabel = forwardRef<HTMLSpanElement, CheckboxLabelProps>(
   ({ className, ...props }, ref) => {
-    const { checked, disabled, onToggle } = useCheckboxContext();
+    const { checked, disabled, labelId, onToggle } = useCheckboxContext();
 
     return (
-      <label
+      // biome-ignore lint/a11y/noStaticElementInteractions: click-to-toggle is a hit-area convenience; the keyboard path is the checkbox button this labels
+      // biome-ignore lint/a11y/useKeyWithClickEvents: same — the button next to it handles Enter/Space
+      <span
+        id={labelId || undefined}
         data-state={checked ? 'checked' : 'unchecked'}
         data-disabled={disabled ? '' : undefined}
         ref={ref}

@@ -183,7 +183,7 @@ export default function MemoEditorSurface({ memo, onCancel }: IMemoEditorSurface
           key={attachment.id}
           className="group bg-muted/30 relative aspect-square overflow-hidden rounded-md"
         >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
+          {/* biome-ignore lint/performance/noImgElement: editor preview of a local blob: URL, not optimizable by next/image */}
           <img
             src={attachment.previewSrc}
             alt={attachment.alt}

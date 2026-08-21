@@ -28,6 +28,7 @@ skills-lock.json
 .claude/
 .codex/
 .playwright-cli/
+.docs/
 Design/
 output/
 

@@ -11,7 +11,7 @@ Faiz is a Next.js App Router site with React, TypeScript, and Tailwind CSS. The 
 - `hooks/` — custom React hooks.
 - `lib/` — utilities, data helpers, and shared types.
 - `public/` — static assets served at `/`.
-- Root configs: `next.config.ts`, `tsconfig.json`, `eslint.config.mjs`, `postcss.config.mjs`.
+- Root configs: `next.config.ts`, `tsconfig.json`, `biome.jsonc`, `postcss.config.mjs`.
 
 ## Build, Test, and Development Commands
 
@@ -20,15 +20,15 @@ Use `pnpm` (preferred by hooks and scripts).
 - `pnpm dev` — start the dev server on port 1999.
 - `pnpm build` — create a production build.
 - `pnpm start` — run the production server after a build.
-- `pnpm lint` — run Next.js ESLint checks.
-- `pnpm lint:fix` — auto-fix lint issues.
-- `pnpm format` — format code with Prettier.
+- `pnpm lint` — run Biome lint + format checks.
+- `pnpm lint:fix` — auto-fix lint and formatting issues.
+- `pnpm format` — format code with Biome.
 - `pnpm test` — run the lightweight Node assertion tests in `tests/*.test.mjs`.
 
 ## Coding Style & Naming Conventions
 
-- Formatting is enforced by Prettier (`.prettierrc.mjs`). Run `pnpm format` before committing.
-- Linting uses a shared ESLint config (`@itaober/eslint-config`). Fix issues with `pnpm lint:fix`.
+- Formatting and linting are both handled by Biome (`biome.jsonc`). Run `pnpm lint:fix` before committing.
+- Suppress a rule with `// biome-ignore lint/<group>/<rule>: <reason>` — the reason is required.
 - File naming: components and hooks use kebab-case (e.g., `components/theme-toggle.tsx`, `hooks/use-image-upload.ts`).
 - Hooks should be prefixed with `use-`. Imports can use the `@/*` alias from the repo root.
 - Follow the KISS (Keep It Simple) principle because simple, direct solutions are easier to maintain and review.

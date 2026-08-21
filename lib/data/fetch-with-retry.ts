@@ -23,7 +23,7 @@ export async function fetchWithRetry(
       if (retryOn(res) && attempt < retries) {
         const retryAfter = res.headers.get('Retry-After');
         const delay = retryAfter
-          ? Math.min(parseInt(retryAfter) * 1000, maxDelay)
+          ? Math.min(Number.parseInt(retryAfter, 10) * 1000, maxDelay)
           : Math.min(initialDelay * 2 ** attempt, maxDelay);
 
         console.warn(`Retrying ${url} after ${delay}ms (attempt ${attempt + 1}/${retries})`);

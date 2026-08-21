@@ -29,6 +29,7 @@ interface SlashListProps {
 export const SlashList = forwardRef<SlashListRef, SlashListProps>(({ items, command }, ref) => {
   const [selected, setSelected] = useState(0);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: items is the trigger — a new item list resets the highlight
   useEffect(() => setSelected(0), [items]);
 
   useImperativeHandle(

@@ -22,7 +22,9 @@ const makeHandler = (type: WindowEvent) => () => {
   ticking[type] = true;
   requestAnimationFrame(() => {
     ticking[type] = false;
-    subscribers[type].forEach(listener => listener());
+    subscribers[type].forEach(listener => {
+      listener();
+    });
   });
 };
 

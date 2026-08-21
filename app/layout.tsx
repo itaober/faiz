@@ -60,7 +60,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
   const siteUrl = authorInfo?.site ? new URL(authorInfo.site) : undefined;
   const avatarUrl =
-    authorInfo?.avatar && authorInfo.avatar.startsWith('/') && authorInfo.site
+    authorInfo?.avatar?.startsWith('/') && authorInfo.site
       ? new URL(authorInfo.avatar, authorInfo.site).toString()
       : authorInfo?.avatar;
 

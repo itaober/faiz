@@ -27,7 +27,7 @@ export function ImageNodeView({ node, updateAttributes, editor }: NodeViewProps)
 
   return (
     <NodeViewWrapper as="figure" className="fz-editor-figure">
-      {/* eslint-disable-next-line @next/next/no-img-element */}
+      {/* biome-ignore lint/performance/noImgElement: editor node view; src may be a local blob: URL */}
       <img src={displaySrc} alt={alt} draggable={false} />
       {editable ? (
         <input

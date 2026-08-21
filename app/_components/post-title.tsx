@@ -76,6 +76,7 @@ const PostTitle = ({
   return (
     <div data-post-title-anchor={tocAnchor || undefined} className={cn('mb-8', className)}>
       <div className="flex items-start justify-between gap-4">
+        {/* biome-ignore lint/a11y/useKeyWithClickEvents: hidden owner-only gesture (consecutive clicks toggle edit mode); exposing it to the keyboard would put it in every reader's tab order */}
         <h1
           className="cursor-default text-4xl font-bold tracking-tight select-none"
           onClick={handleTitleClick}

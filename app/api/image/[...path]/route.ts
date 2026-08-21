@@ -27,7 +27,7 @@ const getContentType = (path: string): string => {
   return MIME_TYPES[ext || ''] || 'application/octet-stream';
 };
 
-export async function GET(req: NextRequest, { params }: { params: Promise<{ path: string[] }> }) {
+export async function GET(_req: NextRequest, { params }: { params: Promise<{ path: string[] }> }) {
   try {
     const { path } = await params;
     const filePath = path.join('/');

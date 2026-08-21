@@ -1,5 +1,3 @@
-/* eslint-disable react/no-danger */
-
 // Server component on purpose: rendering a <script> from a client component
 // makes React 19 log "Encountered a script tag while rendering" on every
 // client render. Keep the pre-hydration no-flash script server-only; the
@@ -23,5 +21,6 @@ const themeScript = `
 `;
 
 export function ThemeScript() {
+  // biome-ignore lint/security/noDangerouslySetInnerHtml: inlines a static, build-time constant so the theme applies before first paint
   return <script suppressHydrationWarning dangerouslySetInnerHTML={{ __html: themeScript }} />;
 }

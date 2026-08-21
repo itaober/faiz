@@ -34,6 +34,7 @@ const TodoList = ({ readonly = false, items }: ITodoListProps) => {
       {items?.map((item, index) => {
         const { label, ...props } = item;
         return (
+          // biome-ignore lint/suspicious/noArrayIndexKey: labels are ReactNode, and an MDX todo list is static — position is its only stable identity
           <CheckboxRoot key={index} readonly={readonly} {...props}>
             <Checkbox />
             <CheckboxLabel>{label}</CheckboxLabel>

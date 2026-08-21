@@ -96,7 +96,7 @@ export async function GET() {
     getMemos(),
   ]);
 
-  if (!metaInfo || !metaInfo.site || !postList) {
+  if (!metaInfo?.site || !postList) {
     return new Response('Internal Server Error', { status: 500 });
   }
 

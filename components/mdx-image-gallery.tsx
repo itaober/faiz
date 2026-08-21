@@ -127,7 +127,7 @@ export default function MDXImageGallery({ images }: MDXImageGalleryProps) {
             <span className="mt-1 flex w-full gap-2 overflow-x-auto p-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               {normalized.map((image, index) => (
                 <button
-                  key={`${image.src}-${index}`}
+                  key={image.src}
                   type="button"
                   onClick={() => setSelectedIndex(index)}
                   className={cn(

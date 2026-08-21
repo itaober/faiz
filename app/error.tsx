@@ -3,7 +3,7 @@
 import { RefreshCw } from 'lucide-react';
 import { useEffect } from 'react';
 
-export default function Error({
+export default function PageError({
   error,
   reset,
 }: {
@@ -24,6 +24,7 @@ export default function Error({
         {error.message || 'An unexpected error occurred. Please try again.'}
       </p>
       <button
+        type="button"
         onClick={reset}
         className="bg-muted hover:bg-muted/80 flex items-center gap-2 rounded-md px-4 py-2 text-sm transition-colors"
       >

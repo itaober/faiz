@@ -23,6 +23,7 @@ export default function useMeasure<T extends HTMLElement = HTMLDivElement>(syncK
     setBounds({ width: rect.width, height: rect.height });
   }, []);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: syncKey is the caller's opaque "re-measure now" trigger; it is never read here
   useLayoutEffect(() => {
     if (!element) {
       return;

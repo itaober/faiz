@@ -80,6 +80,7 @@ export function useDockedActionBar(config: ActionBarSession) {
     ]),
   });
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: signature is the change digest that drives re-publishing; the body deliberately reads latest.current
   useEffect(() => {
     const next: ActionBarSession = {
       context: latest.current.context,

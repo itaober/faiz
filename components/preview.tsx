@@ -236,6 +236,7 @@ const PreviewTrigger = ({
     return aspectRatio;
   }, []);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: children is the trigger — a new rendered image needs its load listener re-attached
   useEffect(() => {
     const image = mediaRef.current?.querySelector('img');
     const syncSourceImage = () => {

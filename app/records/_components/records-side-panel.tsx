@@ -30,6 +30,9 @@ const typeOptions = tabList.filter(tab => tab.value !== 'all') as {
   value: RecordItem['type'];
 }[];
 
+// Ratings are stored 0-10; each star is worth 2.
+const STAR_POSITIONS = [1, 2, 3, 4, 5];
+
 interface IRecordsSidePanelProps {
   record?: RecordItem;
   initialType?: RecordItem['type'];
@@ -205,6 +208,7 @@ export default function RecordsSidePanel({
               </button>
             )}
 
+            {/* biome-ignore lint/a11y/noStaticElementInteractions: drop zone layered over the file-picker button below, which is the keyboard path */}
             <div
               className="fz-cover mx-auto mt-1 mb-[22px] aspect-[2/3] w-[132px]"
               onDragOver={event => {
@@ -230,7 +234,7 @@ export default function RecordsSidePanel({
                   onClick={() => coverInputRef.current?.click()}
                   aria-label="Change cover image"
                 >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  {/* biome-ignore lint/performance/noImgElement: editor preview of a local blob: URL, not optimizable by next/image */}
                   <img
                     src={coverPreviewSrc}
                     alt={title || 'Cover'}
@@ -289,19 +293,19 @@ export default function RecordsSidePanel({
               <span className="fz-field-label">Rating</span>
               <div className="flex items-center gap-3">
                 <span className="fz-stars">
-                  {Array.from({ length: 5 }).map((_, index) => (
+                  {STAR_POSITIONS.map(star => (
                     <button
-                      key={index}
+                      key={star}
                       type="button"
-                      aria-label={`Rate ${(index + 1) * 2}`}
-                      onClick={() => setRating(String((index + 1) * 2))}
+                      aria-label={`Rate ${star * 2}`}
+                      onClick={() => setRating(String(star * 2))}
                     >
                       <StarIcon
                         className="size-[15px]"
                         strokeWidth={1.5}
                         style={{
-                          color: index < ratingStars ? 'oklch(0.74 0.15 75)' : undefined,
-                          fill: index < ratingStars ? 'oklch(0.74 0.15 75)' : 'none',
+                          color: star <= ratingStars ? 'oklch(0.74 0.15 75)' : undefined,
+                          fill: star <= ratingStars ? 'oklch(0.74 0.15 75)' : 'none',
                         }}
                       />
                     </button>
@@ -321,6 +325,8 @@ export default function RecordsSidePanel({
               </div>
             </div>
 
+            {/* biome-ignore lint/a11y/noStaticElementInteractions: widens the hit area for the native picker; the date input inside is the keyboard path */}
+            {/* biome-ignore lint/a11y/useKeyWithClickEvents: same — the input handles keyboard entry natively */}
             <div className="fz-field-col cursor-pointer" onClick={openDatePicker}>
               <span className="fz-field-label">Date</span>
               <input

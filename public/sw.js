@@ -1,4 +1,3 @@
-/* eslint-disable no-restricted-globals */
 const CACHE_NAME = 'faiz_taober_v3';
 
 const STATIC_ASSETS = ['/manifest.webmanifest', '/icon-192x192.png', '/icon-512x512.png'];
