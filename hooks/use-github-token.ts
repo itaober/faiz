@@ -69,7 +69,8 @@ export function useGitHubToken() {
     });
 
     if (!response.ok) {
-      throw new Error('Failed to save token');
+      const body = (await response.json().catch(() => null)) as { error?: unknown } | null;
+      throw new Error(typeof body?.error === 'string' ? body.error : 'Failed to save token');
     }
 
     localStorage.removeItem(LEGACY_STORAGE_KEY);

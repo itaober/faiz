@@ -74,6 +74,39 @@ export const isSafeContentImagePath = (
   );
 };
 
+/**
+ * Guard for the read-side image proxy. Deliberately looser than
+ * `isSafeContentImagePath`: that one validates paths we generate, while this one
+ * has to accept every filename already committed to the content repo — spaces
+ * and full-width punctuation included. It also skips NFKC normalization, which
+ * would rewrite `：` to `:` and stop the path from resolving on GitHub.
+ *
+ * Safety here only needs three things: stay inside `assets/`, no traversal, and
+ * a raster image extension (so `data/*.json`, `*.mdx` and inline-renderable SVG
+ * stay unreachable).
+ */
+export const isContentImageReadPath = (segments: string[]) => {
+  if (segments.length < 2 || segments[0] !== 'assets') {
+    return false;
+  }
+
+  // A decoded %2F or %5C would smuggle extra path levels through a single segment.
+  const hasUnsafeSegment = segments.some(
+    segment =>
+      !segment ||
+      segment === '.' ||
+      segment === '..' ||
+      segment.includes('/') ||
+      segment.includes('\\'),
+  );
+  if (hasUnsafeSegment) {
+    return false;
+  }
+
+  const extension = segments[segments.length - 1]?.split('.').pop();
+  return extension !== undefined && isContentImageExtension(extension);
+};
+
 export const normalizeImagePathList = (value: unknown, scope?: ContentImageScope) => {
   const paths: string[] = [];
   const invalid: unknown[] = [];
