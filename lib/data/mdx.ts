@@ -1,23 +1,15 @@
-import dayjs from 'dayjs';
 import matter from 'gray-matter';
-import { cache } from 'react';
 import z from 'zod';
 
-import { cachedResource, fetchGitHubDir, fetchGitHubText } from './common';
+import { cachedResource, fetchGitHubText } from './common';
+import { PostMetaSchema } from './data';
 
+// Frontmatter and the data/posts.json index hold the same fields, so they share
+// one schema — pages/*.mdx uses the same shape as posts.
 export const MDXSchema = z.object({
   content: z.string(),
-  data: z.object({
-    slug: z.string(),
-    title: z.string(),
-    createdTime: z.string(),
-    updatedTime: z.string(),
-    tags: z.array(z.string()).default([]),
-    pinned: z.boolean().optional(),
-  }),
+  data: PostMetaSchema,
 });
-
-type MDXPost = z.infer<typeof MDXSchema>;
 
 export type MDXData = z.infer<typeof MDXSchema>['data'];
 
@@ -40,26 +32,6 @@ export const getLinesMDX = cachedResource(
   async () => parseMDX(await fetchGitHubText('pages/lines.mdx')),
   null,
 );
-
-export const getPostList = cache(async () => {
-  try {
-    const files = await fetchGitHubDir('data/posts');
-    const posts = await Promise.all(
-      files.map(async path => {
-        const raw = await fetchGitHubText(path);
-        const parsed = parseMDX(raw);
-        return parsed ?? null;
-      }),
-    );
-
-    return posts
-      .filter(Boolean)
-      .sort((a, b) => dayjs(b?.data.createdTime).diff(dayjs(a?.data.createdTime))) as MDXPost[];
-  } catch (error) {
-    console.error('Failed to fetch posts list:', error);
-    return [];
-  }
-});
 
 export const getPostMDX = cachedResource(
   'post',

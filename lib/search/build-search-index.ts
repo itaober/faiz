@@ -1,5 +1,5 @@
-import { getRecordsInfo, type RecordType } from '@/lib/data/data';
-import { getAboutMDX, getLinesMDX, getPostList } from '@/lib/data/mdx';
+import { getPostListInfo, getRecordsInfo, type RecordType } from '@/lib/data/data';
+import { getAboutMDX, getLinesMDX, getPostMDX } from '@/lib/data/mdx';
 import { getMemosByMonths, getMemosIndex } from '@/lib/data/memos';
 import { mdxTodoListsToMarkdown } from '@/lib/mdx-editing';
 import { mdxImagesToMarkdown } from '@/lib/utils/editor-image';
@@ -30,8 +30,8 @@ const toSearchText = (markdown?: string) => {
 /** Aggregate every searchable surface into flat plain-text docs. */
 export async function buildSearchDocs(): Promise<SearchDoc[]> {
   const months = await getMemosIndex();
-  const [posts, memos, records, about, lines] = await Promise.all([
-    getPostList(),
+  const [postMetas, memos, records, about, lines] = await Promise.all([
+    getPostListInfo(),
     getMemosByMonths(months), // ALL months (not getMemos()'s recent-2-month window)
     getRecordsInfo(),
     getAboutMDX(),
@@ -40,15 +40,25 @@ export async function buildSearchDocs(): Promise<SearchDoc[]> {
 
   const docs: SearchDoc[] = [];
 
-  for (const post of posts ?? []) {
+  // Metadata comes from the index; only the body needs the .mdx file, and each
+  // one is a separately cached fetch.
+  const posts = await Promise.all(
+    (postMetas ?? []).map(async meta => ({ meta, mdx: await getPostMDX(meta.slug) })),
+  );
+
+  for (const { meta, mdx } of posts) {
+    if (!mdx) {
+      continue;
+    }
+
     docs.push({
-      id: `post:${post.data.slug}`,
+      id: `post:${meta.slug}`,
       type: 'post',
-      title: post.data.title,
-      text: toSearchText(post.content),
-      url: `/posts/${post.data.slug}`,
-      tags: post.data.tags,
-      date: post.data.createdTime,
+      title: meta.title,
+      text: toSearchText(mdx.content),
+      url: `/posts/${meta.slug}`,
+      tags: meta.tags,
+      date: meta.createdTime,
     });
   }
 
