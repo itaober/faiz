@@ -207,6 +207,15 @@ export const fetchGitHubFileWithSha = async (
   return { text: await fetchGitHubText(path, { cache: 'no-store' }, token), sha: data.sha };
 };
 
+/** {@link fetchGitHubFileWithSha} for the JSON files we read-modify-write. */
+export const fetchGitHubJsonWithSha = async <T>(
+  path: string,
+  token?: string,
+): Promise<{ data: T; sha: string } | null> => {
+  const file = await fetchGitHubFileWithSha(path, token);
+  return file ? { data: JSON.parse(file.text) as T, sha: file.sha } : null;
+};
+
 /**
  * Fetches JSON content from a GitHub file
  *
@@ -269,7 +278,7 @@ interface IGitHubContentMeta {
  * @param token - Optional GitHub token
  * @returns File metadata, or null if file doesn't exist
  */
-const fetchGitHubContentsMeta = async (
+export const fetchGitHubContentsMeta = async (
   path: string,
   token?: string,
 ): Promise<IGitHubContentMeta | null> => {
@@ -311,6 +320,11 @@ interface IPutGitHubFileOptions {
   contentBase64: string;
   /** Git commit message */
   message: string;
+  /**
+   * Blob SHA of the revision this write is based on. Omit to create a new file;
+   * GitHub answers 409 if the file moved on since that SHA was read.
+   */
+  sha?: string;
 }
 
 /**
@@ -330,8 +344,6 @@ export const putGitHubFile = async (
 ) => {
   const url = getGitHubApiUrl(path);
 
-  const meta = await fetchGitHubContentsMeta(path, token);
-
   const body: {
     message: string;
     content: string;
@@ -340,7 +352,7 @@ export const putGitHubFile = async (
   } = {
     message: options.message,
     content: options.contentBase64,
-    sha: meta?.sha,
+    ...(options.sha ? { sha: options.sha } : {}),
     branch: GIT_HUB_API_OPTIONS.branch,
   };
 
@@ -366,6 +378,11 @@ export const putGitHubFile = async (
   }
 
   revalidateGitHubContent(path);
+
+  // Hand back the new revision so an editor that stays open can save again
+  // without its SHA already being stale.
+  const written = (await res.json().catch(() => null)) as { content?: { sha?: string } } | null;
+  return { sha: written?.content?.sha };
 };
 
 /**
@@ -381,15 +398,17 @@ export const writeGitHubJson = async (
   data: unknown,
   message?: string,
   token?: string,
+  sha?: string,
 ) => {
   const json = JSON.stringify(data, null, 2);
   const contentBase64 = Buffer.from(json, 'utf8').toString('base64');
 
-  await putGitHubFile(
+  return putGitHubFile(
     path,
     {
       contentBase64,
       message: message ?? `Update ${path}`,
+      sha,
     },
     token,
   );

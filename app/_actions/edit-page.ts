@@ -19,9 +19,18 @@ interface IUpdatePageInput {
   title: string;
   content: string;
   token: string;
+  /** Revision the editor loaded, so a concurrent edit is rejected instead of overwritten. */
+  sha?: string;
 }
 
-export async function updatePageAction(input: IUpdatePageInput): Promise<ActionResult> {
+/** A save returns the revision it produced, so the open editor can save again. */
+export interface IPageSaveResult {
+  contentSha?: string;
+}
+
+export async function updatePageAction(
+  input: IUpdatePageInput,
+): Promise<ActionResult<IPageSaveResult>> {
   const token = await requireAuth(input.token);
   if (typeof token !== 'string') {
     return token;
@@ -53,14 +62,21 @@ export async function updatePageAction(input: IUpdatePageInput): Promise<ActionR
       updatedTime: now,
     };
 
-    await writeMdx(path, data, input.content, `docs: update ${path}`, token);
+    const written = await writeMdx(
+      path,
+      data,
+      input.content,
+      `docs: update ${path}`,
+      token,
+      input.sha,
+    );
 
     revalidatePath(input.page === 'about' ? '/' : `/${input.page}`);
     if (input.page === 'about') {
       revalidatePath('/about');
     }
 
-    return { success: true };
+    return { success: true, data: { contentSha: written.sha } };
   } catch (error) {
     console.error('Failed to update page:', error);
     return createActionError(error, 'Failed to update page');

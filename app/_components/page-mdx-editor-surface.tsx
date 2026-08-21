@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
-import { updatePageAction } from '@/app/_actions/edit-page';
+import { type IPageSaveResult, updatePageAction } from '@/app/_actions/edit-page';
 import { useEditMode } from '@/components/edit-mode-context';
 import type { EditViewMode } from '@/components/editing/action-bar';
 import { useDockedActionBar } from '@/components/editing/edit-session';
@@ -23,12 +23,15 @@ interface IPageMdxEditorSurfaceProps {
   page: EditablePage;
   title: string;
   initialContent: string;
+  /** Revision the body came from; sent back on save so a concurrent edit conflicts. */
+  sha?: string;
 }
 
 export default function PageMdxEditorSurface({
   page,
   title,
   initialContent,
+  sha,
 }: IPageMdxEditorSurfaceProps) {
   const router = useRouter();
   const { token, setEditMode } = useEditMode();
@@ -39,6 +42,7 @@ export default function PageMdxEditorSurface({
   const { settingsOpen, setSettingsOpen, isSubmitting, submit } = useContentEditor(token);
   const [draftTitle, setDraftTitle] = useState(title);
   const [draftContent, setDraftContent] = useState(() => mdxTodoListsToMarkdown(initialContent));
+  const [contentSha, setContentSha] = useState(sha);
   const [stagedImages, setStagedImages] = useState<StagedEditorImage[]>([]);
   const hasToken = !!token;
   const context = page === 'about' ? 'About' : 'Lines';
@@ -48,17 +52,20 @@ export default function PageMdxEditorSurface({
   useEffect(() => {
     setDraftTitle(title);
     setDraftContent(mdxTodoListsToMarkdown(initialContent));
+    setContentSha(sha);
     setStagedImages([]);
-  }, [initialContent, title]);
+  }, [initialContent, sha, title]);
 
   const handleSubmit = () => {
-    submit({
+    submit<IPageSaveResult | undefined>({
       loading: 'Saving...',
       success: 'Page saved',
       errorFallback: 'Save failed',
-      onSuccess: () => {
+      onSuccess: saved => {
         setStagedImages([]);
         setMode('preview');
+        // Adopt the revision we just wrote so a second save isn't a conflict.
+        setContentSha(saved?.contentSha);
         router.refresh();
       },
       run: async token => {
@@ -73,11 +80,12 @@ export default function PageMdxEditorSurface({
           title: draftTitle,
           content: markdownTodoListsToMdx(draftContent),
           token,
+          sha: contentSha,
         });
         if (!result.success) {
           throw new Error(result.error || 'Save failed');
         }
-        return result;
+        return result.data;
       },
     });
   };

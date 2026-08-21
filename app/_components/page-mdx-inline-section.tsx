@@ -62,7 +62,14 @@ export default function PageMdxInlineSection({
   // Until the body arrives the reading view stays up, so there is no extra
   // loading state to design.
   if (isEditMode && draft) {
-    return <PageMdxEditorSurface page={page} title={title} initialContent={draft.content} />;
+    return (
+      <PageMdxEditorSurface
+        page={page}
+        title={title}
+        initialContent={draft.content}
+        sha={draft.sha}
+      />
+    );
   }
 
   return (

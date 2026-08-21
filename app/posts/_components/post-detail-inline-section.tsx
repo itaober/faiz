@@ -61,6 +61,7 @@ export default function PostDetailInlineSection({ post, children }: IPostDetailI
       <PostEditorSurface
         post={post}
         initialContent={draft.content}
+        sha={draft.sha}
         onExit={() => setEditMode(false)}
       />
     );

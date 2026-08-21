@@ -3,11 +3,10 @@
 import { revalidatePath } from 'next/cache';
 
 import { isRecordType } from '@/lib/content-editing-validation';
-import { fetchGitHubJson, writeGitHubJson } from '@/lib/data/common';
+import { fetchGitHubJsonWithSha, writeGitHubJson } from '@/lib/data/common';
 import { type RecordItem, type Records, RecordsSchema } from '@/lib/data/data';
 import dayjs, { formatTime } from '@/lib/dayjs';
 import { requireAuth } from '@/lib/server/content-edit-token';
-import { createMutationFetchInit } from '@/lib/server/mdx-write';
 import {
   type ActionError,
   type ActionResult,
@@ -46,11 +45,17 @@ const createEmptyRecords = (): Records => ({
   game: [],
 });
 
-const fetchRecords = async (token: string): Promise<Records> => {
-  const raw = await fetchGitHubJson<unknown>(RECORDS_PATH, createMutationFetchInit(), token).catch(
-    () => createEmptyRecords(),
-  );
-  return RecordsSchema.parse({ ...createEmptyRecords(), ...(raw ?? {}) });
+/**
+ * Reads records with the revision they came from. A read failure propagates
+ * rather than being read as "no records", which combined with a blind overwrite
+ * would have replaced the whole file.
+ */
+const fetchRecordsWithSha = async (token: string): Promise<{ records: Records; sha?: string }> => {
+  const file = await fetchGitHubJsonWithSha<unknown>(RECORDS_PATH, token);
+  return {
+    records: RecordsSchema.parse({ ...createEmptyRecords(), ...(file?.data ?? {}) }),
+    sha: file?.sha,
+  };
 };
 
 const sortRecordList = (records: RecordItem[]) =>
@@ -112,7 +117,9 @@ const normalizeRecord = (record: RecordItem): RecordItem | ActionError => {
   };
 };
 
-const writeRecords = async (records: Records, token: string) => {
+// No retry-on-conflict here, unlike the posts index: this rewrites the whole
+// records file, so replaying a stale in-memory copy would drop the other edit.
+const writeRecords = async (records: Records, token: string, sha?: string) => {
   const sorted: Records = {
     book: sortRecordList(records.book),
     movie: sortRecordList(records.movie),
@@ -121,7 +128,7 @@ const writeRecords = async (records: Records, token: string) => {
     game: sortRecordList(records.game),
   };
 
-  await writeGitHubJson(RECORDS_PATH, sorted, `docs: update ${RECORDS_PATH}`, token);
+  await writeGitHubJson(RECORDS_PATH, sorted, `docs: update ${RECORDS_PATH}`, token, sha);
   revalidatePath('/records');
 };
 
@@ -141,13 +148,14 @@ export async function createRecordAction(input: IRecordInput): Promise<ActionRes
       return validationError('Title, link, and cover are required');
     }
 
-    const records = await fetchRecords(token);
+    const { records, sha } = await fetchRecordsWithSha(token);
     await writeRecords(
       {
         ...records,
         [record.type]: [record, ...records[record.type]],
       },
       token,
+      sha,
     );
 
     return { success: true, data: record };
@@ -180,7 +188,7 @@ export async function updateRecordAction(
       return validationError('Title, link, and cover are required');
     }
 
-    const records = await fetchRecords(token);
+    const { records, sha } = await fetchRecordsWithSha(token);
     const existing = findRecord(records, input.original);
 
     if (!existing) {
@@ -189,7 +197,7 @@ export async function updateRecordAction(
 
     const withoutOriginal = removeRecord(records, input.original);
     withoutOriginal[record.type] = [record, ...withoutOriginal[record.type]];
-    await writeRecords(withoutOriginal, token);
+    await writeRecords(withoutOriginal, token, sha);
 
     return { success: true, data: record };
   } catch (error) {
@@ -210,14 +218,14 @@ export async function deleteRecordAction(input: IDeleteRecordInput): Promise<Act
       return invalid;
     }
 
-    const records = await fetchRecords(token);
+    const { records, sha } = await fetchRecordsWithSha(token);
     const existing = findRecord(records, input.original);
 
     if (!existing) {
       return notFoundError('Record not found');
     }
 
-    await writeRecords(removeRecord(records, input.original), token);
+    await writeRecords(removeRecord(records, input.original), token, sha);
     return { success: true };
   } catch (error) {
     console.error('Failed to delete record:', error);

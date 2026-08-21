@@ -4,7 +4,7 @@ import { z } from 'zod';
 import {
   fetchGitHubDir,
   fetchGitHubJson,
-  fetchGitHubText,
+  fetchGitHubJsonWithSha,
   writeGitHubJson,
 } from '@/lib/data/common';
 import { deleteImages } from '@/lib/data/images';
@@ -34,7 +34,6 @@ const MEMOS_FETCH_INIT: RequestInit = {
     revalidate: MEMOS_REVALIDATE_SECONDS,
   },
 };
-const MEMOS_MUTATION_FETCH_INIT: RequestInit = { cache: 'no-store' };
 
 const buildMemosPath = (month: string) =>
   `${MEMOS_DIR}/${MEMOS_FILE_PREFIX}${month}${MEMOS_FILE_SUFFIX}`;
@@ -138,11 +137,9 @@ export const prependMemo = async (input: ICreateMemoInput): Promise<Memo> => {
   }
 
   const memosPath = buildMemosPath(memoMonth);
-  const rawText = await fetchGitHubText(memosPath, MEMOS_MUTATION_FETCH_INIT, input.token).catch(
-    () => '[]',
-  );
-  const raw = JSON.parse(rawText);
-  const list = MemoListSchema.parse(raw ?? []);
+  // null on the first memo of a month: no SHA means "create", which is right.
+  const file = await fetchGitHubJsonWithSha<unknown>(memosPath, input.token);
+  const list = MemoListSchema.parse(file?.data ?? []);
 
   const memo: Memo = {
     id: input.id,
@@ -153,7 +150,7 @@ export const prependMemo = async (input: ICreateMemoInput): Promise<Memo> => {
 
   const nextList: MemoList = [memo, ...list];
 
-  await writeGitHubJson(memosPath, nextList, `docs: update ${memosPath}`, input.token);
+  await writeGitHubJson(memosPath, nextList, `docs: update ${memosPath}`, input.token, file?.sha);
 
   return memo;
 };
@@ -178,12 +175,8 @@ export const updateMemo = async (input: IUpdateMemoInput): Promise<IUpdateMemoRe
   }
 
   const memosPath = buildMemosPath(memoMonth);
-  const raw = await fetchGitHubJson<unknown>(
-    memosPath,
-    MEMOS_MUTATION_FETCH_INIT,
-    input.token,
-  ).catch(() => []);
-  const list = MemoListSchema.parse(raw ?? []);
+  const file = await fetchGitHubJsonWithSha<unknown>(memosPath, input.token);
+  const list = MemoListSchema.parse(file?.data ?? []);
 
   const memoIndex = list.findIndex(m => m.id === input.id);
   if (memoIndex === -1) {
@@ -205,7 +198,13 @@ export const updateMemo = async (input: IUpdateMemoInput): Promise<IUpdateMemoRe
   const updatedList = [...list];
   updatedList[memoIndex] = updatedMemo;
 
-  await writeGitHubJson(memosPath, updatedList, `docs: update ${memosPath}`, input.token);
+  await writeGitHubJson(
+    memosPath,
+    updatedList,
+    `docs: update ${memosPath}`,
+    input.token,
+    file?.sha,
+  );
 
   return { memo: updatedMemo, removedImages };
 };
@@ -223,12 +222,8 @@ export const deleteMemo = async (input: IDeleteMemoInput): Promise<Memo> => {
   }
 
   const memosPath = buildMemosPath(memoMonth);
-  const raw = await fetchGitHubJson<unknown>(
-    memosPath,
-    MEMOS_MUTATION_FETCH_INIT,
-    input.token,
-  ).catch(() => []);
-  const list = MemoListSchema.parse(raw ?? []);
+  const file = await fetchGitHubJsonWithSha<unknown>(memosPath, input.token);
+  const list = MemoListSchema.parse(file?.data ?? []);
 
   const memoToDelete = list.find(m => m.id === input.id);
   if (!memoToDelete) {
@@ -237,7 +232,13 @@ export const deleteMemo = async (input: IDeleteMemoInput): Promise<Memo> => {
 
   const filteredList = list.filter(m => m.id !== input.id);
 
-  await writeGitHubJson(memosPath, filteredList, `docs: update ${memosPath}`, input.token);
+  await writeGitHubJson(
+    memosPath,
+    filteredList,
+    `docs: update ${memosPath}`,
+    input.token,
+    file?.sha,
+  );
 
   return memoToDelete;
 };
