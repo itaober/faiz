@@ -1,5 +1,6 @@
 'use client';
 
+import { useSearchParams } from 'next/navigation';
 import { useEffect } from 'react';
 
 /**
@@ -8,8 +9,14 @@ import { useEffect } from 'react';
  * a highlight on it. The highlight wrapper is removed afterwards so the article
  * DOM is left pristine. Falls back silently (stays at the top) if the text
  * isn't found verbatim — e.g. when the match was in the title or a tag.
+ *
+ * Reads the param here rather than taking it as a prop: awaiting searchParams in
+ * the page would opt the whole route out of static rendering for a parameter
+ * almost no visit carries.
  */
-export default function PostMatchScroll({ query }: { query: string }) {
+export default function PostMatchScroll() {
+  const query = useSearchParams().get('q') ?? '';
+
   useEffect(() => {
     const needle = query.trim().toLowerCase();
     if (!needle) {

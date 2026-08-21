@@ -21,27 +21,23 @@ export async function generateMetadata() {
   });
 }
 
-interface RecordsPageProps {
-  searchParams?: Promise<{
-    tab?: string;
-    focus?: string;
-  }>;
-}
-
-export default async function RecordsPage({ searchParams }: RecordsPageProps) {
-  const resolvedSearchParams = await searchParams;
-  const focusKey = resolvedSearchParams?.focus;
-
+export default function RecordsPage() {
   return (
     <RecordsInlineComposerProvider>
       <PostTitle title="Records">
         <RecordsTitleActions />
       </PostTitle>
-      <RecordsTabs />
+      {/* RecordsTabs and RecordFocusScroll read searchParams on the client, so
+          each needs its own boundary for the page to prerender. */}
+      <Suspense fallback={null}>
+        <RecordsTabs />
+      </Suspense>
       <Suspense fallback={null}>
         <RecordsList />
       </Suspense>
-      {focusKey ? <RecordFocusScroll focusKey={focusKey} /> : null}
+      <Suspense fallback={null}>
+        <RecordFocusScroll />
+      </Suspense>
     </RecordsInlineComposerProvider>
   );
 }
