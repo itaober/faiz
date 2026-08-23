@@ -98,7 +98,7 @@ const buildIndex = async (): Promise<MiniSearch<SearchDoc>> => {
     indexPromise = (async () => {
       const [{ default: MiniSearchCtor }, res] = await Promise.all([
         import('minisearch'),
-        fetch('/api/search'),
+        fetch('/search-index.json'),
       ]);
       const { docs } = (await res.json()) as { docs: SearchDoc[] };
 

@@ -1,5 +1,8 @@
 import type { MetadataRoute } from 'next';
 
+// Written into the static build; regenerates per deploy.
+export const dynamic = 'force-static';
+
 export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "Taober's Faiz",

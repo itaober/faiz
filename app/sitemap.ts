@@ -2,6 +2,9 @@ import type { MetadataRoute } from 'next';
 
 import { getMetaInfo, getPostListInfo } from '@/lib/data/data';
 
+// Written into the static build; regenerates per deploy.
+export const dynamic = 'force-static';
+
 const toDate = (value?: string) => {
   if (!value) {
     return undefined;

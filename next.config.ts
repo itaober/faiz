@@ -2,6 +2,8 @@ import { networkInterfaces } from 'node:os';
 
 import type { NextConfig } from 'next';
 
+import { VARIANT_WIDTHS } from './lib/image-variants';
+
 const getAllowedDevOrigins = () => {
   if (process.env.NODE_ENV === 'production') {
     return undefined;
@@ -29,16 +31,25 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: __dirname,
   },
+  // Every image is pre-generated at build time; the loader picks the variant.
+  images: {
+    loader: 'custom',
+    loaderFile: './lib/image-loader.ts',
+    deviceSizes: VARIANT_WIDTHS.filter(width => width > 384),
+    imageSizes: VARIANT_WIDTHS.filter(width => width <= 384),
+  },
   // Dev-only: the write path lives in the Cloudflare worker (`pnpm dev:worker`).
   // Same-origin proxying keeps the httpOnly edit cookie flowing. App-owned
   // routes win over rewrites, so only worker-owned /api paths reach it.
+  // `output: 'export'` cannot be set in dev — rewrites (and the dev editing
+  // flow generally) are rejected under it, so the static target is build-only.
   ...(process.env.NODE_ENV === 'development'
     ? {
         rewrites: async () => [
           { source: '/api/:path*', destination: 'http://127.0.0.1:8787/api/:path*' },
         ],
       }
-    : {}),
+    : { output: 'export' as const }),
 };
 
 export default nextConfig;

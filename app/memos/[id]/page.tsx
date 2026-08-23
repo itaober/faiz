@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
 import MotionWrapper from '@/components/motion-wrapper';
-import { getMemoById } from '@/lib/data/memos';
+import { getMemoById, getMemosByMonths, getMemosIndex } from '@/lib/data/memos';
 import { buildDescription, buildPageMetadata } from '@/lib/utils/seo';
 
 import MemoCard from '../_components/memo-card';
@@ -14,6 +14,16 @@ import { MemosProvider } from '../_context/memos-context';
 
 interface IMemoPageProps {
   params: Promise<{ id: string }>;
+}
+
+// Static export: only enumerated ids exist; new memos appear with the next build.
+export const dynamicParams = false;
+
+/** Prerender every memo permalink. */
+export async function generateStaticParams() {
+  const months = await getMemosIndex();
+  const memos = await getMemosByMonths(months);
+  return memos.map(({ id }) => ({ id }));
 }
 
 export async function generateMetadata({ params }: IMemoPageProps): Promise<Metadata> {

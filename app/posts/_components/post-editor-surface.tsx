@@ -148,8 +148,10 @@ export default function PostEditorSurface({
         // the editor isn't reported as a conflict.
         setContentSha(saved?.contentSha);
         router.refresh();
-        if (!isEdit && saved?.post.slug) {
-          router.push(`/posts/${saved.post.slug}`);
+        if (!isEdit) {
+          // The new post's static page exists only after the rebuild its save
+          // triggered goes live, so land on the list instead of a 404.
+          router.push('/posts');
         }
       },
       run: async token => {

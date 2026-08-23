@@ -1,7 +1,5 @@
 import './globals.css';
 
-import { Analytics } from '@vercel/analytics/next';
-import { SpeedInsights } from '@vercel/speed-insights/next';
 import type { Metadata } from 'next';
 import { Geist_Mono, Inter } from 'next/font/google';
 import { ThemeProvider } from 'next-themes';
@@ -125,8 +123,6 @@ export default function RootLayout({
         </MotionProvider>
         <Toaster position="top-center" style={{ top: '10%' }} duration={2000} />
         <ServiceWorkerRegistration />
-        <Analytics />
-        <SpeedInsights />
       </body>
     </html>
   );
