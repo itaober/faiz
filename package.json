@@ -5,6 +5,7 @@
   "scripts": {
     "build": "next build",
     "dev": "next dev -p 1999",
+    "dev:worker": "mkdir -p out && wrangler dev",
     "format": "biome format --write .",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
@@ -59,6 +60,7 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.9",
+    "@cloudflare/workers-types": "^5.20260822.1",
     "@commitlint/cli": "^19.8.1",
     "@itaober/commitlint-config": "^1.0.0",
     "@tailwindcss/postcss": "^4",
@@ -69,7 +71,8 @@
     "react-doctor": "^0.1.6",
     "simple-git-hooks": "^2.13.1",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "wrangler": "^4.125.0"
   },
   "packageManager": "pnpm@11.1.2",
   "engines": {

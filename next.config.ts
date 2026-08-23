@@ -29,13 +29,16 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: __dirname,
   },
-  experimental: {
-    serverActions: {
-      // Keep this at Vercel's Function payload limit (request/response body max: 4.5 MB):
-      // https://vercel.com/docs/functions/limitations
-      bodySizeLimit: '4.5mb',
-    },
-  },
+  // Dev-only: the write path lives in the Cloudflare worker (`pnpm dev:worker`).
+  // Same-origin proxying keeps the httpOnly edit cookie flowing. App-owned
+  // routes win over rewrites, so only worker-owned /api paths reach it.
+  ...(process.env.NODE_ENV === 'development'
+    ? {
+        rewrites: async () => [
+          { source: '/api/:path*', destination: 'http://127.0.0.1:8787/api/:path*' },
+        ],
+      }
+    : {}),
 };
 
 export default nextConfig;

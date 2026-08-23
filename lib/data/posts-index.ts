@@ -1,6 +1,6 @@
 import dayjs from 'dayjs';
 
-import type { PostList, PostMeta } from './data.ts';
+import type { PostList, PostMeta } from './schemas.ts';
 
 /** Pinned first, then newest by created time. */
 export const sortPosts = (posts: PostList): PostList =>

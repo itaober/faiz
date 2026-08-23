@@ -50,3 +50,10 @@ next-env.d.ts
 
 # tiptap reference repos (skill)
 .reference/
+
+# cloudflare
+.wrangler/
+.dev.vars
+
+# build-script caches (image variants, link previews)
+.cache/

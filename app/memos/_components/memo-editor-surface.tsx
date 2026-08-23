@@ -4,10 +4,6 @@ import { PlusIcon, Trash2Icon, XIcon } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
-
-import { createMemoAction } from '@/app/memos/_actions/create-memo';
-import { deleteMemoAction } from '@/app/memos/_actions/delete-memo';
-import { updateMemoAction } from '@/app/memos/_actions/update-memo';
 import type { ActionBarTool, EditViewMode } from '@/components/editing/action-bar';
 import ConfirmDrawer from '@/components/editing/confirm-drawer';
 import { useDockedActionBar } from '@/components/editing/edit-session';
@@ -16,6 +12,7 @@ import TiptapEditor from '@/components/editing/tiptap-editor';
 import { uploadStagedEditorImages } from '@/components/editing/upload-staged-editor-images';
 import { useContentEditor } from '@/hooks/use-content-editor';
 import type { Memo } from '@/lib/data/memos';
+import { createMemoAction, deleteMemoAction, updateMemoAction } from '@/lib/edit-api';
 import type { StagedEditorImage } from '@/lib/utils/editor-image';
 import { mergeByPath, toApiImageUrl } from '@/lib/utils/editor-image';
 
@@ -109,7 +106,6 @@ export default function MemoEditorSurface({ memo, onCancel }: IMemoEditorSurface
             attachment.pending ? [attachment.pending] : [],
           ),
           token,
-          revalidatePath: '/memos',
         });
 
         const imagePaths = attachments.map(attachment => attachment.path);

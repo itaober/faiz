@@ -1,0 +1,19 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "faiz",
+  "main": "worker/index.ts",
+  "compatibility_date": "2026-08-01",
+  // Buffer (base64 encoding in the GitHub write path) comes from nodejs_compat.
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "directory": "./out",
+    "binding": "ASSETS",
+    // Serves /posts/foo from posts/foo.html and redirects the trailing-slash
+    // variant away, matching Next's no-trailingSlash URL space.
+    "html_handling": "auto-trailing-slash",
+    "not_found_handling": "404-page"
+  }
+  // The production custom domain route is added at cutover, once the static
+  // build replaces the Vercel deployment — adding it earlier would steal the
+  // domain from the running site.
+}

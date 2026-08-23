@@ -10,8 +10,8 @@ import TiptapEditor from '@/components/editing/tiptap-editor';
 import { uploadStagedEditorImages } from '@/components/editing/upload-staged-editor-images';
 import { useContentEditor } from '@/hooks/use-content-editor';
 import { isMobileViewport } from '@/hooks/use-is-mobile';
-import { type IPageSaveResult, updatePageAction } from '@/lib/actions/edit-page';
 import type { EditablePage } from '@/lib/content-editing-validation';
+import { type IPageSaveResult, updatePageAction } from '@/lib/edit-api';
 import { markdownTodoListsToMdx, mdxTodoListsToMarkdown } from '@/lib/mdx-editing';
 import { cn } from '@/lib/utils';
 import { mergeByPath, type StagedEditorImage } from '@/lib/utils/editor-image';
@@ -72,7 +72,6 @@ export default function PageMdxEditorSurface({
           images: stagedImages,
           content: draftContent,
           token,
-          revalidatePath: page === 'about' ? '/' : `/${page}`,
         });
         const result = await updatePageAction({
           page,

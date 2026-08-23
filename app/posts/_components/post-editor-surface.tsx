@@ -14,13 +14,13 @@ import TiptapEditor from '@/components/editing/tiptap-editor';
 import { uploadStagedEditorImages } from '@/components/editing/upload-staged-editor-images';
 import { useContentEditor } from '@/hooks/use-content-editor';
 import { isMobileViewport } from '@/hooks/use-is-mobile';
+import type { PostMeta } from '@/lib/data/data';
 import {
   createPostAction,
   deletePostAction,
   type IPostSaveResult,
   updatePostAction,
-} from '@/lib/actions/edit-post';
-import type { PostMeta } from '@/lib/data/data';
+} from '@/lib/edit-api';
 import { markdownTodoListsToMdx, mdxTodoListsToMarkdown } from '@/lib/mdx-editing';
 import { cn } from '@/lib/utils';
 import {
@@ -157,7 +157,6 @@ export default function PostEditorSurface({
           images: stagedImages,
           content: mdxContent,
           token,
-          revalidatePath: isEdit && post ? `/posts/${post.slug}` : '/posts',
         });
 
         const payload = {

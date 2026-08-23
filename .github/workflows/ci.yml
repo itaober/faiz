@@ -27,4 +27,6 @@ jobs:
 
       - run: pnpm exec tsc --noEmit
 
+      - run: pnpm exec tsc -p worker --noEmit
+
       - run: pnpm test
