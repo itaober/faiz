@@ -32,7 +32,7 @@ export default async function AboutPage() {
 
   return (
     <MotionWrapper className="overflow-y-hidden">
-      <PageMdxInlineSection page="about" title={data.title} content={content}>
+      <PageMdxInlineSection page="about" title={data.title}>
         <article className="prose dark:prose-invert">
           <MDX source={content} />
         </article>

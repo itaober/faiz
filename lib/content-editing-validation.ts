@@ -1,11 +1,20 @@
 export const EDITABLE_PAGES = ['about', 'lines'] as const;
 export type EditablePage = (typeof EDITABLE_PAGES)[number];
 
+/** Lives here rather than in the action: a 'use server' file can only export async functions. */
+export const EDITABLE_PAGE_PATHS: Record<EditablePage, string> = {
+  about: 'pages/about.mdx',
+  lines: 'pages/lines.mdx',
+};
+
 export const RECORD_TYPES = ['book', 'movie', 'tv', 'music', 'game'] as const;
 export type EditableRecordType = (typeof RECORD_TYPES)[number];
 
 export const CONTENT_IMAGE_SCOPES = ['memos', 'posts', 'pages', 'records'] as const;
 export type ContentImageScope = (typeof CONTENT_IMAGE_SCOPES)[number];
+
+/** Upper bound on memo body length, shared by the create and update actions. */
+export const MAX_MEMO_CONTENT_LENGTH = 10000;
 
 export const CONTENT_IMAGE_EXTENSIONS = ['webp', 'jpg', 'jpeg', 'png', 'gif'] as const;
 export type ContentImageExtension = (typeof CONTENT_IMAGE_EXTENSIONS)[number];
@@ -72,6 +81,39 @@ export const isSafeContentImagePath = (
     isContentImageExtension(extension) &&
     (!scope || matchedScope === scope)
   );
+};
+
+/**
+ * Guard for the read-side image proxy. Deliberately looser than
+ * `isSafeContentImagePath`: that one validates paths we generate, while this one
+ * has to accept every filename already committed to the content repo — spaces
+ * and full-width punctuation included. It also skips NFKC normalization, which
+ * would rewrite `：` to `:` and stop the path from resolving on GitHub.
+ *
+ * Safety here only needs three things: stay inside `assets/`, no traversal, and
+ * a raster image extension (so `data/*.json`, `*.mdx` and inline-renderable SVG
+ * stay unreachable).
+ */
+export const isContentImageReadPath = (segments: string[]) => {
+  if (segments.length < 2 || segments[0] !== 'assets') {
+    return false;
+  }
+
+  // A decoded %2F or %5C would smuggle extra path levels through a single segment.
+  const hasUnsafeSegment = segments.some(
+    segment =>
+      !segment ||
+      segment === '.' ||
+      segment === '..' ||
+      segment.includes('/') ||
+      segment.includes('\\'),
+  );
+  if (hasUnsafeSegment) {
+    return false;
+  }
+
+  const extension = segments[segments.length - 1]?.split('.').pop();
+  return extension !== undefined && isContentImageExtension(extension);
 };
 
 export const normalizeImagePathList = (value: unknown, scope?: ContentImageScope) => {

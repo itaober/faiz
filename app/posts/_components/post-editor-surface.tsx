@@ -5,7 +5,12 @@ import { CalendarIcon, PinIcon, Trash2Icon } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
-import { createPostAction, deletePostAction, updatePostAction } from '@/app/_actions/edit-post';
+import {
+  createPostAction,
+  deletePostAction,
+  type IPostSaveResult,
+  updatePostAction,
+} from '@/app/_actions/edit-post';
 import PostTitle from '@/app/_components/post-title';
 import { useEditMode } from '@/components/edit-mode-context';
 import type { ActionBarTool, EditViewMode } from '@/components/editing/action-bar';
@@ -27,7 +32,11 @@ import {
 } from '@/lib/utils/editor-image';
 
 interface IPostEditorSurfaceProps {
-  post?: PostMeta & { content: string };
+  post?: PostMeta;
+  /** Raw MDX body, loaded on demand rather than shipped with every page view. */
+  initialContent?: string;
+  /** Revision the body came from; sent back on save so a concurrent edit conflicts. */
+  sha?: string;
   onExit: () => void;
 }
 
@@ -58,7 +67,12 @@ const buildPostCreatedTime = (dateValue: string, previousValue?: string) => {
   return `${date} ${time}`;
 };
 
-export default function PostEditorSurface({ post, onExit }: IPostEditorSurfaceProps) {
+export default function PostEditorSurface({
+  post,
+  initialContent,
+  sha,
+  onExit,
+}: IPostEditorSurfaceProps) {
   const router = useRouter();
   const { token } = useEditMode();
   const isEdit = !!post;
@@ -80,7 +94,8 @@ export default function PostEditorSurface({ post, onExit }: IPostEditorSurfacePr
   const [pinned, setPinned] = useState(Boolean(post?.pinned));
   const [createdTime, setCreatedTime] = useState(formatPostDateInput(post?.createdTime));
   // Checkboxes (<TodoList>/<CheckboxRoot>) edit as markdown task lists, like pages.
-  const [content, setContent] = useState(() => mdxTodoListsToMarkdown(post?.content ?? ''));
+  const [content, setContent] = useState(() => mdxTodoListsToMarkdown(initialContent ?? ''));
+  const [contentSha, setContentSha] = useState(sha);
   const [stagedImages, setStagedImages] = useState<StagedEditorImage[]>([]);
   const postDateInputRef = useRef<HTMLInputElement>(null);
 
@@ -98,9 +113,10 @@ export default function PostEditorSurface({ post, onExit }: IPostEditorSurfacePr
     setTags(post?.tags.join(', ') ?? '');
     setPinned(Boolean(post?.pinned));
     setCreatedTime(formatPostDateInput(post?.createdTime));
-    setContent(mdxTodoListsToMarkdown(post?.content ?? ''));
+    setContent(mdxTodoListsToMarkdown(initialContent ?? ''));
+    setContentSha(sha);
     setStagedImages([]);
-  }, [post]);
+  }, [post, initialContent, sha]);
 
   const openPostDatePicker = () => {
     const input = postDateInputRef.current;
@@ -122,16 +138,19 @@ export default function PostEditorSurface({ post, onExit }: IPostEditorSurfacePr
     const mdxContent = groupConsecutiveMdxImages(
       normalizeEditorImageMarkup(markdownTodoListsToMdx(content)),
     );
-    submit<PostMeta | undefined>({
+    submit<IPostSaveResult | undefined>({
       loading: isEdit ? 'Updating...' : 'Publishing...',
       success: isEdit ? 'Post updated' : 'Post published',
       errorFallback: 'Save failed',
-      onSuccess: savedPost => {
+      onSuccess: saved => {
         setStagedImages([]);
         setMode('preview');
+        // Adopt the revision we just wrote, so saving again without reopening
+        // the editor isn't reported as a conflict.
+        setContentSha(saved?.contentSha);
         router.refresh();
-        if (!isEdit && savedPost?.slug) {
-          router.push(`/posts/${savedPost.slug}`);
+        if (!isEdit && saved?.post.slug) {
+          router.push(`/posts/${saved.post.slug}`);
         }
       },
       run: async token => {
@@ -154,7 +173,7 @@ export default function PostEditorSurface({ post, onExit }: IPostEditorSurfacePr
 
         const result =
           isEdit && post
-            ? await updatePostAction({ ...payload, originalSlug: post.slug })
+            ? await updatePostAction({ ...payload, originalSlug: post.slug, sha: contentSha })
             : await createPostAction(payload);
 
         if (!result.success) {

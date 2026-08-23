@@ -37,20 +37,27 @@ const stringifyMdx = (data: Record<string, unknown>, content: string) =>
     stripUndefinedValues(data) as Record<string, unknown>,
   );
 
-/** Write a frontmatter+content MDX file to the content repo. */
+/**
+ * Write a frontmatter+content MDX file to the content repo.
+ *
+ * @param sha - Revision the editor loaded; omit when creating a new file.
+ * @returns The new revision's SHA.
+ */
 export const writeMdx = async (
   path: string,
   data: Record<string, unknown>,
   content: string,
   message: string,
   token: string,
+  sha?: string,
 ) => {
   const mdx = stringifyMdx(data, content);
-  await putGitHubFile(
+  return putGitHubFile(
     path,
     {
       contentBase64: Buffer.from(mdx, 'utf8').toString('base64'),
       message,
+      sha,
     },
     token,
   );

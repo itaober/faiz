@@ -4,7 +4,7 @@ import {
   isSafeContentImagePath,
   normalizeContentImagePath,
 } from '@/lib/content-editing-validation';
-import { deleteGitHubFile, putGitHubFile } from '@/lib/data/common';
+import { deleteGitHubFile, fetchGitHubContentsMeta, putGitHubFile } from '@/lib/data/common';
 
 interface IUploadImageInput {
   imageBase64: string;
@@ -29,12 +29,17 @@ export async function uploadImage(input: IUploadImageInput): Promise<IUploadImag
     throw new Error(`Image size exceeds limit (max ${MAX_IMAGE_SIZE / 1024 / 1024}MB)`);
   }
 
+  // Overwriting the same path has to keep working: a failed save is retried with
+  // the same staged images, so look up the current revision when one exists.
+  const existing = await fetchGitHubContentsMeta(input.storagePath, input.token);
+
   // Client already compressed to WebP, upload directly
   await putGitHubFile(
     input.storagePath,
     {
       contentBase64: input.imageBase64,
       message: `docs: add image ${input.storagePath}`,
+      sha: existing?.sha,
     },
     input.token,
   );

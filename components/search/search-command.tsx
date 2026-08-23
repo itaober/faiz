@@ -153,6 +153,7 @@ const highlight = (text: string, query: string): ReactNode => {
   const parts = text.split(new RegExp(`(${needles.map(escapeRegExp).join('|')})`, 'gi'));
   return parts.map((part, i) =>
     i % 2 === 1 ? (
+      // biome-ignore lint/suspicious/noArrayIndexKey: split() puts matches at odd indices, so position is the identity — identical words repeat
       <mark key={i} className="fz-search-hl">
         {part}
       </mark>
@@ -301,6 +302,7 @@ export default function SearchCommand({ onClose }: ISearchCommandProps) {
   }, [counts, filter, query]);
 
   // Keep the active row scrolled into view during keyboard navigation.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: active/visible are the triggers; the row itself is found in the DOM
   useEffect(() => {
     listRef.current?.querySelector('[data-active="true"]')?.scrollIntoView({ block: 'nearest' });
   }, [active, visible]);

@@ -1,6 +1,7 @@
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 
+import { isContentImageReadPath } from '@/lib/content-editing-validation';
 import { fetchGitHubApi } from '@/lib/data/common';
 
 const CACHE_CONTROL = [
@@ -11,15 +12,14 @@ const CACHE_CONTROL = [
   'immutable',
 ].join(', ');
 
+// Raster only, mirroring CONTENT_IMAGE_EXTENSIONS. SVG is deliberately absent:
+// served inline from our own origin it would be a stored-XSS vector.
 const MIME_TYPES: Record<string, string> = {
   png: 'image/png',
   jpg: 'image/jpeg',
   jpeg: 'image/jpeg',
   gif: 'image/gif',
   webp: 'image/webp',
-  svg: 'image/svg+xml',
-  ico: 'image/x-icon',
-  bmp: 'image/bmp',
 };
 
 const getContentType = (path: string): string => {
@@ -27,9 +27,14 @@ const getContentType = (path: string): string => {
   return MIME_TYPES[ext || ''] || 'application/octet-stream';
 };
 
-export async function GET(req: NextRequest, { params }: { params: Promise<{ path: string[] }> }) {
+export async function GET(_req: NextRequest, { params }: { params: Promise<{ path: string[] }> }) {
   try {
     const { path } = await params;
+
+    if (!isContentImageReadPath(path)) {
+      return NextResponse.json({ error: 'Invalid image path' }, { status: 400 });
+    }
+
     const filePath = path.join('/');
 
     const res = await fetchGitHubApi(filePath, {
@@ -47,7 +52,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ path
         Vary: 'Accept-Encoding',
       },
     });
-  } catch (error) {
-    return NextResponse.json({ error }, { status: 500 });
+  } catch {
+    // Don't echo the upstream error: it carries the content repo path and token state.
+    return NextResponse.json({ error: 'Failed to load image' }, { status: 500 });
   }
 }

@@ -1,39 +1,75 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { type ReactNode, useEffect } from 'react';
+import { type ReactNode, useEffect, useState } from 'react';
+import { toast } from 'sonner';
 
+import {
+  type EditableContent,
+  loadEditableContentAction,
+} from '@/app/_actions/load-editable-content';
 import PostTitle from '@/app/_components/post-title';
 import { useEditMode } from '@/components/edit-mode-context';
 import { createEditorPreloader } from '@/components/editing/preload-editor';
+import type { EditablePage } from '@/lib/content-editing-validation';
 
 const loadPageMdxEditorSurface = () => import('@/app/_components/page-mdx-editor-surface');
 const pageMdxEditorPreloader = createEditorPreloader(loadPageMdxEditorSurface);
 const PageMdxEditorSurface = dynamic(loadPageMdxEditorSurface, { ssr: false });
 
 interface IPageMdxInlineSectionProps {
-  page: 'about' | 'lines';
+  page: EditablePage;
   title: string;
-  content: string;
   children: ReactNode;
 }
 
 export default function PageMdxInlineSection({
   page,
   title,
-  content,
   children,
 }: IPageMdxInlineSectionProps) {
-  const { isEditMode } = useEditMode();
+  const { isEditMode, setEditMode } = useEditMode();
+  const [draft, setDraft] = useState<EditableContent | null>(null);
 
   useEffect(() => {
-    if (isEditMode) {
-      pageMdxEditorPreloader.preload().catch(() => undefined);
+    if (!isEditMode) {
+      // Drop it so re-entering the editor re-reads the file (and its SHA).
+      setDraft(null);
+      return;
     }
-  }, [isEditMode]);
 
-  if (isEditMode) {
-    return <PageMdxEditorSurface page={page} title={title} content={content} />;
+    let active = true;
+    Promise.all([
+      pageMdxEditorPreloader.preload().catch(() => undefined),
+      loadEditableContentAction({ kind: 'page', page }),
+    ]).then(([, result]) => {
+      if (!active) {
+        return;
+      }
+      if (!result.success) {
+        toast.error(result.error);
+        setEditMode(false);
+        return;
+      }
+      setDraft(result.data ?? null);
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [isEditMode, page, setEditMode]);
+
+  // Until the body arrives the reading view stays up, so there is no extra
+  // loading state to design.
+  if (isEditMode && draft) {
+    return (
+      <PageMdxEditorSurface
+        page={page}
+        title={title}
+        initialContent={draft.content}
+        sha={draft.sha}
+      />
+    );
   }
 
   return (

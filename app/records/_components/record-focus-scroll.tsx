@@ -1,5 +1,6 @@
 'use client';
 
+import { useSearchParams } from 'next/navigation';
 import { useEffect } from 'react';
 
 /**
@@ -8,8 +9,13 @@ import { useEffect } from 'react';
  * class is removed afterwards so the card DOM is left pristine. Falls back
  * silently (stays at the top) if no card matches — e.g. it lives under a tab
  * that isn't active.
+ *
+ * Reads the param here rather than taking it as a prop: awaiting searchParams in
+ * the page would opt the whole route out of static rendering.
  */
-export default function RecordFocusScroll({ focusKey }: { focusKey: string }) {
+export default function RecordFocusScroll() {
+  const focusKey = useSearchParams().get('focus') ?? '';
+
   useEffect(() => {
     if (!focusKey) {
       return;

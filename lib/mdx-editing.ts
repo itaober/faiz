@@ -9,7 +9,7 @@ const markdownChecklistPattern = /(?:^|\n)(?:- \[[ xX]\] .+(?:\n|$))+/g;
 const inlineLinkPattern = /<Link\s+href=(["'])(.*?)\1\s*>([\s\S]*?)<\/Link>/g;
 // Skip image markdown (![]()): saved content still carries ![](…) until the server
 // normalises it to <Image>.
-const markdownLinkPattern = /(?<!\!)\[([^\]]+)\]\(([^)\s]+)\)/g;
+const markdownLinkPattern = /(?<!!)\[([^\]]+)\]\(([^)\s]+)\)/g;
 
 const escapeJsonString = (value: string) => value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
 

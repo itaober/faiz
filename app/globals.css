@@ -1,5 +1,5 @@
 @import 'tailwindcss';
-@plugin "@tailwindcss/typography";
+@plugin '@tailwindcss/typography';
 @custom-variant dark (&:where(.dark, .dark *));
 
 :root {
@@ -153,6 +153,25 @@ button {
   }
   .dark .fz-img-outline {
     outline-color: oklch(1 0 0 / 0.1);
+  }
+
+  /*
+   * Page entrance. Deliberately CSS rather than JS: a JS-driven version has to
+   * render the content at opacity 0 first, which means the server HTML arrives
+   * invisible and stays that way until hydration — and in a background tab,
+   * where rAF is throttled, it can stay invisible indefinitely (measured
+   * stalling at opacity 0.217). Animating from a keyframe leaves the markup
+   * visible on its own, so no-JS, crawlers and throttled tabs all still read it.
+   * The reduced-motion block above neutralises it for free.
+   */
+  .fz-enter {
+    animation: fz-enter var(--fz-dur-normal) var(--ease-out) both;
+  }
+  @keyframes fz-enter {
+    from {
+      opacity: 0;
+      transform: translateY(4px);
+    }
   }
 }
 

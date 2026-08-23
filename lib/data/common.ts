@@ -2,6 +2,7 @@ import { updateTag } from 'next/cache';
 import { cache } from 'react';
 
 import { formatTimeForId } from '@/lib/dayjs';
+import { GitHubApiError, gitHubApiError } from '@/lib/errors';
 
 import { fetchWithRetry } from './fetch-with-retry';
 
@@ -140,7 +141,7 @@ export const fetchGitHubApi = async (path: string, init?: RequestInit, token?: s
     const res = await fetchWithRetry(url, requestInit);
 
     if (!res.ok) {
-      throw new Error(`GitHub API error: ${res.status} ${res.statusText}`);
+      throw gitHubApiError(res, 'GitHub API error');
     }
     return res;
   } catch (error) {
@@ -160,6 +161,59 @@ export const fetchGitHubApi = async (path: string, init?: RequestInit, token?: s
 export const fetchGitHubText = async (path: string, init?: RequestInit, token?: string) => {
   const res = await fetchGitHubApi(path, init, token);
   return res.text();
+};
+
+/**
+ * Reads a file together with the blob SHA that identifies this exact revision.
+ *
+ * Always uncached: the SHA is what a later write sends back as its
+ * if-unchanged token, so a stale one would defeat the check. `object` media type
+ * returns metadata and content in one request; over 1 MB GitHub omits the body
+ * (`encoding: 'none'`) and it takes a second raw read.
+ *
+ * @returns `null` when the file does not exist yet
+ */
+export const fetchGitHubFileWithSha = async (
+  path: string,
+  token?: string,
+): Promise<{ text: string; sha: string } | null> => {
+  const res = await fetchGitHubApi(
+    path,
+    {
+      cache: 'no-store',
+      headers: { Accept: 'application/vnd.github.object+json' },
+    },
+    token,
+  ).catch((error: unknown) => {
+    if (error instanceof GitHubApiError && error.status === 404) {
+      return null;
+    }
+    throw error;
+  });
+
+  if (!res) {
+    return null;
+  }
+
+  const data = (await res.json()) as { content?: string; encoding?: string; sha?: string };
+  if (!data.sha) {
+    return null;
+  }
+
+  if (data.encoding === 'base64') {
+    return { text: Buffer.from(data.content ?? '', 'base64').toString('utf8'), sha: data.sha };
+  }
+
+  return { text: await fetchGitHubText(path, { cache: 'no-store' }, token), sha: data.sha };
+};
+
+/** {@link fetchGitHubFileWithSha} for the JSON files we read-modify-write. */
+export const fetchGitHubJsonWithSha = async <T>(
+  path: string,
+  token?: string,
+): Promise<{ data: T; sha: string } | null> => {
+  const file = await fetchGitHubFileWithSha(path, token);
+  return file ? { data: JSON.parse(file.text) as T, sha: file.sha } : null;
 };
 
 /**
@@ -224,7 +278,7 @@ interface IGitHubContentMeta {
  * @param token - Optional GitHub token
  * @returns File metadata, or null if file doesn't exist
  */
-const fetchGitHubContentsMeta = async (
+export const fetchGitHubContentsMeta = async (
   path: string,
   token?: string,
 ): Promise<IGitHubContentMeta | null> => {
@@ -249,7 +303,7 @@ const fetchGitHubContentsMeta = async (
         return null;
       }
 
-      throw new Error(`GitHub contents meta error: ${res.status} ${res.statusText}`);
+      throw gitHubApiError(res, 'GitHub contents meta error');
     }
 
     const data = (await res.json()) as { sha?: string };
@@ -266,6 +320,11 @@ interface IPutGitHubFileOptions {
   contentBase64: string;
   /** Git commit message */
   message: string;
+  /**
+   * Blob SHA of the revision this write is based on. Omit to create a new file;
+   * GitHub answers 409 if the file moved on since that SHA was read.
+   */
+  sha?: string;
 }
 
 /**
@@ -285,8 +344,6 @@ export const putGitHubFile = async (
 ) => {
   const url = getGitHubApiUrl(path);
 
-  const meta = await fetchGitHubContentsMeta(path, token);
-
   const body: {
     message: string;
     content: string;
@@ -295,7 +352,7 @@ export const putGitHubFile = async (
   } = {
     message: options.message,
     content: options.contentBase64,
-    sha: meta?.sha,
+    ...(options.sha ? { sha: options.sha } : {}),
     branch: GIT_HUB_API_OPTIONS.branch,
   };
 
@@ -317,10 +374,15 @@ export const putGitHubFile = async (
   if (!res.ok) {
     const errorText = await res.text();
     console.error('Failed to put GitHub file:', path, res.status, res.statusText, errorText);
-    throw new Error(`Failed to put GitHub file: ${path} - ${res.status} ${res.statusText}`);
+    throw gitHubApiError(res, `Failed to put GitHub file: ${path}`);
   }
 
   revalidateGitHubContent(path);
+
+  // Hand back the new revision so an editor that stays open can save again
+  // without its SHA already being stale.
+  const written = (await res.json().catch(() => null)) as { content?: { sha?: string } } | null;
+  return { sha: written?.content?.sha };
 };
 
 /**
@@ -336,15 +398,17 @@ export const writeGitHubJson = async (
   data: unknown,
   message?: string,
   token?: string,
+  sha?: string,
 ) => {
   const json = JSON.stringify(data, null, 2);
   const contentBase64 = Buffer.from(json, 'utf8').toString('base64');
 
-  await putGitHubFile(
+  return putGitHubFile(
     path,
     {
       contentBase64,
       message: message ?? `Update ${path}`,
+      sha,
     },
     token,
   );
@@ -402,7 +466,7 @@ export const deleteGitHubFile = async (
     }
     const errorText = await res.text();
     console.error('Failed to delete GitHub file:', path, res.status, res.statusText, errorText);
-    throw new Error(`Failed to delete GitHub file: ${path} - ${res.status} ${res.statusText}`);
+    throw gitHubApiError(res, `Failed to delete GitHub file: ${path}`);
   }
 
   revalidateGitHubContent(path);

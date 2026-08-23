@@ -53,7 +53,7 @@ export default function MemosLoadMore({ loadedLimit, totalAvailable, end }: Memo
     startTransition(() => {
       router.replace(`/memos?${params.toString()}`, { scroll: false });
     });
-  }, [end, loadedLimit, router, searchParams, startTransition, totalAvailable]);
+  }, [end, loadedLimit, router, searchParams, totalAvailable]);
 
   useEffect(() => {
     const sentinel = sentinelRef.current;

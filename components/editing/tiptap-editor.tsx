@@ -115,10 +115,12 @@ function SelectionBubble({
         enabled && e.isEditable && from !== to && !e.isActive('codeBlock') && !e.isActive('image')
       }
     >
+      {/* biome-ignore lint/a11y/noStaticElementInteractions: container only swallows mousedown so the editor keeps its selection; the controls inside are buttons */}
       <div className="fz-bubble" onMouseDown={event => event.preventDefault()}>
         {linkOpen ? (
           <>
             <input
+              // biome-ignore lint/a11y/noAutofocus: link popover opens on user intent; focusing its only input is the expected behaviour
               autoFocus
               value={linkValue}
               onChange={event => setLinkValue(event.target.value)}
@@ -566,6 +568,7 @@ export default function TiptapEditor({
   }, [showMobileToolbar, setMobileEditing]);
 
   // Auto-grow the markdown textarea to fit its content.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: value is the trigger — new content means a new scrollHeight to measure
   useEffect(() => {
     const textarea = markdownRef.current;
     if (mode === 'markdown' && textarea) {
@@ -620,6 +623,8 @@ export default function TiptapEditor({
         />
       ) : (
         <>
+          {/* biome-ignore lint/a11y/noStaticElementInteractions: click-below-content is a pointer affordance for reaching the caret; the contenteditable inside owns keyboard input */}
+          {/* biome-ignore lint/a11y/useKeyWithClickEvents: same — keyboard users are already inside the editable region */}
           <div
             className={cn(
               'prose dark:prose-invert max-w-none',

@@ -127,7 +127,7 @@ export function ImageGalleryNodeView({
   return (
     <NodeViewWrapper className="fz-gallery not-prose my-4 flex flex-col items-center">
       <div className="relative aspect-square w-full max-w-xl overflow-hidden rounded-md bg-[var(--fz-image-frame)] md:rounded-lg">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
+        {/* biome-ignore lint/performance/noImgElement: editor node view; src may be a local blob: URL */}
         <img
           src={displaySrc(selected.src)}
           alt={caption}
@@ -159,8 +159,9 @@ export function ImageGalleryNodeView({
 
       <div className="mt-1 flex w-full max-w-xl gap-2 overflow-x-auto p-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {images.map((image, index) => (
+          // biome-ignore lint/a11y/noStaticElementInteractions: drag-to-reorder is inherently pointer-only; the button inside handles selection
           <div
-            key={`${image.src}-${index}`}
+            key={image.src}
             data-gallery-interactive
             draggable={editable}
             onDragStart={event => {
@@ -193,7 +194,7 @@ export function ImageGalleryNodeView({
               aria-label={`Show image ${index + 1}`}
               aria-current={index === safeIndex ? 'true' : undefined}
             >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
+              {/* biome-ignore lint/performance/noImgElement: editor thumbnail; src may be a local blob: URL */}
               <img
                 src={displaySrc(image.src)}
                 alt=""

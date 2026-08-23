@@ -113,7 +113,7 @@ export default function MemoCardImages({ images }: MemoCardImagesProps) {
           const imageAlt = `Memo image ${index + 1}`;
           return (
             <PreviewTrigger
-              key={`${visibleImages[index]}-${index}`}
+              key={url}
               previewSrc={url}
               onOpen={() => setCurrentIndex(index)}
               ariaLabel={`Open ${imageAlt}`}

@@ -47,16 +47,6 @@ export async function deleteMemoAction(input: IDeleteMemoInput): Promise<ActionR
     return { success: true };
   } catch (error) {
     console.error('Failed to delete memo:', error);
-
-    if (error instanceof Error && error.message === 'Memo not found') {
-      return {
-        success: false,
-        error: 'Memo not found',
-        code: 'NOT_FOUND',
-        retryable: false,
-      };
-    }
-
     return createActionError(error, 'Failed to delete memo');
   }
 }

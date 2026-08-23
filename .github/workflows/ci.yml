@@ -1,0 +1,30 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v4
+
+      # Reads engines.node, so the floor lives in one place. It matters here:
+      # tests/ import .ts directly and rely on Node's built-in type stripping,
+      # which is only on by default from 22.18.
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: package.json
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm exec biome ci .
+
+      - run: pnpm exec tsc --noEmit
+
+      - run: pnpm test

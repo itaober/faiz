@@ -219,6 +219,7 @@ export default function HoverCard({
 
   return (
     <>
+      {/* biome-ignore lint/a11y/noStaticElementInteractions: passive wrapper around the real control (a link); it already mirrors hover with focus/blur and closes on Escape */}
       <span
         ref={triggerRef}
         className="inline"

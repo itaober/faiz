@@ -82,6 +82,7 @@ export function SnowEffect({
   if (!enabled || (isMobile && resolvedTheme === 'light')) return null;
 
   return (
+    // biome-ignore lint/a11y/noAriaHiddenOnFocusable: decorative overlay, pointer-events-none and never focused
     <canvas
       ref={canvasRef}
       className={`pointer-events-none fixed inset-0 z-[9999] ${className}`}

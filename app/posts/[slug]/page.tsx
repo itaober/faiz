@@ -1,8 +1,10 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
+import { Suspense } from 'react';
 
 import { MDX } from '@/components/mdx';
 import MotionWrapper from '@/components/motion-wrapper';
+import { getPostListInfo } from '@/lib/data/data';
 import { getPostMDX } from '@/lib/data/mdx';
 import { buildDescription, buildPageMetadata } from '@/lib/utils/seo';
 
@@ -12,7 +14,15 @@ import PostTocDeferred from '../_components/post-toc-deferred';
 
 interface IPostPageProps {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ q?: string }>;
+}
+
+/**
+ * Prerender every post in the index. `dynamicParams` stays at its default, so a
+ * post published from the editor is reachable before the next build.
+ */
+export async function generateStaticParams() {
+  const posts = await getPostListInfo();
+  return (posts ?? []).map(({ slug }) => ({ slug }));
 }
 
 async function getPost(slug: string) {
@@ -46,9 +56,8 @@ export async function generateMetadata({ params }: IPostPageProps): Promise<Meta
   };
 }
 
-export default async function PostPage({ params, searchParams }: IPostPageProps) {
+export default async function PostPage({ params }: IPostPageProps) {
   const { slug } = await params;
-  const { q } = await searchParams;
   const post = await getPost(slug);
   const { content, data } = post;
 
@@ -56,7 +65,7 @@ export default async function PostPage({ params, searchParams }: IPostPageProps)
     <>
       <MotionWrapper>
         <div className="relative">
-          <PostDetailInlineSection post={{ ...data, content }}>
+          <PostDetailInlineSection post={data}>
             <article id="post-content" className="prose dark:prose-invert">
               <MDX source={content} />
             </article>
@@ -64,7 +73,9 @@ export default async function PostPage({ params, searchParams }: IPostPageProps)
           </PostDetailInlineSection>
         </div>
       </MotionWrapper>
-      {q ? <PostMatchScroll query={q} /> : null}
+      <Suspense fallback={null}>
+        <PostMatchScroll />
+      </Suspense>
     </>
   );
 }

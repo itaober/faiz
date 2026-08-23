@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
-import { updatePageAction } from '@/app/_actions/edit-page';
+import { type IPageSaveResult, updatePageAction } from '@/app/_actions/edit-page';
 import { useEditMode } from '@/components/edit-mode-context';
 import type { EditViewMode } from '@/components/editing/action-bar';
 import { useDockedActionBar } from '@/components/editing/edit-session';
@@ -12,6 +12,7 @@ import TiptapEditor from '@/components/editing/tiptap-editor';
 import { uploadStagedEditorImages } from '@/components/editing/upload-staged-editor-images';
 import { useContentEditor } from '@/hooks/use-content-editor';
 import { isMobileViewport } from '@/hooks/use-is-mobile';
+import type { EditablePage } from '@/lib/content-editing-validation';
 import { markdownTodoListsToMdx, mdxTodoListsToMarkdown } from '@/lib/mdx-editing';
 import { cn } from '@/lib/utils';
 import { mergeByPath, type StagedEditorImage } from '@/lib/utils/editor-image';
@@ -19,12 +20,19 @@ import { mergeByPath, type StagedEditorImage } from '@/lib/utils/editor-image';
 import PostTitle from './post-title';
 
 interface IPageMdxEditorSurfaceProps {
-  page: 'about' | 'lines';
+  page: EditablePage;
   title: string;
-  content: string;
+  initialContent: string;
+  /** Revision the body came from; sent back on save so a concurrent edit conflicts. */
+  sha?: string;
 }
 
-export default function PageMdxEditorSurface({ page, title, content }: IPageMdxEditorSurfaceProps) {
+export default function PageMdxEditorSurface({
+  page,
+  title,
+  initialContent,
+  sha,
+}: IPageMdxEditorSurfaceProps) {
   const router = useRouter();
   const { token, setEditMode } = useEditMode();
   // Touch enters edit directly (tap-to-edit); desktop opens in preview.
@@ -33,7 +41,8 @@ export default function PageMdxEditorSurface({ page, title, content }: IPageMdxE
   );
   const { settingsOpen, setSettingsOpen, isSubmitting, submit } = useContentEditor(token);
   const [draftTitle, setDraftTitle] = useState(title);
-  const [draftContent, setDraftContent] = useState(() => mdxTodoListsToMarkdown(content));
+  const [draftContent, setDraftContent] = useState(() => mdxTodoListsToMarkdown(initialContent));
+  const [contentSha, setContentSha] = useState(sha);
   const [stagedImages, setStagedImages] = useState<StagedEditorImage[]>([]);
   const hasToken = !!token;
   const context = page === 'about' ? 'About' : 'Lines';
@@ -42,18 +51,21 @@ export default function PageMdxEditorSurface({ page, title, content }: IPageMdxE
 
   useEffect(() => {
     setDraftTitle(title);
-    setDraftContent(mdxTodoListsToMarkdown(content));
+    setDraftContent(mdxTodoListsToMarkdown(initialContent));
+    setContentSha(sha);
     setStagedImages([]);
-  }, [content, title]);
+  }, [initialContent, sha, title]);
 
   const handleSubmit = () => {
-    submit({
+    submit<IPageSaveResult | undefined>({
       loading: 'Saving...',
       success: 'Page saved',
       errorFallback: 'Save failed',
-      onSuccess: () => {
+      onSuccess: saved => {
         setStagedImages([]);
         setMode('preview');
+        // Adopt the revision we just wrote so a second save isn't a conflict.
+        setContentSha(saved?.contentSha);
         router.refresh();
       },
       run: async token => {
@@ -68,11 +80,12 @@ export default function PageMdxEditorSurface({ page, title, content }: IPageMdxE
           title: draftTitle,
           content: markdownTodoListsToMdx(draftContent),
           token,
+          sha: contentSha,
         });
         if (!result.success) {
           throw new Error(result.error || 'Save failed');
         }
-        return result;
+        return result.data;
       },
     });
   };

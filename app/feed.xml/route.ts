@@ -2,9 +2,15 @@ import dayjs from 'dayjs';
 import { Feed } from 'feed';
 import { marked } from 'marked';
 
-import { getMetaInfo } from '@/lib/data/data';
-import { getPostList } from '@/lib/data/mdx';
+import { getMetaInfo, getPostListInfo, type PostList } from '@/lib/data/data';
+import { getPostMDX } from '@/lib/data/mdx';
 import { getMemos } from '@/lib/data/memos';
+import { mdxTodoListsToMarkdown } from '@/lib/mdx-editing';
+import { mdxImagesToMarkdown } from '@/lib/utils/editor-image';
+
+// RSS readers poll this often, and building it walks every post. The write path
+// already calls revalidatePath('/feed.xml').
+export const revalidate = 300;
 
 interface IFeedItem {
   title: string;
@@ -15,25 +21,36 @@ interface IFeedItem {
   category?: { name: string }[];
 }
 
-type PostList = NonNullable<Awaited<ReturnType<typeof getPostList>>>;
 type MemoList = NonNullable<Awaited<ReturnType<typeof getMemos>>>;
 
-const createPostFeedItems = async (postList: PostList, feedDomain: string): Promise<IFeedItem[]> =>
-  Promise.all(
-    postList.map(async post => {
-      const { title, createdTime, tags } = post.data;
-      const htmlContent = await marked(post.content);
+/** Stored content carries MDX components; marked would pass them through raw. */
+const toFeedHtml = (content: string) =>
+  marked(mdxImagesToMarkdown(mdxTodoListsToMarkdown(content)));
+
+const createPostFeedItems = async (
+  postList: PostList,
+  feedDomain: string,
+): Promise<IFeedItem[]> => {
+  const items = await Promise.all(
+    postList.map(async ({ slug, title, createdTime, tags }): Promise<IFeedItem | null> => {
+      const mdx = await getPostMDX(slug);
+      if (!mdx) {
+        return null;
+      }
 
       return {
         title,
-        id: `${feedDomain}/posts/${post.data.slug}`,
-        link: `${feedDomain}/posts/${post.data.slug}`,
+        id: `${feedDomain}/posts/${slug}`,
+        link: `${feedDomain}/posts/${slug}`,
         date: dayjs(createdTime).toDate(),
         category: tags.map(tag => ({ name: tag })),
-        content: htmlContent,
+        content: await toFeedHtml(mdx.content),
       };
     }),
   );
+
+  return items.filter((item): item is IFeedItem => item !== null);
+};
 
 const groupMemosByDate = (memoList: MemoList, today: string) => {
   const memosByDate = new Map<string, MemoList>();
@@ -72,7 +89,7 @@ const createMemoFeedItems = async (
       const mergedContent = await Promise.all(
         sortedMemos.map(async memo => {
           const time = dayjs(memo.createdTime).format('HH:mm');
-          const htmlContent = await marked(memo.content);
+          const htmlContent = await toFeedHtml(memo.content);
           return `<p><strong>${time}</strong></p>${htmlContent}`;
         }),
       );
@@ -92,11 +109,11 @@ const createMemoFeedItems = async (
 export async function GET() {
   const [metaInfo, postList, memoList] = await Promise.all([
     getMetaInfo(),
-    getPostList(),
+    getPostListInfo(),
     getMemos(),
   ]);
 
-  if (!metaInfo || !metaInfo.site || !postList) {
+  if (!metaInfo?.site || !postList) {
     return new Response('Internal Server Error', { status: 500 });
   }
 

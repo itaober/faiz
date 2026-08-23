@@ -115,8 +115,8 @@ export default function RecordItem({
             sidecar={
               reviewParagraphs.length ? (
                 <div className="fz-review-overlay">
-                  {reviewParagraphs.map((paragraph, index) => (
-                    <p key={index}>{paragraph}</p>
+                  {reviewParagraphs.map(paragraph => (
+                    <p key={paragraph}>{paragraph}</p>
                   ))}
                 </div>
               ) : undefined

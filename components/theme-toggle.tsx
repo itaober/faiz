@@ -17,7 +17,7 @@ const ThemeToggle = () => {
 
   if (!isMounted) {
     return (
-      <button className="icon-button size-7 opacity-0" aria-label="Toggle Theme">
+      <button type="button" className="icon-button size-7 opacity-0" aria-label="Toggle Theme">
         <div className="size-5" />
       </button>
     );
