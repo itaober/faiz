@@ -1,27 +1,20 @@
-'use client';
+import { cn } from '@/lib/utils';
 
-import { motion } from 'motion/react';
-
-import { ANIMATION } from '@/lib/constants/animation';
-
+/**
+ * Page-level entrance animation.
+ *
+ * Pure CSS (`.fz-enter` in globals.css) rather than a motion component: the JS
+ * version rendered its children at opacity 0, so server HTML arrived invisible
+ * and only appeared after hydration — indefinitely in a background tab, where
+ * rAF is throttled. This is a server component now, so the wrapper costs no
+ * client JS either.
+ */
 export default function MotionWrapper({
   children,
   className,
-  delay = 0,
 }: {
   children: React.ReactNode;
   className?: string;
-  delay?: number;
 }) {
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: ANIMATION.distance.small }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -ANIMATION.distance.small }}
-      transition={{ duration: ANIMATION.duration.normal, ease: ANIMATION.ease.out, delay }}
-      className={className}
-    >
-      {children}
-    </motion.div>
-  );
+  return <div className={cn('fz-enter', className)}>{children}</div>;
 }
