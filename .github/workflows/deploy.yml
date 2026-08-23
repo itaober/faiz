@@ -1,0 +1,53 @@
+name: Deploy
+
+# Also dispatched by the trigger-deploy.yml shim that lives on the `content`
+# branch — push-event workflows only run from files on the pushed ref, so the
+# content branch needs its own trigger file.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/checkout@v5
+        with:
+          ref: content
+          path: content
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: package.json
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # Image-variant and link-preview caches; content-addressed entries make
+      # a stale restore always safe.
+      - uses: actions/cache@v4
+        with:
+          path: .cache
+          key: build-cache-${{ hashFiles('content/assets/**') }}
+          restore-keys: build-cache-
+
+      - run: CONTENT_DIR="$GITHUB_WORKSPACE/content" pnpm build
+
+      - run: CONTENT_DIR="$GITHUB_WORKSPACE/content" node scripts/build-image-variants.mjs
+
+      - run: CONTENT_DIR="$GITHUB_WORKSPACE/content" node scripts/build-link-previews.mjs
+
+      - uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: deploy
