@@ -3,8 +3,8 @@
 import { revalidatePath } from 'next/cache';
 
 import { isRecordType } from '@/lib/content-editing-validation';
-import { fetchGitHubJsonWithSha, writeGitHubJson } from '@/lib/data/common';
 import { type RecordItem, type Records, RecordsSchema } from '@/lib/data/data';
+import { fetchGitHubJsonWithSha, writeGitHubJson } from '@/lib/data/github';
 import dayjs, { formatTime } from '@/lib/dayjs';
 import { requireAuth } from '@/lib/server/content-edit-token';
 import {

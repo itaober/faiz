@@ -2,7 +2,7 @@ import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 
 import { isContentImageReadPath } from '@/lib/content-editing-validation';
-import { fetchGitHubApi } from '@/lib/data/common';
+import { fetchGitHubApi } from '@/lib/data/github';
 
 const CACHE_CONTROL = [
   'public',

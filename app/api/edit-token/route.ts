@@ -2,7 +2,7 @@ import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 
 import { CONTENT_EDIT_TOKEN_COOKIE } from '@/lib/content-edit-token';
-import { fetchGitHubApi } from '@/lib/data/common';
+import { fetchGitHubApi } from '@/lib/data/github';
 import { hasContentEditToken } from '@/lib/server/content-edit-token';
 
 const COOKIE_MAX_AGE = 60 * 60 * 24 * 90;

@@ -1,9 +1,8 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-
-import { deleteGitHubFile, fetchGitHubJsonWithSha, writeGitHubJson } from '@/lib/data/common';
 import { type PostList, PostListSchema, type PostMeta } from '@/lib/data/data';
+import { deleteGitHubFile, fetchGitHubJsonWithSha, writeGitHubJson } from '@/lib/data/github';
 import { removePost, replacePost, sortPosts, upsertPost } from '@/lib/data/posts-index';
 import { formatTime } from '@/lib/dayjs';
 import { GitHubApiError } from '@/lib/errors';

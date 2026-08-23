@@ -8,7 +8,7 @@ import {
   type EditablePage,
   isEditablePage,
 } from '@/lib/content-editing-validation';
-import { fetchGitHubText } from '@/lib/data/common';
+import { fetchGitHubText } from '@/lib/data/github';
 import { formatTime } from '@/lib/dayjs';
 import { requireAuth } from '@/lib/server/content-edit-token';
 import { createMutationFetchInit, normalizeOptionalString, writeMdx } from '@/lib/server/mdx-write';

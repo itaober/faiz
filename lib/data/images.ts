@@ -4,7 +4,7 @@ import {
   isSafeContentImagePath,
   normalizeContentImagePath,
 } from '@/lib/content-editing-validation';
-import { deleteGitHubFile, fetchGitHubContentsMeta, putGitHubFile } from '@/lib/data/common';
+import { deleteGitHubFile, fetchGitHubContentsMeta, putGitHubFile } from '@/lib/data/github';
 
 interface IUploadImageInput {
   imageBase64: string;

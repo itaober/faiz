@@ -1,0 +1,399 @@
+import { GitHubApiError, gitHubApiError } from '@/lib/errors';
+
+import { fetchWithRetry } from './fetch-with-retry';
+
+/** GitHub Token from environment variables */
+const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
+
+/**
+ * Gets GitHub token with priority for provided token over environment variable
+ *
+ * @param providedToken - User-provided token, takes priority over env variable
+ * @returns Valid GitHub token
+ */
+const getGitHubToken = (providedToken?: string) => {
+  return providedToken || GITHUB_TOKEN;
+};
+
+/** GitHub API configuration options interface */
+interface IGitHubApiOptions {
+  owner: string;
+  repo: string;
+  branch?: string;
+}
+
+export const CONTENT_BRANCH =
+  process.env.GITHUB_CONTENT_BRANCH || process.env.NEXT_PUBLIC_GITHUB_CONTENT_BRANCH || 'content';
+
+/** Default GitHub API configuration */
+export const GIT_HUB_API_OPTIONS: IGitHubApiOptions = {
+  owner: 'itaober',
+  repo: 'faiz',
+  branch: CONTENT_BRANCH,
+};
+
+/**
+ * Builds GitHub Contents API URL
+ *
+ * @param path - File path within the repository
+ * @param options - GitHub API configuration options
+ * @returns Complete GitHub API URL
+ */
+const getGitHubApiUrl = (path: string, { owner, repo, branch } = GIT_HUB_API_OPTIONS) =>
+  `https://api.github.com/repos/${owner}/${repo}/contents/${path}?ref=${branch}`;
+
+/**
+ * Low-level GitHub API fetch function
+ *
+ * @param path - File path within the repository
+ * @param init - Optional fetch configuration
+ * @param token - Optional GitHub token
+ * @returns Fetch Response object
+ * @throws Error when API request fails
+ */
+export const fetchGitHubApi = async (path: string, init?: RequestInit, token?: string) => {
+  const url = getGitHubApiUrl(path);
+  const authToken = getGitHubToken(token);
+
+  const requestInit: RequestInit = {
+    ...init,
+    headers: {
+      Accept: 'application/vnd.github.v3.raw',
+      'User-Agent': 'faiz-blog',
+      ...init?.headers,
+      ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+    },
+  };
+
+  try {
+    const res = await fetchWithRetry(url, requestInit);
+
+    if (!res.ok) {
+      throw gitHubApiError(res, 'GitHub API error');
+    }
+    return res;
+  } catch (error) {
+    console.error('Failed to fetch:', path, error);
+    throw error;
+  }
+};
+
+/**
+ * Fetches raw text content from a GitHub file
+ *
+ * @param path - File path within the repository
+ * @param init - Optional fetch configuration
+ * @param token - Optional GitHub token
+ * @returns File text content
+ */
+export const fetchGitHubText = async (path: string, init?: RequestInit, token?: string) => {
+  const res = await fetchGitHubApi(path, init, token);
+  return res.text();
+};
+
+/**
+ * Fetches JSON content from a GitHub file
+ *
+ * @template T - Type of the JSON data
+ * @param path - File path within the repository
+ * @param init - Optional fetch configuration
+ * @param token - Optional GitHub token
+ * @returns Parsed JSON data
+ */
+export const fetchGitHubJson = async <T = object>(
+  path: string,
+  init?: RequestInit,
+  token?: string,
+) => {
+  const res = await fetchGitHubApi(path, init, token);
+  return res.json() as Promise<T>;
+};
+
+/**
+ * Fetches list of files in a GitHub directory
+ *
+ * @param dir - Directory path
+ * @param init - Optional fetch configuration
+ * @param token - Optional GitHub token
+ * @returns Array of file paths in the directory
+ */
+export const fetchGitHubDir = async (dir: string, init?: RequestInit, token?: string) => {
+  try {
+    const res = await fetchGitHubApi(
+      dir,
+      {
+        ...init,
+        headers: {
+          Accept: 'application/vnd.github.v3+json',
+          ...init?.headers,
+        },
+      },
+      token,
+    );
+
+    const data: { name: string; path: string; type: string }[] = await res.json();
+    return data.filter(item => item.type === 'file').map(item => item.path);
+  } catch (err) {
+    console.error(`Failed to fetch GitHub directory ${dir}:`, err);
+    return [];
+  }
+};
+
+/**
+ * Reads a file together with the blob SHA that identifies this exact revision.
+ *
+ * Always uncached: the SHA is what a later write sends back as its
+ * if-unchanged token, so a stale one would defeat the check. `object` media type
+ * returns metadata and content in one request; over 1 MB GitHub omits the body
+ * (`encoding: 'none'`) and it takes a second raw read.
+ *
+ * @returns `null` when the file does not exist yet
+ */
+export const fetchGitHubFileWithSha = async (
+  path: string,
+  token?: string,
+): Promise<{ text: string; sha: string } | null> => {
+  const res = await fetchGitHubApi(
+    path,
+    {
+      cache: 'no-store',
+      headers: { Accept: 'application/vnd.github.object+json' },
+    },
+    token,
+  ).catch((error: unknown) => {
+    if (error instanceof GitHubApiError && error.status === 404) {
+      return null;
+    }
+    throw error;
+  });
+
+  if (!res) {
+    return null;
+  }
+
+  const data = (await res.json()) as { content?: string; encoding?: string; sha?: string };
+  if (!data.sha) {
+    return null;
+  }
+
+  if (data.encoding === 'base64') {
+    return { text: Buffer.from(data.content ?? '', 'base64').toString('utf8'), sha: data.sha };
+  }
+
+  return { text: await fetchGitHubText(path, { cache: 'no-store' }, token), sha: data.sha };
+};
+
+/** {@link fetchGitHubFileWithSha} for the JSON files we read-modify-write. */
+export const fetchGitHubJsonWithSha = async <T>(
+  path: string,
+  token?: string,
+): Promise<{ data: T; sha: string } | null> => {
+  const file = await fetchGitHubFileWithSha(path, token);
+  return file ? { data: JSON.parse(file.text) as T, sha: file.sha } : null;
+};
+
+/** GitHub file content metadata interface */
+interface IGitHubContentMeta {
+  sha?: string;
+}
+
+/**
+ * Fetches GitHub file metadata (primarily for getting SHA)
+ *
+ * Uses Contents API URL, not raw content URL
+ *
+ * @param path - File path within the repository
+ * @param token - Optional GitHub token
+ * @returns File metadata, or null if file doesn't exist
+ */
+export const fetchGitHubContentsMeta = async (
+  path: string,
+  token?: string,
+): Promise<IGitHubContentMeta | null> => {
+  const url = getGitHubApiUrl(path);
+
+  try {
+    const res = await fetchWithRetry(
+      url,
+      {
+        cache: 'no-store', // Always get fresh SHA for mutations to prevent 409 conflicts
+        headers: {
+          Accept: 'application/vnd.github.v3+json',
+          'User-Agent': 'faiz-blog',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      },
+      { retries: 2 },
+    );
+
+    if (!res.ok) {
+      if (res.status === 404) {
+        return null;
+      }
+
+      throw gitHubApiError(res, 'GitHub contents meta error');
+    }
+
+    const data = (await res.json()) as { sha?: string };
+    return { sha: data.sha };
+  } catch (error) {
+    console.error('Failed to fetch GitHub contents meta:', path, error);
+    throw error;
+  }
+};
+
+/** Options for writing GitHub files */
+interface IPutGitHubFileOptions {
+  /** Base64 encoded file content */
+  contentBase64: string;
+  /** Git commit message */
+  message: string;
+  /**
+   * Blob SHA of the revision this write is based on. Omit to create a new file;
+   * GitHub answers 409 if the file moved on since that SHA was read.
+   */
+  sha?: string;
+}
+
+/**
+ * Creates or updates a GitHub file
+ *
+ * Uses Contents API URL, not raw content URL
+ *
+ * @param path - File path within the repository
+ * @param options - Write configuration (content and commit message)
+ * @param token - GitHub token (required for authentication)
+ * @throws Error when API request fails
+ */
+export const putGitHubFile = async (
+  path: string,
+  options: IPutGitHubFileOptions,
+  token?: string,
+) => {
+  const url = getGitHubApiUrl(path);
+
+  const body: {
+    message: string;
+    content: string;
+    sha?: string;
+    branch?: string;
+  } = {
+    message: options.message,
+    content: options.contentBase64,
+    ...(options.sha ? { sha: options.sha } : {}),
+    branch: GIT_HUB_API_OPTIONS.branch,
+  };
+
+  const res = await fetchWithRetry(
+    url,
+    {
+      method: 'PUT',
+      headers: {
+        Accept: 'application/vnd.github.v3+json',
+        'Content-Type': 'application/json',
+        'User-Agent': 'faiz-blog',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify(body),
+    },
+    { retries: 2 },
+  );
+
+  if (!res.ok) {
+    const errorText = await res.text();
+    console.error('Failed to put GitHub file:', path, res.status, res.statusText, errorText);
+    throw gitHubApiError(res, `Failed to put GitHub file: ${path}`);
+  }
+
+  // Hand back the new revision so an editor that stays open can save again
+  // without its SHA already being stale.
+  const written = (await res.json().catch(() => null)) as { content?: { sha?: string } } | null;
+  return { sha: written?.content?.sha };
+};
+
+/**
+ * Writes data as JSON to a GitHub file
+ *
+ * @param path - File path within the repository
+ * @param data - Data to write
+ * @param message - Optional Git commit message
+ * @param token - GitHub token (required for authentication)
+ */
+export const writeGitHubJson = async (
+  path: string,
+  data: unknown,
+  message?: string,
+  token?: string,
+  sha?: string,
+) => {
+  const json = JSON.stringify(data, null, 2);
+  const contentBase64 = Buffer.from(json, 'utf8').toString('base64');
+
+  return putGitHubFile(
+    path,
+    {
+      contentBase64,
+      message: message ?? `Update ${path}`,
+      sha,
+    },
+    token,
+  );
+};
+
+/**
+ * Deletes a file from the GitHub repository
+ *
+ * @param path - File path within the repository
+ * @param message - Git commit message
+ * @param token - GitHub token (required for authentication)
+ * @returns True if deleted successfully, false if file doesn't exist
+ * @throws Error when API request fails (except 404)
+ */
+export const deleteGitHubFile = async (
+  path: string,
+  message: string,
+  token?: string,
+): Promise<boolean> => {
+  const url = getGitHubApiUrl(path);
+
+  // 获取文件 SHA
+  const meta = await fetchGitHubContentsMeta(path, token);
+
+  // 文件不存在，视为已删除
+  if (!meta?.sha) {
+    return false;
+  }
+
+  const body = {
+    message,
+    sha: meta.sha,
+    branch: GIT_HUB_API_OPTIONS.branch,
+  };
+
+  const res = await fetchWithRetry(
+    url,
+    {
+      method: 'DELETE',
+      headers: {
+        Accept: 'application/vnd.github.v3+json',
+        'Content-Type': 'application/json',
+        'User-Agent': 'faiz-blog',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify(body),
+    },
+    { retries: 2 },
+  );
+
+  if (!res.ok) {
+    // 404 表示文件已不存在
+    if (res.status === 404) {
+      return false;
+    }
+    const errorText = await res.text();
+    console.error('Failed to delete GitHub file:', path, res.status, res.statusText, errorText);
+    throw gitHubApiError(res, `Failed to delete GitHub file: ${path}`);
+  }
+
+  return true;
+};

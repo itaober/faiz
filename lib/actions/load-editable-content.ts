@@ -7,7 +7,7 @@ import {
   type EditablePage,
   isEditablePage,
 } from '@/lib/content-editing-validation';
-import { fetchGitHubFileWithSha } from '@/lib/data/common';
+import { fetchGitHubFileWithSha } from '@/lib/data/github';
 import {
   type ActionResult,
   createActionError,
