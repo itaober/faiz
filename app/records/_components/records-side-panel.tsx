@@ -5,12 +5,6 @@ import { useRouter } from 'next/navigation';
 import { useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { Drawer } from 'vaul';
-
-import {
-  createRecordAction,
-  deleteRecordAction,
-  updateRecordAction,
-} from '@/app/_actions/edit-record';
 import { useEditMode } from '@/components/edit-mode-context';
 import ConfirmDrawer from '@/components/editing/confirm-drawer';
 import GitHubTokenDrawer from '@/components/editing/github-token-drawer';
@@ -18,6 +12,11 @@ import Segmented from '@/components/segmented';
 import { useContentEditor } from '@/hooks/use-content-editor';
 import { useCoverImage } from '@/hooks/use-cover-image';
 import { useSaveShortcut } from '@/hooks/use-save-shortcut';
+import {
+  createRecordAction,
+  deleteRecordAction,
+  updateRecordAction,
+} from '@/lib/actions/edit-record';
 import { SUPPORTED_IMAGE_TYPES } from '@/lib/constants/image';
 import type { RecordItem } from '@/lib/data/data';
 import { buildEditorImageStoragePath } from '@/lib/utils/editor-image';

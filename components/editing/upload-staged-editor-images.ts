@@ -1,6 +1,6 @@
 'use client';
 
-import { uploadEditorImageAction } from '@/app/_actions/upload-editor-image';
+import { uploadEditorImageAction } from '@/lib/actions/upload-editor-image';
 import type { StagedEditorImage } from '@/lib/utils/editor-image';
 
 interface IUploadStagedEditorImagesInput {

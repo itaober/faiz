@@ -112,7 +112,7 @@ export default function RecordItem({
           </PreviewTrigger>
           <PreviewPortal
             ariaLabel={`Cover preview: ${title}`}
-            sidecar={
+            aside={
               reviewParagraphs.length ? (
                 <div className="fz-review-overlay">
                   {reviewParagraphs.map(paragraph => (

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
-import { uploadEditorImageAction } from '@/app/_actions/upload-editor-image';
+import { uploadEditorImageAction } from '@/lib/actions/upload-editor-image';
 import { toApiImageUrl } from '@/lib/utils/editor-image';
 import {
   compressImage,
