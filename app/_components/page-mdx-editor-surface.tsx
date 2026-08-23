@@ -2,8 +2,6 @@
 
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-
-import { type IPageSaveResult, updatePageAction } from '@/app/_actions/edit-page';
 import { useEditMode } from '@/components/edit-mode-context';
 import type { EditViewMode } from '@/components/editing/action-bar';
 import { useDockedActionBar } from '@/components/editing/edit-session';
@@ -12,6 +10,7 @@ import TiptapEditor from '@/components/editing/tiptap-editor';
 import { uploadStagedEditorImages } from '@/components/editing/upload-staged-editor-images';
 import { useContentEditor } from '@/hooks/use-content-editor';
 import { isMobileViewport } from '@/hooks/use-is-mobile';
+import { type IPageSaveResult, updatePageAction } from '@/lib/actions/edit-page';
 import type { EditablePage } from '@/lib/content-editing-validation';
 import { markdownTodoListsToMdx, mdxTodoListsToMarkdown } from '@/lib/mdx-editing';
 import { cn } from '@/lib/utils';

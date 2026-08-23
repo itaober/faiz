@@ -3,14 +3,13 @@
 import dynamic from 'next/dynamic';
 import { type ReactNode, useEffect, useState } from 'react';
 import { toast } from 'sonner';
-
-import {
-  type EditableContent,
-  loadEditableContentAction,
-} from '@/app/_actions/load-editable-content';
 import PostTitle from '@/app/_components/post-title';
 import { useEditMode } from '@/components/edit-mode-context';
 import { createEditorPreloader } from '@/components/editing/preload-editor';
+import {
+  type EditableContent,
+  loadEditableContentAction,
+} from '@/lib/actions/load-editable-content';
 import type { EditablePage } from '@/lib/content-editing-validation';
 
 const loadPageMdxEditorSurface = () => import('@/app/_components/page-mdx-editor-surface');
