@@ -1,337 +1,34 @@
 'use client';
 
 import { ChevronLeftIcon, ChevronRightIcon, XIcon } from 'lucide-react';
-import Image from 'next/image';
-import type {
-  CSSProperties,
-  KeyboardEvent as ReactKeyboardEvent,
-  RefObject,
-  TouchEventHandler,
-} from 'react';
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  useState,
-} from 'react';
+import type { KeyboardEvent as ReactKeyboardEvent, TouchEventHandler } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef } from 'react';
 
 import Overlay from '@/components/overlay';
-import { ANIMATION } from '@/lib/constants/animation';
 import { cn } from '@/lib/utils';
 
-type PreviewPhase = 'closed' | 'opening' | 'open' | 'closing';
-
-interface IPreviewRect {
-  left: number;
-  top: number;
-  width: number;
-  height: number;
-}
-
-interface IActiveSourceImage {
-  src: string;
-  currentSrc: string;
-  objectFit?: CSSProperties['objectFit'];
-  objectPosition?: CSSProperties['objectPosition'];
-}
-
-interface IPreviewContext {
-  phase: PreviewPhase;
-  phaseRef: RefObject<PreviewPhase>;
-  setPhase: (phase: PreviewPhase) => void;
-  isPreview: boolean;
-  portalMounted: boolean;
-  setPortalMounted: (mounted: boolean) => void;
-  triggerRef: RefObject<HTMLButtonElement | null>;
-  sourceMediaRef: RefObject<HTMLElement | null>;
-  originRectRef: RefObject<IPreviewRect | null>;
-  mediaAspectRatio: number;
-  setMediaAspectRatio: (aspectRatio: number) => void;
-  sourceImages: ReadonlyMap<string, string>;
-  setSourceImage: (src: string, currentSrc: string) => void;
-  activeSourceImage: IActiveSourceImage | null;
-  setActiveSourceImage: (image: IActiveSourceImage | null) => void;
-}
-
-const PreviewContext = createContext<IPreviewContext | null>(null);
-
-const usePreview = () => {
-  const context = useContext(PreviewContext);
-
-  if (!context) {
-    throw new Error('usePreview must be used within a Preview');
-  }
-
-  return context;
-};
-
-const PREVIEW_DURATION_MS = 280;
-const PREVIEW_CLOSE_TIMEOUT_MS = 1000;
-const PREVIEW_PAINT_WAIT_MS = 300;
-const PREVIEW_EASING = `cubic-bezier(${ANIMATION.ease.out.join(',')})`;
-
-const toPreviewRect = (rect: DOMRect): IPreviewRect => ({
-  left: rect.left,
-  top: rect.top,
-  width: rect.width,
-  height: rect.height,
-});
-
-const isValidRect = (rect: IPreviewRect | null | undefined): rect is IPreviewRect =>
-  Boolean(rect?.width && rect.height);
-
-const getFlipTransform = (source: IPreviewRect, target: IPreviewRect) => {
-  const scaleX = source.width / target.width;
-  const scaleY = source.height / target.height;
-  const translateX = source.left - target.left;
-  const translateY = source.top - target.top;
-
-  return `translate(${translateX}px, ${translateY}px) scale(${scaleX}, ${scaleY})`;
-};
-
-const areRectsEqual = (first: IPreviewRect, second: IPreviewRect) =>
-  Math.abs(first.left - second.left) < 0.5 &&
-  Math.abs(first.top - second.top) < 0.5 &&
-  Math.abs(first.width - second.width) < 0.5 &&
-  Math.abs(first.height - second.height) < 0.5;
-
-const prefersReducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-/**
- * Resolves once the frame's image can be painted. The portal's `<img>` is created on the same tick
- * the preview opens, so on anything slower than localhost it needs a fetch and a decode first —
- * without this wait the FLIP runs against an empty box and the media only appears once it is over.
- * Capped so a stalled image can never trap the user in a dimmed overlay whose controls are hidden.
- */
-const whenPaintable = (frame: HTMLElement) => {
-  const image = frame.querySelector('img');
-  if (!image || typeof image.decode !== 'function') {
-    return Promise.resolve();
-  }
-
-  return Promise.race([
-    // decode() waits for the load too, so it covers an image that hasn't arrived yet.
-    image.decode().catch(() => undefined),
-    new Promise(resolve => window.setTimeout(resolve, PREVIEW_PAINT_WAIT_MS)),
-  ]);
-};
-
-interface IPreviewProps {
-  children: React.ReactNode;
-}
-
-const Preview = ({ children }: IPreviewProps) => {
-  const [phase, setPhaseState] = useState<PreviewPhase>('closed');
-  const phaseRef = useRef<PreviewPhase>('closed');
-  const [portalMounted, setPortalMounted] = useState(false);
-  const triggerRef = useRef<HTMLButtonElement | null>(null);
-  const sourceMediaRef = useRef<HTMLElement | null>(null);
-  const originRectRef = useRef<IPreviewRect | null>(null);
-  const [mediaAspectRatio, setMediaAspectRatio] = useState(1);
-  const [sourceImages, setSourceImages] = useState<ReadonlyMap<string, string>>(new Map());
-  const [activeSourceImage, setActiveSourceImage] = useState<IActiveSourceImage | null>(null);
-
-  const setPhase = useCallback((nextPhase: PreviewPhase) => {
-    phaseRef.current = nextPhase;
-    setPhaseState(nextPhase);
-  }, []);
-  const setSourceImage = useCallback((src: string, currentSrc: string) => {
-    setSourceImages(images => {
-      if (images.get(src) === currentSrc) {
-        return images;
-      }
-      return new Map(images).set(src, currentSrc);
-    });
-  }, []);
-  const isPreview = phase === 'opening' || phase === 'open' || phase === 'closing';
-
-  return (
-    <PreviewContext.Provider
-      value={{
-        phase,
-        phaseRef,
-        setPhase,
-        isPreview,
-        portalMounted,
-        setPortalMounted,
-        triggerRef,
-        sourceMediaRef,
-        originRectRef,
-        mediaAspectRatio,
-        setMediaAspectRatio,
-        sourceImages,
-        setSourceImage,
-        activeSourceImage,
-        setActiveSourceImage,
-      }}
-    >
-      {children}
-    </PreviewContext.Provider>
-  );
-};
-
-const isImageLoaded = (image: HTMLImageElement | null | undefined) =>
-  Boolean(image?.complete && image.naturalWidth && image.naturalHeight);
-
-const getReusableImageSrc = (image: HTMLImageElement | null | undefined) => {
-  // currentSrc only — it is the candidate the browser actually painted, so reusing it is a cache
-  // hit. `src` is next/image's fallback, which is the *largest* srcset entry (w=3840 for a box a
-  // tenth that size): reusing it would fetch and decode an image the page never displayed.
-  const src = image?.currentSrc;
-  if (!src) {
-    return undefined;
-  }
-
-  const url = new URL(src, window.location.href);
-  return url.origin === window.location.origin ? `${url.pathname}${url.search}` : url.href;
-};
-
-interface IPreviewTriggerProps {
-  children: React.ReactNode;
-  className?: string;
-  ariaLabel?: string;
-  as?: 'div' | 'span';
-  contained?: boolean;
-  previewSrc?: string;
-  onOpen?: () => void;
-}
-
-const PreviewTrigger = ({
-  children,
-  className,
-  ariaLabel = 'Open preview',
-  as = 'div',
-  contained = false,
-  previewSrc,
-  onOpen,
-}: IPreviewTriggerProps) => {
-  const {
-    phaseRef,
-    setPhase,
-    isPreview,
-    setPortalMounted,
-    triggerRef,
-    sourceMediaRef,
-    originRectRef,
-    setMediaAspectRatio,
-    setSourceImage,
-    setActiveSourceImage,
-  } = usePreview();
-  const [sourceAspectRatio, setSourceAspectRatio] = useState(1);
-  const mediaRef = useRef<HTMLElement | null>(null);
-  const buttonRef = useRef<HTMLButtonElement | null>(null);
-  const Component = as;
-
-  const syncSourceAspectRatio = useCallback(() => {
-    const image = mediaRef.current?.querySelector('img');
-    if (!image?.naturalWidth || !image.naturalHeight) {
-      return undefined;
-    }
-
-    const aspectRatio = image.naturalWidth / image.naturalHeight;
-    setSourceAspectRatio(aspectRatio);
-    return aspectRatio;
-  }, []);
-
-  // biome-ignore lint/correctness/useExhaustiveDependencies: children is the trigger — a new rendered image needs its load listener re-attached
-  useEffect(() => {
-    const image = mediaRef.current?.querySelector('img');
-    const syncSourceImage = () => {
-      const aspectRatio = syncSourceAspectRatio();
-      const currentSrc = getReusableImageSrc(image);
-      if (aspectRatio && previewSrc && currentSrc) {
-        setSourceImage(previewSrc, currentSrc);
-      }
-    };
-
-    if (isImageLoaded(image)) {
-      syncSourceImage();
-    }
-    image?.addEventListener('load', syncSourceImage);
-    return () => image?.removeEventListener('load', syncSourceImage);
-  }, [children, previewSrc, setSourceImage, syncSourceAspectRatio]);
-
-  const mediaStyle = contained
-    ? sourceAspectRatio >= 1
-      ? { width: '100%', height: 'auto', aspectRatio: sourceAspectRatio }
-      : { width: 'auto', height: '100%', aspectRatio: sourceAspectRatio }
-    : undefined;
-  const mediaClassName = contained ? 'absolute inset-0 m-auto block' : 'relative block w-full';
-  const media = (
-    <Component
-      ref={element => {
-        mediaRef.current = element;
-      }}
-      className={mediaClassName}
-      style={mediaStyle}
-    >
-      {children}
-    </Component>
-  );
-
-  return (
-    <Component data-preview={isPreview} className={cn('relative', className)}>
-      {media}
-      <button
-        ref={buttonRef}
-        type="button"
-        aria-label={ariaLabel}
-        aria-haspopup="dialog"
-        aria-expanded={isPreview}
-        onClick={() => {
-          if (phaseRef.current !== 'closed' || !mediaRef.current) {
-            return;
-          }
-
-          const sourceRect = toPreviewRect(mediaRef.current.getBoundingClientRect());
-          if (!isValidRect(sourceRect)) {
-            return;
-          }
-
-          triggerRef.current = buttonRef.current;
-          sourceMediaRef.current = mediaRef.current;
-          originRectRef.current = sourceRect;
-
-          const aspectRatio = syncSourceAspectRatio() ?? sourceRect.width / sourceRect.height;
-          setMediaAspectRatio(aspectRatio);
-
-          const image = mediaRef.current.querySelector('img');
-          const currentSrc = getReusableImageSrc(image);
-          if (previewSrc && currentSrc) {
-            const imageStyle = image ? getComputedStyle(image) : undefined;
-            setActiveSourceImage({
-              src: previewSrc,
-              currentSrc,
-              objectFit: imageStyle?.objectFit as CSSProperties['objectFit'],
-              objectPosition: imageStyle?.objectPosition,
-            });
-            if (isImageLoaded(image)) {
-              setSourceImage(previewSrc, currentSrc);
-            }
-          } else {
-            setActiveSourceImage(null);
-          }
-
-          onOpen?.();
-          setPortalMounted(true);
-          setPhase('opening');
-        }}
-        className="focus-ring absolute inset-0 z-10 cursor-pointer rounded-[inherit]"
-      />
-    </Component>
-  );
-};
+import { type IPreviewRect, usePreview } from './context.ts';
+import {
+  areRectsEqual,
+  getFlipTransform,
+  getFocusableElements,
+  isValidRect,
+  PREVIEW_CLOSE_TIMEOUT_MS,
+  PREVIEW_DURATION_MS,
+  PREVIEW_EASING,
+  prefersReducedMotion,
+  toPreviewRect,
+  whenPaintable,
+} from './geometry.ts';
+import { useAsideLayout } from './use-aside-layout.ts';
 
 interface IPreviewPortalProps {
   children: React.ReactNode;
   className?: string;
   contentClassName?: string;
   ariaLabel?: string;
-  sidecar?: React.ReactNode;
-  sidecarClassName?: string;
+  aside?: React.ReactNode;
+  asideClassName?: string;
   targetAspectRatio?: number;
   footer?: React.ReactNode;
   onTouchStart?: TouchEventHandler<HTMLDivElement>;
@@ -340,55 +37,13 @@ interface IPreviewPortalProps {
   onNext?: () => void;
 }
 
-type SidecarPlacement = 'right' | 'bottom';
-
-interface ISidecarLayout {
-  placement: SidecarPlacement;
-  style: CSSProperties;
-}
-
-const DEFAULT_SIDECAR_LAYOUT: ISidecarLayout = {
-  placement: 'bottom',
-  style: { left: 0, top: 'calc(100% + 8px)', width: '100%' },
-};
-
-const getContainedImageRect = (image: HTMLImageElement) => {
-  const rect = image.getBoundingClientRect();
-  const naturalWidth = image.naturalWidth;
-  const naturalHeight = image.naturalHeight;
-
-  if (!naturalWidth || !naturalHeight || !rect.width || !rect.height) {
-    return rect;
-  }
-
-  const imageRatio = naturalWidth / naturalHeight;
-  const frameRatio = rect.width / rect.height;
-
-  if (imageRatio > frameRatio) {
-    const height = rect.width / imageRatio;
-    return new DOMRect(rect.left, rect.top + (rect.height - height) / 2, rect.width, height);
-  }
-
-  const width = rect.height * imageRatio;
-  return new DOMRect(rect.left + (rect.width - width) / 2, rect.top, width, rect.height);
-};
-
-const getFocusableElements = (container: HTMLElement) =>
-  Array.from(
-    container.querySelectorAll<HTMLElement>(
-      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
-    ),
-  ).filter(
-    element => !element.hasAttribute('disabled') && element.getAttribute('aria-hidden') !== 'true',
-  );
-
-const PreviewPortal = ({
+export const PreviewPortal = ({
   children,
   className,
   contentClassName,
   ariaLabel = 'Image preview',
-  sidecar,
-  sidecarClassName,
+  aside,
+  asideClassName,
   targetAspectRatio,
   footer,
   onTouchStart,
@@ -417,11 +72,15 @@ const PreviewPortal = ({
   const animationGenerationRef = useRef(0);
   const isReversingOpeningRef = useRef(false);
   const previewFrameRef = useRef<HTMLDivElement | null>(null);
-  const hasSidecar = Boolean(sidecar);
+  const hasAside = Boolean(aside);
   const hasNavigation = Boolean(onPrevious || onNext);
   const interactive = phase === 'opening' || phase === 'open';
   const controlsVisible = phase === 'open';
-  const [sidecarLayout, setSidecarLayout] = useState<ISidecarLayout>(DEFAULT_SIDECAR_LAYOUT);
+  const asideLayout = useAsideLayout({
+    enabled: hasAside,
+    phase,
+    frameRef: previewFrameRef,
+  });
   const onPreviousRef = useRef(onPrevious);
   const onNextRef = useRef(onNext);
 
@@ -761,67 +420,6 @@ const PreviewPortal = ({
   }, [hasNavigation, interactive]);
 
   useEffect(() => {
-    if (phase !== 'open' || !hasSidecar || !previewFrameRef.current) {
-      setSidecarLayout(DEFAULT_SIDECAR_LAYOUT);
-      return;
-    }
-
-    let frameId = 0;
-    const updatePlacement = () => {
-      const frame = previewFrameRef.current;
-      if (!frame) {
-        return;
-      }
-
-      const image = frame.querySelector('img');
-      const frameRect = frame.getBoundingClientRect();
-      const mediaRect = image ? getContainedImageRect(image) : frameRect;
-      const sidecarWidth = 224;
-      const sidecarGap = 16;
-      const viewportPadding = 16;
-      const rightSpace = window.innerWidth - mediaRect.right;
-
-      if (rightSpace >= sidecarWidth + sidecarGap + viewportPadding) {
-        setSidecarLayout({
-          placement: 'right',
-          style: {
-            left: mediaRect.right - frameRect.left + sidecarGap,
-            top: mediaRect.top - frameRect.top,
-            width: sidecarWidth,
-          },
-        });
-      } else {
-        setSidecarLayout({
-          placement: 'bottom',
-          style: {
-            left: mediaRect.left - frameRect.left,
-            top: mediaRect.bottom - frameRect.top + 8,
-            width: mediaRect.width,
-          },
-        });
-      }
-    };
-    const schedulePlacement = () => {
-      cancelAnimationFrame(frameId);
-      frameId = requestAnimationFrame(updatePlacement);
-    };
-
-    schedulePlacement();
-    const resizeObserver = new ResizeObserver(schedulePlacement);
-    resizeObserver.observe(previewFrameRef.current);
-    const image = previewFrameRef.current.querySelector('img');
-    image?.addEventListener('load', schedulePlacement);
-    window.addEventListener('resize', schedulePlacement);
-
-    return () => {
-      cancelAnimationFrame(frameId);
-      resizeObserver.disconnect();
-      image?.removeEventListener('load', schedulePlacement);
-      window.removeEventListener('resize', schedulePlacement);
-    };
-  }, [hasSidecar, phase]);
-
-  useEffect(() => {
     return () => {
       cancelAnimation();
       restoreSource();
@@ -932,18 +530,18 @@ const PreviewPortal = ({
               {footer}
             </div>
           ) : null}
-          {sidecar && phase === 'open' ? (
+          {aside && phase === 'open' ? (
             <aside
-              style={sidecarLayout.style}
+              style={asideLayout.style}
               className={cn(
                 'absolute max-w-full overflow-y-auto text-left',
-                sidecarLayout.placement === 'right'
+                asideLayout.placement === 'right'
                   ? 'max-h-[min(78vh,48rem)] max-w-56'
                   : 'max-h-[min(30vh,16rem)]',
-                sidecarClassName,
+                asideClassName,
               )}
             >
-              {sidecar}
+              {aside}
             </aside>
           ) : null}
         </div>
@@ -951,88 +549,3 @@ const PreviewPortal = ({
     </Overlay>
   );
 };
-
-interface IPreviewImageProps {
-  src: string;
-  alt: string;
-  className?: string;
-  sizes?: string;
-  unoptimized?: boolean;
-}
-
-const isExternalImage = (src: string) => /^(https?:)?\/\//.test(src);
-
-const ProgressivePreviewImage = ({
-  src,
-  alt,
-  className,
-  sizes,
-  unoptimized,
-}: Required<IPreviewImageProps>) => {
-  const { phase, activeSourceImage, sourceImages } = usePreview();
-  const isActiveSource = activeSourceImage?.src === src;
-  const placeholderSrc = isActiveSource ? activeSourceImage.currentSrc : sourceImages.get(src);
-  const [isLoaded, setIsLoaded] = useState(false);
-  // Closing keeps the source crop too, so the media flying home re-crops
-  // toward the exact rendition the grid cell will show at handover.
-  const preserveSourceCrop = isActiveSource && (phase === 'opening' || phase === 'closing');
-  const showPlaceholder = Boolean(placeholderSrc) && (!isLoaded || preserveSourceCrop);
-  const showPreview = !placeholderSrc || (isLoaded && !preserveSourceCrop);
-  const placeholderStyle = preserveSourceCrop
-    ? {
-        objectFit: activeSourceImage?.objectFit,
-        objectPosition: activeSourceImage?.objectPosition,
-      }
-    : undefined;
-
-  return (
-    <>
-      {showPlaceholder ? (
-        <Image
-          src={placeholderSrc!}
-          alt=""
-          aria-hidden="true"
-          fill
-          sizes={sizes}
-          className={cn('object-contain', className)}
-          style={placeholderStyle}
-          loading="eager"
-          fetchPriority="high"
-          unoptimized
-        />
-      ) : null}
-      <Image
-        src={src}
-        alt={alt}
-        fill
-        sizes={sizes}
-        className={cn('object-contain', showPreview ? 'opacity-100' : 'opacity-0', className)}
-        // This portal only exists because the user asked to see the image; nothing in it is
-        // below the fold, so lazy loading would only delay the handover.
-        loading="eager"
-        fetchPriority="high"
-        unoptimized={unoptimized}
-        onLoad={() => setIsLoaded(true)}
-      />
-    </>
-  );
-};
-
-const PreviewImage = ({
-  src,
-  alt,
-  className = '',
-  sizes = '(max-width: 640px) 92vw, (max-width: 768px) 90vw, 86vw',
-  unoptimized = isExternalImage(src),
-}: IPreviewImageProps) => (
-  <ProgressivePreviewImage
-    key={src}
-    src={src}
-    alt={alt}
-    className={className}
-    sizes={sizes}
-    unoptimized={unoptimized}
-  />
-);
-
-export { Preview, PreviewImage, PreviewPortal, PreviewTrigger };
