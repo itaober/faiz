@@ -17,6 +17,7 @@ import {
   uploadEditorImageAction,
 } from './actions';
 import { readTokenCookie, resolveToken } from './auth';
+import { handleLinkPreview } from './link-preview';
 
 interface Env {
   ASSETS: Fetcher;
@@ -267,10 +268,11 @@ const handleApi = async (request: Request, url: URL, ctx: ExecutionContext) => {
     return handleImageProxy(request, url, ctx);
   }
 
-  // Placeholder until the link-preview fallback lands; the hover card treats a
-  // non-OK response as "no preview".
   if (url.pathname === '/api/link-preview') {
-    return json({ error: 'Link preview unavailable' }, 404);
+    if (request.method !== 'GET') {
+      return json({ error: 'Method not allowed' }, 405);
+    }
+    return handleLinkPreview(url);
   }
 
   return json({ error: 'Not found' }, 404);

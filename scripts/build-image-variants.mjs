@@ -28,9 +28,7 @@ const CONCURRENCY = 8;
 const assetsRoot = path.join(CONTENT_DIR, 'assets');
 const entries = await readdir(assetsRoot, { recursive: true, withFileTypes: true });
 const imagePaths = entries
-  .filter(
-    entry => entry.isFile() && RASTER_EXTENSIONS.has(path.extname(entry.name).toLowerCase()),
-  )
+  .filter(entry => entry.isFile() && RASTER_EXTENSIONS.has(path.extname(entry.name).toLowerCase()))
   .map(entry => path.relative(CONTENT_DIR, path.join(entry.parentPath, entry.name)));
 
 let cacheHits = 0;
@@ -88,6 +86,7 @@ if (variantCount !== expected) {
   throw new Error(`Expected ${expected} image variants, found ${variantCount}`);
 }
 
+// biome-ignore lint/suspicious/noConsole: build-script summary is its interface
 console.log(
   `Images: ${imagePaths.length} originals, ${expected} variants (${resized} resized, ${cacheHits} from cache)`,
 );
