@@ -6,6 +6,12 @@ const STATIC_PATH_PREFIXES = ['/_next/static/'];
 const STATIC_IMAGE_PATH_PATTERN =
   /^\/(?:icon-\d+x\d+|favicon(?:-\d+x\d+)?|apple-touch-icon(?:-\d+x\d+)?)(?:\.[a-z0-9]+)?$/i;
 
+/**
+ * Content-hashed build output: the URL changes whenever the bytes do, so a
+ * cache hit can never be stale and revalidating it is pure waste.
+ */
+const isImmutableAsset = url => url.pathname.startsWith('/_next/static/');
+
 const shouldHandleRequest = request => {
   if (request.method !== 'GET') {
     return false;
@@ -70,7 +76,8 @@ self.addEventListener('activate', event => {
 });
 
 // Fetch:
-// - static assets only: stale-while-revalidate
+// - content-hashed build output (/_next/static/): cache-first
+// - other static assets: stale-while-revalidate
 // - navigations/documents/data requests: bypass SW cache and use normal network/cache
 self.addEventListener('fetch', event => {
   if (!shouldHandleRequest(event.request)) {
@@ -81,6 +88,13 @@ self.addEventListener('fetch', event => {
     (async () => {
       const cache = await caches.open(CACHE_NAME);
       const cached = await cache.match(event.request);
+
+      // Hashed assets are cache-first: returning the hit without a background
+      // refetch saves a request per asset on every repeat visit.
+      if (cached && isImmutableAsset(new URL(event.request.url))) {
+        return cached;
+      }
+
       const networkPromise = fetch(event.request)
         .then(response => {
           if (response.status === 200) {
