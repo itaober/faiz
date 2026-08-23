@@ -626,11 +626,7 @@ export default function TiptapEditor({
           {/* biome-ignore lint/a11y/noStaticElementInteractions: click-below-content is a pointer affordance for reaching the caret; the contenteditable inside owns keyboard input */}
           {/* biome-ignore lint/a11y/useKeyWithClickEvents: same — keyboard users are already inside the editable region */}
           <div
-            className={cn(
-              'prose dark:prose-invert max-w-none',
-              editorClassName,
-              minHeightClassName,
-            )}
+            className={cn('prose max-w-none', editorClassName, minHeightClassName)}
             onClick={event => {
               // Only the empty area below the content jumps the caret to the end.
               // Clicks on content (or a caption input in a node view) must not, or

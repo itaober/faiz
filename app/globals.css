@@ -83,26 +83,24 @@
 }
 
 body {
-  --font-sans: var(--font-inter);
+  /*
+   * Declared here, not in @theme: next/font puts --font-inter on <body>, so a
+   * :root-level stack would resolve it to nothing.
+   *
+   * Inter is latin-only. Without an explicit CJK list the browser picks the
+   * fallback itself — fine on macOS, unpredictable on Windows and Android. The
+   * CJK faces sit after Inter, so latin still renders in Inter and only the
+   * characters Inter lacks fall through.
+   */
+  --font-sans:
+    var(--font-inter), 'PingFang SC', 'HarmonyOS Sans SC', 'Noto Sans SC', 'Microsoft YaHei',
+    ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+    'Helvetica Neue', Arial, 'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
+    'Segoe UI Symbol', 'Noto Color Emoji';
   --font-mono: var(--font-geist-mono);
   background: var(--background);
   color: var(--foreground);
-  font-family:
-    var(--font-sans),
-    ui-sans-serif,
-    system-ui,
-    -apple-system,
-    BlinkMacSystemFont,
-    'Segoe UI',
-    Roboto,
-    'Helvetica Neue',
-    Arial,
-    'Noto Sans',
-    sans-serif,
-    'Apple Color Emoji',
-    'Segoe UI Emoji',
-    'Segoe UI Symbol',
-    'Noto Color Emoji';
+  font-family: var(--font-sans);
 }
 
 button {
@@ -192,6 +190,7 @@ button {
 
 @utility prose {
   max-width: none !important;
+
   h2,
   h3 {
     scroll-margin-top: 3rem;
@@ -1161,4 +1160,45 @@ button {
   .tiptap input.fz-editor-figcaption:focus {
     color: var(--foreground);
   }
+}
+
+/*
+ * Repoint typography's palette at the site tokens. Its default is slate — a
+ * blue-leaning grey — while the page background is a warm neutral, so body
+ * text sat at a different colour temperature from everything around it.
+ *
+ * Declared here rather than inside `@utility prose`: the plugin emits its own
+ * .prose block later in the cascade, and at equal specificity the last one
+ * wins. These vars follow .dark on their own, which is why no prose-invert is
+ * needed anywhere.
+ */
+
+/*
+ * Repoint typography's palette at the site tokens. Its default is slate — a
+ * blue-leaning grey — while the page background is a warm neutral, so body text
+ * sat at a different colour temperature from everything around it.
+ *
+ * Declared here rather than inside `@utility prose`: the plugin emits its own
+ * .prose block later in the cascade, and at equal specificity the last one wins.
+ * These vars follow .dark on their own, which is why no prose-invert is needed.
+ */
+.prose {
+  --tw-prose-body: var(--foreground);
+  --tw-prose-headings: var(--foreground);
+  --tw-prose-lead: var(--muted-foreground);
+  --tw-prose-links: var(--foreground);
+  --tw-prose-bold: var(--foreground);
+  --tw-prose-counters: var(--muted-foreground);
+  --tw-prose-bullets: var(--border);
+  --tw-prose-hr: var(--border);
+  --tw-prose-quotes: var(--muted-foreground);
+  --tw-prose-quote-borders: var(--border);
+  --tw-prose-captions: var(--muted-foreground);
+  --tw-prose-code: var(--foreground);
+  --tw-prose-pre-code: var(--foreground);
+  --tw-prose-pre-bg: var(--muted);
+  --tw-prose-th-borders: var(--border);
+  --tw-prose-td-borders: var(--border);
+  --tw-prose-kbd: var(--foreground);
+  --tw-prose-kbd-shadows: var(--border);
 }

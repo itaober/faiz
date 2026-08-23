@@ -66,7 +66,7 @@ export default async function PostPage({ params }: IPostPageProps) {
       <MotionWrapper>
         <div className="relative">
           <PostDetailInlineSection post={data}>
-            <article id="post-content" className="prose dark:prose-invert">
+            <article id="post-content" className="prose">
               <MDX source={content} />
             </article>
             <PostTocDeferred />
