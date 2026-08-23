@@ -67,6 +67,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "react-doctor": "^0.1.6",
+    "sharp": "^0.35.3",
     "simple-git-hooks": "^2.13.1",
     "tailwindcss": "^4",
     "typescript": "^5",
