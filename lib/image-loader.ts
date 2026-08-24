@@ -13,5 +13,5 @@ export default function contentImageLoader({ src, width }: ImageLoaderProps) {
   if (process.env.NODE_ENV === 'development' || !src.startsWith(CONTENT_IMAGE_PREFIX)) {
     return src;
   }
-  return `/images/w${width}${src.slice(CONTENT_IMAGE_PREFIX.length - 1)}`;
+  return `/images/w${width}${src.replace(CONTENT_IMAGE_PREFIX, '/')}`;
 }

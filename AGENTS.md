@@ -20,9 +20,8 @@ Faiz is a Next.js App Router site with React, TypeScript, and Tailwind CSS. Prod
 Use `pnpm` (preferred by hooks and scripts).
 
 - `pnpm dev` — start the dev server on port 1999.
-- `pnpm dev:worker` — start the worker on port 8787 (dev rewrites proxy `/api/*` to it; required for editing).
+- `pnpm dev:worker` — start the worker on port 8787. In dev, Next rewrites proxy `/api/*` to it (required for editing); after a static build it also serves `out/`, which is the closest local match to production.
 - `CONTENT_DIR=… pnpm build` — static export into `out/` from a content-branch checkout.
-- `pnpm preview` — serve `out/` + the worker locally via wrangler, like production.
 - `pnpm lint` — run Biome lint + format checks.
 - `pnpm lint:fix` — auto-fix lint and formatting issues.
 - `pnpm format` — format code with Biome.
@@ -49,4 +48,4 @@ Lightweight regression tests live in `tests/*.test.mjs` and run with `pnpm test`
 
 ## Configuration & Secrets
 
-Local secrets live in `.env`. Do not commit real credentials; use placeholders or document required keys in the README if new ones are introduced.
+Local secrets live in `.env.local` (app) and `.dev.vars` (worker); both are gitignored. Production needs no application secrets — the worker authenticates with the author's PAT from the edit cookie. Do not commit real credentials; document any new keys in the README.

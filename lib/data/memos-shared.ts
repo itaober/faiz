@@ -2,8 +2,8 @@ import { z } from 'zod';
 
 import dayjs, { TIMEZONE } from '@/lib/dayjs';
 
-// Memo schema and path helpers shared by the app's read path and the worker's
-// write path — keep this module free of Next/React imports.
+// Memo schema plus month-file path helpers. Runtime-neutral like schemas.ts:
+// both the app and the worker import it, so no Next/React here.
 
 export const MemoSchema = z.object({
   id: z.string(),

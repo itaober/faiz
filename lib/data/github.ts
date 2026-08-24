@@ -356,10 +356,8 @@ export const deleteGitHubFile = async (
 ): Promise<boolean> => {
   const url = getGitHubApiUrl(path);
 
-  // 获取文件 SHA
   const meta = await fetchGitHubContentsMeta(path, token);
 
-  // 文件不存在，视为已删除
   if (!meta?.sha) {
     return false;
   }
@@ -386,7 +384,6 @@ export const deleteGitHubFile = async (
   );
 
   if (!res.ok) {
-    // 404 表示文件已不存在
     if (res.status === 404) {
       return false;
     }

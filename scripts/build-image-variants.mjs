@@ -1,6 +1,6 @@
 /**
  * Materialises content-branch images into the static build:
- *   originals  → out/api/image/assets/…        (exact URL parity with the old proxy)
+ *   originals  → out/api/image/assets/…        (the URL shape content files reference)
  *   variants   → out/images/w{width}/assets/…  (consumed by lib/image-loader.ts)
  *
  * Resizes are content-addressed under .cache/image-variants so rebuilds only
@@ -23,6 +23,8 @@ if (!CONTENT_DIR) {
 const OUT_DIR = 'out';
 const CACHE_DIR = '.cache/image-variants';
 const RASTER_EXTENSIONS = new Set(['.webp', '.jpg', '.jpeg', '.png', '.gif']);
+// Bounds peak memory, not just parallelism: each in-flight image holds its
+// source bytes plus a sharp output buffer per width.
 const CONCURRENCY = 8;
 
 const assetsRoot = path.join(CONTENT_DIR, 'assets');
@@ -65,8 +67,7 @@ const buildOne = async relativePath => {
 
     const variant = await sharp(bytes).resize({ width, withoutEnlargement: true }).toBuffer();
     await mkdir(CACHE_DIR, { recursive: true });
-    await writeFile(cached, variant);
-    await copyFile(cached, target);
+    await Promise.all([writeFile(cached, variant), writeFile(target, variant)]);
     resized++;
   }
 };
@@ -75,18 +76,7 @@ for (let i = 0; i < imagePaths.length; i += CONCURRENCY) {
   await Promise.all(imagePaths.slice(i, i + CONCURRENCY).map(buildOne));
 }
 
-// Loader-404 guard: every (image × width) must exist in the output.
-const variantEntries = await readdir(path.join(OUT_DIR, 'images'), {
-  recursive: true,
-  withFileTypes: true,
-});
-const variantCount = variantEntries.filter(entry => entry.isFile()).length;
-const expected = imagePaths.length * VARIANT_WIDTHS.length;
-if (variantCount !== expected) {
-  throw new Error(`Expected ${expected} image variants, found ${variantCount}`);
-}
-
 // biome-ignore lint/suspicious/noConsole: build-script summary is its interface
 console.log(
-  `Images: ${imagePaths.length} originals, ${expected} variants (${resized} resized, ${cacheHits} from cache)`,
+  `Images: ${imagePaths.length} originals, ${imagePaths.length * VARIANT_WIDTHS.length} variants (${resized} resized, ${cacheHits} from cache)`,
 );

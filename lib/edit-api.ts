@@ -27,10 +27,8 @@ export type {
 } from '@/worker/actions';
 
 /**
- * Client for the worker-hosted edit endpoints — same names, signatures and
- * ActionResult shape as the server actions they replaced, so the editor UIs
- * are unaware of the transport. Errors travel as values; only a network-level
- * failure becomes the NETWORK error here.
+ * Calls one worker edit endpoint. Errors travel as values in the ActionResult,
+ * so only a network-level failure produces the NETWORK error here.
  */
 const call = async <T = void>(name: string, input: unknown): Promise<ActionResult<T>> => {
   try {

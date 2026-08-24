@@ -10,7 +10,7 @@ export interface LinkPreviewData {
   iconUrl?: string;
 }
 
-export const decodeHtmlEntities = (value: string) =>
+const decodeHtmlEntities = (value: string) =>
   value.replace(/&(#x?[\da-f]+|amp|quot|apos|lt|gt|nbsp);/gi, (entity, code: string) => {
     const normalized = code.toLowerCase();
     if (normalized === 'amp') return '&';
@@ -25,7 +25,7 @@ export const decodeHtmlEntities = (value: string) =>
     return Number.isFinite(number) ? String.fromCodePoint(number) : entity;
   });
 
-export const cleanText = (value: string | undefined, maxLength: number) => {
+const cleanText = (value: string | undefined, maxLength: number) => {
   if (!value) {
     return undefined;
   }
@@ -40,7 +40,7 @@ export const cleanText = (value: string | undefined, maxLength: number) => {
   return text.length <= maxLength ? text : `${text.slice(0, maxLength - 1).trim()}…`;
 };
 
-export const parseAttributes = (tag: string) => {
+const parseAttributes = (tag: string) => {
   const attributes = new Map<string, string>();
   const pattern = /([^\s=/>]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+)))?/g;
   let match = pattern.exec(tag);

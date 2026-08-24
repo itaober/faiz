@@ -1,3 +1,6 @@
+import { readdir, readFile } from 'node:fs/promises';
+import path from 'node:path';
+
 import { cache } from 'react';
 
 import {
@@ -33,30 +36,26 @@ export const cachedResource = <Args extends unknown[], T>(
 /**
  * Build-time content source: CI checks out the content branch and points
  * CONTENT_DIR at it, so the whole build reads one consistent commit from disk —
- * no network, no token, no API rate limits. Unset (dev), reads go to the
- * GitHub Contents API as before.
+ * no network, no token, no API rate limits. Unset, reads go to the GitHub
+ * Contents API, which is what `next dev` uses.
  */
 const CONTENT_DIR = process.env.CONTENT_DIR;
 
-/** Resolve a repo-relative content path inside CONTENT_DIR, rejecting escapes. */
-const resolveContentPath = async (relativePath: string) => {
-  const path = await import('node:path');
+/** Content paths carry editor-written slugs, so keep them inside CONTENT_DIR. */
+const resolveContentPath = (relativePath: string) => {
   const base = path.resolve(CONTENT_DIR as string);
   const target = path.resolve(base, relativePath);
-  if (target !== base && !target.startsWith(base + path.sep)) {
+  if (!target.startsWith(base + path.sep)) {
     throw new Error(`Content path escapes CONTENT_DIR: ${relativePath}`);
   }
   return target;
 };
 
-const readContentFile = async (relativePath: string) => {
-  const { readFile } = await import('node:fs/promises');
-  return readFile(await resolveContentPath(relativePath), 'utf8');
-};
+const readContentFile = (relativePath: string) =>
+  readFile(resolveContentPath(relativePath), 'utf8');
 
 const listContentDir = async (relativeDir: string) => {
-  const { readdir } = await import('node:fs/promises');
-  const entries = await readdir(await resolveContentPath(relativeDir), { withFileTypes: true });
+  const entries = await readdir(resolveContentPath(relativeDir), { withFileTypes: true });
   // Match the Contents API shape: repo-relative paths, files only.
   return entries.filter(entry => entry.isFile()).map(entry => `${relativeDir}/${entry.name}`);
 };
@@ -65,34 +64,16 @@ const listContentDir = async (relativeDir: string) => {
 const withRevalidate = (init?: RequestInit) =>
   init?.cache === 'no-store' ? init : { ...init, next: { revalidate: 5 * 60, ...init?.next } };
 
-/**
- * Fetches raw text content from a content file
- *
- * @param path - File path within the content branch
- * @param init - Optional fetch configuration (API mode only)
- * @param token - Optional GitHub token (API mode only)
- */
-export const fetchGitHubText = async (path: string, init?: RequestInit, token?: string) =>
-  CONTENT_DIR ? readContentFile(path) : fetchGitHubTextFromApi(path, withRevalidate(init), token);
+/** Reads raw text for a path within the content branch. */
+export const fetchGitHubText = async (pathname: string, init?: RequestInit) =>
+  CONTENT_DIR ? readContentFile(pathname) : fetchGitHubTextFromApi(pathname, withRevalidate(init));
 
-/**
- * Fetches JSON content from a content file
- *
- * @template T - Type of the JSON data
- */
-export const fetchGitHubJson = async <T = object>(
-  path: string,
-  init?: RequestInit,
-  token?: string,
-) =>
+/** Reads and parses JSON for a path within the content branch. */
+export const fetchGitHubJson = async <T = object>(pathname: string, init?: RequestInit) =>
   CONTENT_DIR
-    ? (JSON.parse(await readContentFile(path)) as T)
-    : fetchGitHubJsonFromApi<T>(path, withRevalidate(init), token);
+    ? (JSON.parse(await readContentFile(pathname)) as T)
+    : fetchGitHubJsonFromApi<T>(pathname, withRevalidate(init));
 
-/**
- * Fetches list of files in a content directory
- *
- * @returns Array of repo-relative file paths in the directory
- */
-export const fetchGitHubDir = async (dir: string, init?: RequestInit, token?: string) =>
-  CONTENT_DIR ? listContentDir(dir) : fetchGitHubDirFromApi(dir, withRevalidate(init), token);
+/** Lists repo-relative file paths in a content-branch directory. */
+export const fetchGitHubDir = async (dir: string, init?: RequestInit) =>
+  CONTENT_DIR ? listContentDir(dir) : fetchGitHubDirFromApi(dir, withRevalidate(init));

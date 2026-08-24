@@ -61,15 +61,6 @@ const loadStaticPreviews = () => {
   return staticPreviewsPromise;
 };
 
-/** The static map is keyed by the build script's normalized URL. */
-const toPreviewKey = (value: string) => {
-  try {
-    return normalizeUrl(value).toString();
-  } catch {
-    return null;
-  }
-};
-
 const loadPreview = (href: string) => {
   const normalizedUrl = normalizePreviewUrl(href);
   const cached = previewCache.get(normalizedUrl);
@@ -79,8 +70,14 @@ const loadPreview = (href: string) => {
 
   const request = loadStaticPreviews()
     .then(async previews => {
-      const key = toPreviewKey(normalizedUrl);
-      const baked = key ? previews[key] : undefined;
+      // Keys agree with scripts/build-link-previews.mjs because both normalize
+      // through the same function.
+      let baked: LinkPreviewData | undefined;
+      try {
+        baked = previews[normalizeUrl(normalizedUrl).toString()];
+      } catch {
+        // Not a previewable URL; fall through to the worker, which rejects it too.
+      }
       if (baked) {
         return baked;
       }

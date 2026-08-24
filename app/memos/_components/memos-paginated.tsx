@@ -1,112 +1,56 @@
 'use client';
 
-import { Fragment, type ReactNode, useCallback, useEffect, useMemo, useState } from 'react';
-
-import dayjs from '@/lib/dayjs';
+import { Fragment, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import MemoList from './memo-list';
 
 interface MemoMonthGroup {
   month: string;
-  /** Server-rendered memo cards for the month — MDX stays compiled at build time. */
+  /** Server-rendered cards for the month — MDX stays compiled at build time. */
   node: ReactNode;
-}
-
-interface MemosPaginatedProps {
-  groups: MemoMonthGroup[];
 }
 
 const DEFAULT_LIMIT = 2;
 
-const normalizeEnd = (value: string | null, monthsIndex: string[]) => {
-  const fallback = monthsIndex[0] ?? '';
-  if (!value) {
-    return fallback;
-  }
-  const normalized = /^\d{4}-\d{2}$/.test(value) ? value.replace('-', '') : value;
-  if (!/^\d{6}$/.test(normalized)) {
-    return fallback;
-  }
-  const isValid = dayjs(`${normalized.slice(0, 4)}-${normalized.slice(4)}-01`).isValid();
-  if (!isValid) {
-    return fallback;
-  }
-  if (!monthsIndex.includes(normalized)) {
-    return fallback;
-  }
-  return normalized;
+/** `months` is derived from real filenames, so membership is the only check needed. */
+const resolveStartIndex = (end: string | null, months: string[]) => {
+  const index = months.indexOf(end?.replace('-', '') ?? '');
+  return index === -1 ? 0 : index;
 };
 
-const clampLimit = (value: number, total: number) => {
-  if (total <= 0) {
-    return 0;
-  }
-  const fallback = Math.min(DEFAULT_LIMIT, total);
-  if (!Number.isFinite(value)) {
-    return fallback;
-  }
-  const coerced = Math.floor(value);
-  const minLimit = total < DEFAULT_LIMIT ? total : DEFAULT_LIMIT;
-  return Math.min(Math.max(minLimit, coerced), total);
-};
+const clampLimit = (value: string | null, available: number) =>
+  Math.min(Math.max(Math.floor(Number(value)) || DEFAULT_LIMIT, DEFAULT_LIMIT), available);
 
 /**
- * Client-side month pagination over the fully baked list. All months ship in
- * the page; the static HTML shows the default window (so the content is there
- * without JS), and a `?limit=…&end=…` deep link is applied after mount —
- * reading it during render would drop the whole list from the prerendered HTML.
+ * Client-side month pagination over the fully baked list. Every month ships in
+ * the page; the static HTML shows the default window so the content is there
+ * without JS, and a `?limit=…&end=…` deep link is applied after mount —
+ * reading it during render would drop the list from the prerendered HTML.
  */
-export default function MemosPaginated({ groups }: MemosPaginatedProps) {
+export default function MemosPaginated({ groups }: { groups: MemoMonthGroup[] }) {
   const months = useMemo(() => groups.map(group => group.month), [groups]);
-  const [view, setView] = useState(() => ({
-    end: months[0] ?? '',
-    limit: Math.min(DEFAULT_LIMIT, months.length),
-  }));
+  const [view, setView] = useState({ startIndex: 0, limit: DEFAULT_LIMIT });
+  const sentinelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const end = normalizeEnd(params.get('end'), months);
-    const endIndex = Math.max(0, months.indexOf(end));
-    const available = months.length - endIndex;
-    const limit = clampLimit(Number(params.get('limit') ?? DEFAULT_LIMIT), available);
-    setView({ end, limit });
+    const startIndex = resolveStartIndex(params.get('end'), months);
+    setView({ startIndex, limit: clampLimit(params.get('limit'), months.length - startIndex) });
   }, [months]);
 
-  const endIndex = Math.max(0, months.indexOf(view.end));
-  const availableFromEnd = months.length - endIndex;
-  const isComplete = view.limit >= availableFromEnd;
-  const visibleGroups = groups.slice(endIndex, endIndex + view.limit);
+  const isComplete = view.limit >= months.length - view.startIndex;
 
-  const loadMore = useCallback(() => {
-    if (isComplete) {
-      return;
-    }
-    const end = view.end || months[0] || '';
+  const revealNext = useCallback(() => {
     const limit = view.limit + 1;
     const params = new URLSearchParams(window.location.search);
     params.set('limit', String(limit));
-    params.set('end', end);
+    params.set('end', months[view.startIndex] ?? '');
     window.history.replaceState(null, '', `/memos?${params.toString()}`);
-    setView({ end, limit });
-  }, [isComplete, months, view]);
-
-  return (
-    <>
-      <MemoList>
-        {visibleGroups.map(group => (
-          <Fragment key={group.month}>{group.node}</Fragment>
-        ))}
-      </MemoList>
-      {!isComplete && <MemosRevealSentinel onReveal={loadMore} />}
-    </>
-  );
-}
-
-/** Reveals the next month when scrolled near — same trigger as the old load-more. */
-function MemosRevealSentinel({ onReveal }: { onReveal: () => void }) {
-  const [sentinel, setSentinel] = useState<HTMLDivElement | null>(null);
+    setView({ ...view, limit });
+  }, [months, view]);
 
   useEffect(() => {
+    const sentinel = sentinelRef.current;
     if (!sentinel) {
       return;
     }
@@ -114,19 +58,23 @@ function MemosRevealSentinel({ onReveal }: { onReveal: () => void }) {
     const observer = new IntersectionObserver(
       entries => {
         if (entries[0]?.isIntersecting) {
-          onReveal();
+          revealNext();
         }
       },
       { rootMargin: '800px' },
     );
-
     observer.observe(sentinel);
     return () => observer.disconnect();
-  }, [onReveal, sentinel]);
+  }, [revealNext]);
 
   return (
-    <div className="mt-8 flex items-center justify-center">
-      <div ref={setSentinel} className="h-1 w-1" aria-hidden="true" />
-    </div>
+    <>
+      <MemoList>
+        {groups.slice(view.startIndex, view.startIndex + view.limit).map(group => (
+          <Fragment key={group.month}>{group.node}</Fragment>
+        ))}
+      </MemoList>
+      {!isComplete && <div ref={sentinelRef} className="mt-8 h-1" aria-hidden="true" />}
+    </>
   );
 }

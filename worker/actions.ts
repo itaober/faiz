@@ -44,10 +44,6 @@ import {
 
 import { requireAuth } from './auth';
 
-// The former server actions, moved verbatim minus Next-specific pieces
-// (`'use server'`, revalidatePath/updateTag): the static site has nothing to
-// invalidate — publishing happens through the rebuild a content push triggers.
-
 // ================================
 // Posts
 // ================================

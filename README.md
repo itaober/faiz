@@ -16,10 +16,11 @@ Static core + a minimal write-path worker, deployed on Cloudflare:
   the GitHub Contents API with the author's PAT (httpOnly cookie, set via
   `/api/edit-token`). The worker holds no secrets. It also serves not-yet-built
   images and link previews as fallbacks.
-- Every push to `main` or `content` — editor saves included, since each save is
-  a real commit — triggers `.github/workflows/deploy.yml`: checkout both
+- Every push to `main` triggers `.github/workflows/deploy.yml`: checkout both
   branches → static build → image variants → link previews → `wrangler deploy`.
-  Publish latency is the build, roughly 2–4 minutes.
+  Pushes to `content` — editor saves included, since each save is a real commit
+  — do the same once the trigger shim in setup step 2 is in place. Publish
+  latency is the build, roughly 2–4 minutes.
 
 ## Development
 
@@ -42,7 +43,7 @@ git fetch origin content && git worktree add /tmp/faiz-content origin/content
 CONTENT_DIR=/tmp/faiz-content pnpm build
 CONTENT_DIR=/tmp/faiz-content node scripts/build-image-variants.mjs
 CONTENT_DIR=/tmp/faiz-content node scripts/build-link-previews.mjs
-pnpm preview   # serves out/ + the worker, like production
+pnpm dev:worker   # serves out/ + the worker, like production
 ```
 
 ## Deploy (one-time setup)
