@@ -19,22 +19,7 @@ import {
 import { readTokenCookie, resolveToken } from './auth';
 import { handleLinkPreview } from './link-preview';
 
-interface Env {
-  ASSETS: Fetcher;
-}
-
-const JSON_HEADERS = { 'Content-Type': 'application/json' } as const;
-
-const json = (data: unknown, status = 200, headers?: HeadersInit) =>
-  new Response(JSON.stringify(data), { status, headers: { ...JSON_HEADERS, ...headers } });
-
-// ================================
-// Edit endpoints (the former server actions)
-// ================================
-
-type EditHandler = (input: never) => Promise<unknown>;
-
-const EDIT_ACTIONS = {
+const EDIT_ACTIONS: Record<string, (input: never) => Promise<unknown>> = {
   'create-post': createPostAction,
   'update-post': updatePostAction,
   'delete-post': deletePostAction,
@@ -47,31 +32,36 @@ const EDIT_ACTIONS = {
   'delete-memo': deleteMemoAction,
   'upload-image': uploadEditorImageAction,
   'load-content': loadEditableContentAction,
-} satisfies Record<string, EditHandler>;
+};
 
 const handleEditAction = async (request: Request, name: string) => {
-  const handler = EDIT_ACTIONS[name as keyof typeof EDIT_ACTIONS];
+  const handler = EDIT_ACTIONS[name];
   if (!handler) {
-    return json({ success: false, error: 'Unknown action', code: 'VALIDATION', retryable: false });
+    return Response.json({
+      success: false,
+      error: 'Unknown action',
+      code: 'VALIDATION',
+      retryable: false,
+    });
   }
 
   const body = (await request.json().catch(() => null)) as Record<string, unknown> | null;
   if (!body || typeof body !== 'object') {
-    return json({ success: false, error: 'Invalid request', code: 'VALIDATION', retryable: false });
+    return Response.json({
+      success: false,
+      error: 'Invalid request',
+      code: 'VALIDATION',
+      retryable: false,
+    });
   }
 
   // The client only ever holds the "configured" sentinel; the real token lives
   // in the httpOnly cookie and is injected here.
   const input = { ...body, token: resolveToken(request, body.token) };
-  const result = await (handler as (input: unknown) => Promise<unknown>)(input);
 
-  // Errors travel as values (ActionResult), exactly like the server actions did.
-  return json(result);
+  // Errors travel as values (ActionResult), so a rejected save is still a 200.
+  return Response.json(await handler(input as never));
 };
-
-// ================================
-// Edit token cookie (port of the former /api/edit-token route)
-// ================================
 
 const COOKIE_MAX_AGE = 60 * 60 * 24 * 90;
 
@@ -104,7 +94,7 @@ const canReachContentRepo = async (token: string) => {
 
 const handleEditToken = async (request: Request, url: URL) => {
   if (request.method === 'GET') {
-    return json({ configured: Boolean(readTokenCookie(request)) });
+    return Response.json({ configured: Boolean(readTokenCookie(request)) });
   }
 
   if (request.method === 'POST') {
@@ -112,36 +102,39 @@ const handleEditToken = async (request: Request, url: URL) => {
     const token = typeof body?.token === 'string' ? body.token.trim() : '';
 
     if (!token) {
-      return json({ error: 'GitHub token is required' }, 400);
+      return Response.json({ error: 'GitHub token is required' }, { status: 400 });
     }
 
     // Local runs use a dummy token against a test content branch; don't make
     // the dev loop depend on a live GitHub call.
     if (!isLocalHostname(url.hostname) && !(await canReachContentRepo(token))) {
-      return json({ error: 'This token cannot read the content repository' }, 400);
+      return Response.json(
+        { error: 'This token cannot read the content repository' },
+        { status: 400 },
+      );
     }
 
-    return json({ configured: true }, 200, {
-      'Set-Cookie': buildTokenCookie(url, token, COOKIE_MAX_AGE),
-    });
+    return Response.json(
+      { configured: true },
+      { headers: { 'Set-Cookie': buildTokenCookie(url, token, COOKIE_MAX_AGE) } },
+    );
   }
 
   if (request.method === 'DELETE') {
-    return json({ configured: false }, 200, {
-      'Set-Cookie': buildTokenCookie(url, '', 0),
-    });
+    return Response.json(
+      { configured: false },
+      { headers: { 'Set-Cookie': buildTokenCookie(url, '', 0) } },
+    );
   }
 
-  return json({ error: 'Method not allowed' }, 405);
+  return Response.json({ error: 'Method not allowed' }, { status: 405 });
 };
 
-// ================================
-// Image fallback proxy
-// ================================
+const IMAGE_CACHE_TTL_SECONDS = 7 * 24 * 60 * 60;
 
 const IMAGE_CACHE_CONTROL = [
   'public',
-  `max-age=${7 * 24 * 60 * 60}`,
+  `max-age=${IMAGE_CACHE_TTL_SECONDS}`,
   `stale-while-revalidate=${24 * 60 * 60}`,
   `stale-if-error=${60 * 60}`,
   'immutable',
@@ -165,10 +158,10 @@ const getImageContentType = (path: string): string => {
 /**
  * Serves content-branch images that are not (yet) in the static build — a just
  * uploaded image during the rebuild window, or anything in dev. Static assets
- * match first in production, so this only sees the misses. The repo is public,
- * so raw.githubusercontent.com needs no token and has no API quota.
+ * match first in production, so this only sees the misses. The content branch
+ * is public, so raw.githubusercontent.com needs no token and spends no API quota.
  */
-const handleImageProxy = async (request: Request, url: URL, ctx: ExecutionContext) => {
+const handleImageProxy = async (url: URL) => {
   const segments = url.pathname
     .slice('/api/image/'.length)
     .split('/')
@@ -181,13 +174,7 @@ const handleImageProxy = async (request: Request, url: URL, ctx: ExecutionContex
     });
 
   if (!isContentImageReadPath(segments)) {
-    return json({ error: 'Invalid image path' }, 400);
-  }
-
-  const cache = caches.default;
-  const cached = await cache.match(request);
-  if (cached) {
-    return cached;
+    return Response.json({ error: 'Invalid image path' }, { status: 400 });
   }
 
   try {
@@ -195,13 +182,17 @@ const handleImageProxy = async (request: Request, url: URL, ctx: ExecutionContex
     const { owner, repo } = GIT_HUB_API_OPTIONS;
     const upstream = await fetch(
       `https://raw.githubusercontent.com/${owner}/${repo}/${CONTENT_BRANCH}/${encodedPath}`,
+      { cf: { cacheEverything: true, cacheTtl: IMAGE_CACHE_TTL_SECONDS } },
     );
 
     if (!upstream.ok) {
-      return json({ error: 'Failed to load image' }, upstream.status === 404 ? 404 : 500);
+      return Response.json(
+        { error: 'Failed to load image' },
+        { status: upstream.status === 404 ? 404 : 500 },
+      );
     }
 
-    const response = new Response(upstream.body, {
+    return new Response(upstream.body, {
       headers: {
         'Content-Type': getImageContentType(segments[segments.length - 1]),
         'Content-Disposition': 'inline',
@@ -210,18 +201,14 @@ const handleImageProxy = async (request: Request, url: URL, ctx: ExecutionContex
         Vary: 'Accept-Encoding',
       },
     });
-
-    ctx.waitUntil(cache.put(request, response.clone()));
-    return response;
-  } catch {
-    // Don't echo the upstream error: it carries the content repo path.
-    return json({ error: 'Failed to load image' }, 500);
+  } catch (error) {
+    // Don't echo the upstream error to the client: it carries the repo path.
+    console.error(
+      JSON.stringify({ event: 'image_proxy_failed', path: url.pathname, error: `${error}` }),
+    );
+    return Response.json({ error: 'Failed to load image' }, { status: 500 });
   }
 };
-
-// ================================
-// Router
-// ================================
 
 /**
  * SameSite=Strict on the cookie is the primary CSRF defense; this rejects the
@@ -245,9 +232,11 @@ const isCrossOrigin = (request: Request, url: URL) => {
   }
 };
 
-const handleApi = async (request: Request, url: URL, ctx: ExecutionContext) => {
+const methodNotAllowed = () => Response.json({ error: 'Method not allowed' }, { status: 405 });
+
+const handleApi = async (request: Request, url: URL, env: Env) => {
   if (request.method !== 'GET' && isCrossOrigin(request, url)) {
-    return json({ error: 'Cross-origin request rejected' }, 403);
+    return Response.json({ error: 'Cross-origin request rejected' }, { status: 403 });
   }
 
   if (url.pathname === '/api/edit-token') {
@@ -255,35 +244,30 @@ const handleApi = async (request: Request, url: URL, ctx: ExecutionContext) => {
   }
 
   if (url.pathname.startsWith('/api/edit/')) {
-    if (request.method !== 'POST') {
-      return json({ error: 'Method not allowed' }, 405);
-    }
-    return handleEditAction(request, url.pathname.slice('/api/edit/'.length));
+    return request.method === 'POST'
+      ? handleEditAction(request, url.pathname.slice('/api/edit/'.length))
+      : methodNotAllowed();
   }
 
   if (url.pathname.startsWith('/api/image/')) {
-    if (request.method !== 'GET') {
-      return json({ error: 'Method not allowed' }, 405);
-    }
-    return handleImageProxy(request, url, ctx);
+    return request.method === 'GET' ? handleImageProxy(url) : methodNotAllowed();
   }
 
   if (url.pathname === '/api/link-preview') {
-    if (request.method !== 'GET') {
-      return json({ error: 'Method not allowed' }, 405);
-    }
-    return handleLinkPreview(url);
+    return request.method === 'GET'
+      ? handleLinkPreview(request, url, env.LINK_PREVIEW_LIMITER)
+      : methodNotAllowed();
   }
 
-  return json({ error: 'Not found' }, 404);
+  return Response.json({ error: 'Not found' }, { status: 404 });
 };
 
 export default {
-  async fetch(request, env, ctx): Promise<Response> {
+  async fetch(request, env): Promise<Response> {
     const url = new URL(request.url);
 
     if (url.pathname.startsWith('/api/')) {
-      return handleApi(request, url, ctx);
+      return handleApi(request, url, env);
     }
 
     // Everything else is a static asset; ASSETS handles 404.html for misses.

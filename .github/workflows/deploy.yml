@@ -32,12 +32,14 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      # Image-variant and link-preview caches; content-addressed entries make
-      # a stale restore always safe.
+      # Image-variant and link-preview caches. Rolling key: actions/cache skips
+      # the save step on an exact key hit, so a content-derived key would throw
+      # away every preview fetched during a run that didn't touch images.
+      # Entries are content-addressed, so restoring an older one is always safe.
       - uses: actions/cache@v4
         with:
           path: .cache
-          key: build-cache-${{ hashFiles('content/assets/**') }}
+          key: build-cache-${{ github.run_id }}
           restore-keys: build-cache-
 
       - run: CONTENT_DIR="$GITHUB_WORKSPACE/content" pnpm build

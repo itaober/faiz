@@ -4,19 +4,11 @@ import {
 } from '@/lib/content-edit-token';
 import type { ActionError } from '@/lib/types/action-result';
 
-export const readTokenCookie = (request: Request) => {
-  const header = request.headers.get('cookie') ?? '';
-  for (const part of header.split(';')) {
-    const eq = part.indexOf('=');
-    if (eq === -1) {
-      continue;
-    }
-    if (part.slice(0, eq).trim() === CONTENT_EDIT_TOKEN_COOKIE) {
-      return part.slice(eq + 1).trim();
-    }
-  }
-  return '';
-};
+// Pattern is built from our own constant, never from request data.
+const TOKEN_COOKIE_PATTERN = new RegExp(`(?:^|;\\s*)${CONTENT_EDIT_TOKEN_COOKIE}=([^;]*)`);
+
+export const readTokenCookie = (request: Request) =>
+  request.headers.get('cookie')?.match(TOKEN_COOKIE_PATTERN)?.[1]?.trim() ?? '';
 
 /**
  * An explicit token wins unless it's the client-side "configured" sentinel —

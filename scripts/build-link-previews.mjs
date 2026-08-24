@@ -27,7 +27,7 @@ const CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const PAGE_TIMEOUT_MS = 5000;
 const MAX_HTML_BYTES = 256 * 1024;
 const MAX_ICON_BYTES = 64 * 1024;
-const CONCURRENCY = 5;
+const HTML_CONTENT_TYPES = new Set(['text/html', 'application/xhtml+xml']);
 
 const ICON_EXTENSIONS = new Map([
   ['image/png', 'png'],
@@ -39,10 +39,6 @@ const ICON_EXTENSIONS = new Map([
 ]);
 
 const sha1 = value => createHash('sha1').update(value).digest('hex');
-
-// ================================
-// Collect external links from content
-// ================================
 
 const collectText = async () => {
   const texts = [];
@@ -83,10 +79,6 @@ const extractUrls = text => {
   }
   return [...urls];
 };
-
-// ================================
-// Fetch + cache one preview
-// ================================
 
 const readCache = async cachePath => {
   try {
@@ -133,10 +125,8 @@ const buildPreview = async url => {
     },
   });
   const contentType = response.headers.get('content-type')?.split(';')[0]?.trim().toLowerCase();
-  if (!response.ok || contentType !== 'text/html') {
-    if (contentType !== 'application/xhtml+xml') {
-      throw new Error(`Unusable response (${response.status} ${contentType})`);
-    }
+  if (!response.ok || !HTML_CONTENT_TYPES.has(contentType)) {
+    throw new Error(`Unusable response (${response.status} ${contentType})`);
   }
 
   const html = (await response.text()).slice(0, MAX_HTML_BYTES);
@@ -161,34 +151,28 @@ const buildPreview = async url => {
   return entry;
 };
 
-// ================================
-// Main
-// ================================
-
 const urls = extractUrls(await collectText());
 const previews = {};
 let failures = 0;
 
-for (let i = 0; i < urls.length; i += CONCURRENCY) {
-  await Promise.all(
-    urls.slice(i, i + CONCURRENCY).map(async url => {
-      try {
-        const entry = await buildPreview(url);
-        previews[url] = entry.data;
-        if (entry.iconFile) {
-          await mkdir(ICON_OUT_DIR, { recursive: true });
-          await copyFile(
-            path.join(CACHE_DIR, 'icons', entry.iconFile),
-            path.join(ICON_OUT_DIR, entry.iconFile),
-          );
-        }
-      } catch (error) {
-        failures++;
-        console.warn(`link-preview skipped: ${url} (${error.message})`);
+await Promise.all(
+  urls.map(async url => {
+    try {
+      const entry = await buildPreview(url);
+      previews[url] = entry.data;
+      if (entry.iconFile) {
+        await mkdir(ICON_OUT_DIR, { recursive: true });
+        await copyFile(
+          path.join(CACHE_DIR, 'icons', entry.iconFile),
+          path.join(ICON_OUT_DIR, entry.iconFile),
+        );
       }
-    }),
-  );
-}
+    } catch (error) {
+      failures++;
+      console.warn(`link-preview skipped: ${url} (${error.message})`);
+    }
+  }),
+);
 
 await writeFile(path.join(OUT_DIR, 'link-previews.json'), JSON.stringify(previews));
 // biome-ignore lint/suspicious/noConsole: build-script summary is its interface

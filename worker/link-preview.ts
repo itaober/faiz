@@ -1,106 +1,99 @@
 import { type LinkPreviewData, normalizeUrl, parseMetadata } from '@/lib/link-preview-core';
 
-// Fallback for links that aren't in the build-time /link-previews.json yet —
-// dev, and links added to content after the last deploy. No favicon here
-// (matching the old no-signing-secret behaviour); the precomputed map carries
-// icons as static files.
+// Fallback for links missing from the build-time /link-previews.json: dev, and
+// links added to content since the last deploy. Responses carry no favicon —
+// icons ship as static files alongside the precomputed map.
 
 const MAX_URL_LENGTH = 2048;
-const MAX_HTML_BYTES = 256 * 1024;
+const MAX_HTML_CHARS = 256 * 1024;
 const TIMEOUT_MS = 4000;
+const MAX_REDIRECTS = 3;
 const HTML_CONTENT_TYPES = new Set(['text/html', 'application/xhtml+xml']);
 
-const CACHE_CONTROL = [
-  'public',
-  'max-age=300',
-  's-maxage=86400',
-  'stale-while-revalidate=604800',
-].join(', ');
-
-// One in-memory bucket per isolate — same shape as the old off-Vercel
-// limiter. ponytail: per-IP buckets need trusting proxy headers; a Cloudflare
-// WAF rate rule is the upgrade path if this ever gets abused.
-const RATE_LIMIT_WINDOW_MS = 60 * 1000;
-const RATE_LIMIT_MAX_REQUESTS = 30;
-let rateWindowStart = 0;
-let rateCount = 0;
-
-const allowRequest = () => {
-  const now = Date.now();
-  if (now - rateWindowStart >= RATE_LIMIT_WINDOW_MS) {
-    rateWindowStart = now;
-    rateCount = 0;
-  }
-  rateCount += 1;
-  return rateCount <= RATE_LIMIT_MAX_REQUESTS;
+const RESPONSE_HEADERS = {
+  'Cache-Control': 'public, max-age=300, s-maxage=86400, stale-while-revalidate=604800',
+  'X-Content-Type-Options': 'nosniff',
 };
 
-const readCappedText = async (response: Response) => {
-  const reader = response.body?.getReader();
-  if (!reader) {
-    return '';
-  }
-
-  const decoder = new TextDecoder();
+/** Never buffer a whole untrusted page: the isolate has 128 MB for everything. */
+const readCappedText = async (body: ReadableStream<Uint8Array>) => {
   let text = '';
-  let bytes = 0;
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) {
-      break;
+  for await (const chunk of body.pipeThrough(new TextDecoderStream())) {
+    text += chunk;
+    if (text.length >= MAX_HTML_CHARS) {
+      return text.slice(0, MAX_HTML_CHARS);
     }
-    bytes += value.byteLength;
-    if (bytes > MAX_HTML_BYTES) {
-      await reader.cancel();
-      break;
-    }
-    text += decoder.decode(value, { stream: true });
   }
-  return text + decoder.decode();
+  return text;
 };
 
-const json = (data: unknown, status = 200, headers?: HeadersInit) =>
-  new Response(JSON.stringify(data), {
-    status,
-    headers: { 'Content-Type': 'application/json', ...headers },
-  });
+/**
+ * Redirects are followed by hand so `normalizeUrl` runs on every hop. Letting
+ * fetch follow them would validate only the URL the visitor supplied, so a
+ * redirect could still land on a credentialed or non-standard-port target.
+ */
+const fetchHtml = async (start: URL) => {
+  let url = start;
 
-export const handleLinkPreview = async (url: URL): Promise<Response> => {
-  if (!allowRequest()) {
-    return json({ error: 'Too many requests' }, 429);
-  }
-
-  const target = url.searchParams.get('url') ?? '';
-  if (!target || target.length > MAX_URL_LENGTH) {
-    return json({ error: 'Invalid url' }, 400);
-  }
-
-  let normalized: URL;
-  try {
-    normalized = normalizeUrl(target);
-  } catch {
-    return json({ error: 'Invalid url' }, 400);
-  }
-
-  try {
-    const response = await fetch(normalized.toString(), {
+  for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
+    const response = await fetch(url.toString(), {
       signal: AbortSignal.timeout(TIMEOUT_MS),
-      redirect: 'follow',
+      redirect: 'manual',
       headers: {
         Accept: 'text/html,application/xhtml+xml;q=0.9',
         'User-Agent': 'Faiz-Link-Preview/1.0',
       },
     });
 
-    const contentType = response.headers.get('content-type')?.split(';')[0]?.trim().toLowerCase();
-    if (!response.ok || !contentType || !HTML_CONTENT_TYPES.has(contentType)) {
-      return json({ error: 'Unable to load link preview' }, 502);
+    const location = response.headers.get('location');
+    if (response.status >= 300 && response.status < 400 && location) {
+      url = normalizeUrl(new URL(location, url).toString());
+      continue;
     }
 
-    const finalUrl = new URL(response.url || normalized.toString());
-    const data: LinkPreviewData = parseMetadata(await readCappedText(response), finalUrl);
-    return json(data, 200, { 'Cache-Control': CACHE_CONTROL });
+    return { response, url };
+  }
+
+  throw new Error('Too many link preview redirects');
+};
+
+export const handleLinkPreview = async (
+  request: Request,
+  url: URL,
+  limiter: RateLimit,
+): Promise<Response> => {
+  const target = url.searchParams.get('url')?.trim();
+  if (!target || target.length > MAX_URL_LENGTH) {
+    return Response.json({ error: 'Invalid URL' }, { status: 400 });
+  }
+
+  let normalized: URL;
+  try {
+    normalized = normalizeUrl(target);
   } catch {
-    return json({ error: 'Unable to load link preview' }, 502);
+    return Response.json({ error: 'Invalid URL' }, { status: 400 });
+  }
+
+  // Cloudflare sets cf-connecting-ip itself, so unlike a forwarded-for header
+  // it is not attacker-controlled.
+  const { success } = await limiter.limit({
+    key: request.headers.get('cf-connecting-ip') ?? 'unknown',
+  });
+  if (!success) {
+    return Response.json({ error: 'Too many requests' }, { status: 429 });
+  }
+
+  try {
+    const { response, url: finalUrl } = await fetchHtml(normalized);
+    const contentType = response.headers.get('content-type')?.split(';')[0]?.trim().toLowerCase();
+
+    if (!response.ok || !contentType || !HTML_CONTENT_TYPES.has(contentType) || !response.body) {
+      return Response.json({ error: 'Unable to load link preview' }, { status: 422 });
+    }
+
+    const data: LinkPreviewData = parseMetadata(await readCappedText(response.body), finalUrl);
+    return Response.json(data, { headers: RESPONSE_HEADERS });
+  } catch {
+    return Response.json({ error: 'Unable to load link preview' }, { status: 422 });
   }
 };
