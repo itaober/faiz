@@ -1,7 +1,7 @@
 import dayjs from 'dayjs';
 import { Feed } from 'feed';
 import { marked } from 'marked';
-
+import { RSS_FEED_PATH } from '@/lib/constants/seo';
 import { getMetaInfo, getPostListInfo, type PostList } from '@/lib/data/data';
 import { getPostMDX } from '@/lib/data/mdx';
 import { getMemos } from '@/lib/data/memos';
@@ -97,7 +97,10 @@ const createMemoFeedItems = async (
       return {
         title: `Memos #${dateStr}`,
         id: `${feedDomain}/memos#${dateStr}`,
-        link: `${feedDomain}/memos`,
+        // Every day used to point at /memos, so readers that key on the link
+        // collapsed the whole memo history into a single entry. The id stays
+        // put, so existing subscribers see no re-posts.
+        link: `${feedDomain}/memos/${sortedMemos[0].id}`,
         date: dayjs(dateStr).add(1, 'day').startOf('day').toDate(),
         category: [{ name: 'memo' }],
         content: mergedContent.join('<hr/>'),
@@ -128,7 +131,10 @@ export async function GET() {
     description: metaInfo?.bio,
     id: feedDomain,
     link: feedDomain,
-    language: 'en',
+    language: 'zh-CN',
+    // Emits <atom:link rel="self">, which aggregators use to canonicalise the
+    // feed they are subscribed to.
+    feedLinks: { rss: `${feedDomain}${RSS_FEED_PATH}` },
     image: avatarUrl,
     favicon: avatarUrl,
     copyright: `All rights reserved ${dayjs().format('YYYY')}, ${metaInfo?.name}.`,

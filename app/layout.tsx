@@ -14,7 +14,7 @@ import { ServiceWorkerRegistration } from '@/components/service-worker-registrat
 import { ThemeScript } from '@/components/theme-script';
 import { ThemeSync } from '@/components/theme-sync';
 import { getMetaInfo } from '@/lib/data/data';
-import { buildDescription } from '@/lib/utils/seo';
+import { buildDescription, RSS_ALTERNATE_TYPES } from '@/lib/utils/seo';
 
 import BackToTop from './_components/back-to-top';
 import Header from './_components/header';
@@ -74,14 +74,7 @@ export async function generateMetadata(): Promise<Metadata> {
     icons: authorInfo?.avatar,
     authors: authorInfo?.site ? [{ name: authorInfo.name, url: authorInfo.site }] : undefined,
     alternates: {
-      types: {
-        'application/rss+xml': [
-          {
-            url: `${authorInfo?.site}/feed.xml`,
-            title: 'RSS Feed',
-          },
-        ],
-      },
+      types: RSS_ALTERNATE_TYPES,
     },
     openGraph: {
       title: authorInfo.name,
