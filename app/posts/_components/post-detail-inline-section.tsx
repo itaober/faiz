@@ -6,11 +6,8 @@ import { toast } from 'sonner';
 import PostTitle from '@/app/_components/post-title';
 import { useEditMode } from '@/components/edit-mode-context';
 import { createEditorPreloader } from '@/components/editing/preload-editor';
-import {
-  type EditableContent,
-  loadEditableContentAction,
-} from '@/lib/actions/load-editable-content';
 import type { PostMeta } from '@/lib/data/data';
+import { type EditableContent, loadEditableContentAction } from '@/lib/edit-api';
 
 const loadPostEditorSurface = () => import('./post-editor-surface');
 const postEditorPreloader = createEditorPreloader(loadPostEditorSurface);

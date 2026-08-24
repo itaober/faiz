@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
-import { uploadEditorImageAction } from '@/lib/actions/upload-editor-image';
+import { uploadEditorImageAction } from '@/lib/edit-api';
 import { toApiImageUrl } from '@/lib/utils/editor-image';
 import {
   compressImage,
@@ -80,7 +80,6 @@ export function useCoverImage(initialCoverUrl: string) {
         entityId,
         imageId,
         token,
-        revalidate: '/records',
       });
       if (!result.success || !result.data) {
         throw new Error(result.success ? 'Upload failed' : result.error);

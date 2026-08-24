@@ -1,12 +1,11 @@
 'use client';
 
-import { uploadEditorImageAction } from '@/lib/actions/upload-editor-image';
+import { uploadEditorImageAction } from '@/lib/edit-api';
 import type { StagedEditorImage } from '@/lib/utils/editor-image';
 
 interface IUploadStagedEditorImagesInput {
   content?: string;
   images: StagedEditorImage[];
-  revalidatePath?: string;
   token: string;
 }
 
@@ -21,7 +20,6 @@ const isReferencedByContent = (image: StagedEditorImage, content?: string) => {
 export const uploadStagedEditorImages = async ({
   content,
   images,
-  revalidatePath,
   token,
 }: IUploadStagedEditorImagesInput) => {
   const uploadedPaths = new Set<string>();
@@ -38,7 +36,6 @@ export const uploadStagedEditorImages = async ({
       entityId: image.uploadEntityId,
       imageId: image.imageId,
       token,
-      revalidate: revalidatePath,
     });
 
     if (!result.success || !result.data) {

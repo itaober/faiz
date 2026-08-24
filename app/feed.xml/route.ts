@@ -8,9 +8,8 @@ import { getMemos } from '@/lib/data/memos';
 import { mdxTodoListsToMarkdown } from '@/lib/mdx-editing';
 import { mdxImagesToMarkdown } from '@/lib/utils/editor-image';
 
-// RSS readers poll this often, and building it walks every post. The write path
-// already calls revalidatePath('/feed.xml').
-export const revalidate = 300;
+// Written into the static build as /feed.xml; regenerates per deploy.
+export const dynamic = 'force-static';
 
 interface IFeedItem {
   title: string;

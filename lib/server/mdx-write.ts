@@ -1,6 +1,6 @@
 import matter from 'gray-matter';
 
-import { putGitHubFile } from '@/lib/data/common';
+import { putGitHubFile } from '@/lib/data/github';
 import { normalizeEditorImageMarkup } from '@/lib/utils/editor-image';
 
 /** Always read fresh (no cache) when about to mutate, to avoid stale SHA / 409s. */

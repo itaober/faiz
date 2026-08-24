@@ -14,13 +14,13 @@ import TiptapEditor from '@/components/editing/tiptap-editor';
 import { uploadStagedEditorImages } from '@/components/editing/upload-staged-editor-images';
 import { useContentEditor } from '@/hooks/use-content-editor';
 import { isMobileViewport } from '@/hooks/use-is-mobile';
+import type { PostMeta } from '@/lib/data/data';
 import {
   createPostAction,
   deletePostAction,
   type IPostSaveResult,
   updatePostAction,
-} from '@/lib/actions/edit-post';
-import type { PostMeta } from '@/lib/data/data';
+} from '@/lib/edit-api';
 import { markdownTodoListsToMdx, mdxTodoListsToMarkdown } from '@/lib/mdx-editing';
 import { cn } from '@/lib/utils';
 import {
@@ -148,8 +148,10 @@ export default function PostEditorSurface({
         // the editor isn't reported as a conflict.
         setContentSha(saved?.contentSha);
         router.refresh();
-        if (!isEdit && saved?.post.slug) {
-          router.push(`/posts/${saved.post.slug}`);
+        if (!isEdit) {
+          // The new post's static page exists only after the rebuild its save
+          // triggered goes live, so land on the list instead of a 404.
+          router.push('/posts');
         }
       },
       run: async token => {
@@ -157,7 +159,6 @@ export default function PostEditorSurface({
           images: stagedImages,
           content: mdxContent,
           token,
-          revalidatePath: isEdit && post ? `/posts/${post.slug}` : '/posts',
         });
 
         const payload = {

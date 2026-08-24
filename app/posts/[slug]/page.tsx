@@ -16,10 +16,11 @@ interface IPostPageProps {
   params: Promise<{ slug: string }>;
 }
 
-/**
- * Prerender every post in the index. `dynamicParams` stays at its default, so a
- * post published from the editor is reachable before the next build.
- */
+// Static export: only enumerated slugs exist. A post published from the
+// editor becomes reachable when the rebuild its save triggered goes live.
+export const dynamicParams = false;
+
+/** Prerender every post in the index. */
 export async function generateStaticParams() {
   const posts = await getPostListInfo();
   return (posts ?? []).map(({ slug }) => ({ slug }));

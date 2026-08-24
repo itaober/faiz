@@ -1,0 +1,31 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "faiz",
+  "main": "worker/index.ts",
+  "compatibility_date": "2026-08-01",
+  // Buffer (base64 encoding in the GitHub write path) comes from nodejs_compat.
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "directory": "./out",
+    "binding": "ASSETS",
+    // Default is "none", which would return a bare 404 body instead of out/404.html.
+    "not_found_handling": "404-page"
+  },
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1
+  },
+  // Guards the only endpoint that fetches an arbitrary URL. A module-level
+  // counter cannot do this job: each colo runs its own isolate.
+  "ratelimits": [
+    {
+      "name": "LINK_PREVIEW_LIMITER",
+      "namespace_id": "1001",
+      "simple": { "limit": 30, "period": 60 }
+    }
+  ],
+  "vars": { "GITHUB_CONTENT_BRANCH": "content" }
+  // The production custom domain route is added at cutover, once the static
+  // build replaces the Vercel deployment — adding it earlier would steal the
+  // domain from the running site.
+}

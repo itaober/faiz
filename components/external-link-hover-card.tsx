@@ -7,16 +7,8 @@ import { useCallback, useEffect, useState } from 'react';
 
 import HoverCard from '@/components/hover-card';
 import Skeleton from '@/components/skeleton';
+import { type LinkPreviewData, normalizeUrl } from '@/lib/link-preview-core';
 import { cn } from '@/lib/utils';
-
-interface LinkPreviewData {
-  url: string;
-  hostname: string;
-  title: string;
-  description?: string;
-  siteName?: string;
-  iconUrl?: string;
-}
 
 type LinkPreviewRequest =
   | { href: string; status: 'loading' }
@@ -56,6 +48,19 @@ const getDisplayUrl = (value: string) => {
   }
 };
 
+// Previews for links already in the content ship as one static map built at
+// deploy time; the worker endpoint only covers links newer than the build.
+let staticPreviewsPromise: Promise<Record<string, LinkPreviewData>> | null = null;
+
+const loadStaticPreviews = () => {
+  staticPreviewsPromise ??= fetch('/link-previews.json')
+    .then(response =>
+      response.ok ? (response.json() as Promise<Record<string, LinkPreviewData>>) : {},
+    )
+    .catch(() => ({}));
+  return staticPreviewsPromise;
+};
+
 const loadPreview = (href: string) => {
   const normalizedUrl = normalizePreviewUrl(href);
   const cached = previewCache.get(normalizedUrl);
@@ -63,8 +68,21 @@ const loadPreview = (href: string) => {
     return cached;
   }
 
-  const request = fetch(`/api/link-preview?url=${encodeURIComponent(normalizedUrl)}`)
-    .then(async response => {
+  const request = loadStaticPreviews()
+    .then(async previews => {
+      // Keys agree with scripts/build-link-previews.mjs because both normalize
+      // through the same function.
+      let baked: LinkPreviewData | undefined;
+      try {
+        baked = previews[normalizeUrl(normalizedUrl).toString()];
+      } catch {
+        // Not a previewable URL; fall through to the worker, which rejects it too.
+      }
+      if (baked) {
+        return baked;
+      }
+
+      const response = await fetch(`/api/link-preview?url=${encodeURIComponent(normalizedUrl)}`);
       if (!response.ok) {
         throw new Error('Unable to load link preview');
       }

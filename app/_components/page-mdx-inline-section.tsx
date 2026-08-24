@@ -6,11 +6,8 @@ import { toast } from 'sonner';
 import PostTitle from '@/app/_components/post-title';
 import { useEditMode } from '@/components/edit-mode-context';
 import { createEditorPreloader } from '@/components/editing/preload-editor';
-import {
-  type EditableContent,
-  loadEditableContentAction,
-} from '@/lib/actions/load-editable-content';
 import type { EditablePage } from '@/lib/content-editing-validation';
+import { type EditableContent, loadEditableContentAction } from '@/lib/edit-api';
 
 const loadPageMdxEditorSurface = () => import('@/app/_components/page-mdx-editor-surface');
 const pageMdxEditorPreloader = createEditorPreloader(loadPageMdxEditorSurface);

@@ -1,0 +1,12 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    // workerd globals instead of the DOM; Buffer comes from node types via
+    // the nodejs_compat flag.
+    "lib": ["ES2022"],
+    "types": ["@cloudflare/workers-types", "node"]
+  },
+  "include": ["./**/*.ts"],
+  // Overrides the root config's exclusion of this directory.
+  "exclude": []
+}

@@ -1,60 +1,61 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { getLinkPreview, isBlockedLinkAddress } from '../lib/server/link-preview.ts';
-import { signLinkIconUrl, verifyLinkIconSignature } from '../lib/server/link-preview-signature.ts';
+import { getIconHref, normalizeUrl, parseMetadata } from '../lib/link-preview-core.ts';
 
-test('keeps public IPv4 separate from IPv4-mapped IPv6 blocking', () => {
-  assert.equal(isBlockedLinkAddress('8.8.8.8', 4), false);
-  assert.equal(isBlockedLinkAddress('127.0.0.1', 4), true);
-  assert.equal(isBlockedLinkAddress('::ffff:8.8.8.8', 6), true);
-  assert.equal(isBlockedLinkAddress('64:ff9b::7f00:1', 6), true);
-  assert.equal(isBlockedLinkAddress('64:ff9b:1::7f00:1', 6), true);
-  assert.equal(isBlockedLinkAddress('2002:7f00:1::', 6), true);
-  assert.equal(isBlockedLinkAddress('2001:0:4136:e378:8000:63bf:3fff:fdd2', 6), true);
+test('rejects invalid preview URLs before any request is made', () => {
+  assert.throws(() => normalizeUrl('ftp://example.com/'), /Unsupported link protocol/);
+  assert.throws(() => normalizeUrl('http://user:pass@example.com/'), /credentials/);
+  assert.throws(() => normalizeUrl('http://example.com:8080/'), /Non-standard link ports/);
+  assert.throws(() => normalizeUrl('http://localhost/'), /Local links/);
+  assert.throws(() => normalizeUrl('http://staging.localhost/'), /Local links/);
+  assert.throws(() => normalizeUrl('http://box.internal/'), /Local links/);
 });
 
-test('signs only the exact favicon URL', () => {
-  const previousSecret = process.env.LINK_PREVIEW_SIGNING_SECRET;
-  process.env.LINK_PREVIEW_SIGNING_SECRET = 'test-link-preview-secret';
-
-  try {
-    const url = 'https://example.com/favicon.ico';
-    const signature = signLinkIconUrl(url);
-    assert.ok(signature);
-    assert.equal(verifyLinkIconSignature(url, signature), true);
-    assert.equal(verifyLinkIconSignature('https://example.com/other.png', signature), false);
-    assert.equal(verifyLinkIconSignature(url, `${signature}x`), false);
-    assert.equal(verifyLinkIconSignature(url, '你'.repeat(43)), false);
-  } finally {
-    if (previousSecret === undefined) {
-      delete process.env.LINK_PREVIEW_SIGNING_SECRET;
-    } else {
-      process.env.LINK_PREVIEW_SIGNING_SECRET = previousSecret;
-    }
-  }
-});
-
-test('rejects direct private-network preview targets', async () => {
-  await assert.rejects(
-    getLinkPreview('http://127.0.0.1/'),
-    /Private network links are not allowed/,
-  );
-  await assert.rejects(
-    getLinkPreview('http://[::ffff:127.0.0.1]/'),
-    /Private network links are not allowed/,
+test('normalizes the map key: strips the hash, keeps query, allows default ports', () => {
+  assert.equal(
+    normalizeUrl('https://example.com:443/a?b=1#frag').toString(),
+    'https://example.com/a?b=1',
   );
 });
 
-test('rejects invalid preview URLs before any request is made', async () => {
-  await assert.rejects(getLinkPreview('ftp://example.com/'), /Unsupported link protocol/);
-  await assert.rejects(
-    getLinkPreview('http://user:pass@example.com/'),
-    /Link credentials are not allowed/,
+test('extracts og/twitter metadata with entity decoding and tag stripping', () => {
+  const html = `
+    <html><head>
+      <title>Fallback title</title>
+      <meta property="og:title" content="Tom &amp; Jerry &#x2014; home">
+      <meta name="description" content="A &lt;b&gt;bold&lt;/b&gt;   move&nbsp;indeed">
+      <meta property="og:site_name" content="Example">
+    </head></html>`;
+  const data = parseMetadata(html, new URL('https://www.example.com/page'));
+
+  assert.equal(data.title, 'Tom & Jerry — home');
+  assert.equal(data.description, 'A bold move indeed');
+  assert.equal(data.siteName, 'Example');
+  assert.equal(data.hostname, 'example.com');
+  assert.equal(data.url, 'https://www.example.com/page');
+  assert.equal(data.iconUrl, undefined);
+});
+
+test('falls back to <title>, then hostname', () => {
+  const withTitle = parseMetadata('<title>Only title</title>', new URL('https://a.example/'));
+  assert.equal(withTitle.title, 'Only title');
+
+  const bare = parseMetadata('', new URL('https://a.example/'));
+  assert.equal(bare.title, 'a.example');
+});
+
+test('resolves the favicon href, skipping SVG and falling back to /favicon.ico', () => {
+  const page = new URL('https://example.com/docs/page');
+
+  assert.equal(
+    getIconHref('<link rel="icon" href="/img/icon.png">', page),
+    'https://example.com/img/icon.png',
   );
-  await assert.rejects(
-    getLinkPreview('http://example.com:8080/'),
-    /Non-standard link ports are not allowed/,
+  // SVG icons are skipped (stored-XSS vector when re-served), so the default wins.
+  assert.equal(
+    getIconHref('<link rel="icon" href="/icon.svg">', page),
+    'https://example.com/favicon.ico',
   );
-  await assert.rejects(getLinkPreview('http://staging.localhost/'), /Local links are not allowed/);
+  assert.equal(getIconHref('', page), 'https://example.com/favicon.ico');
 });
