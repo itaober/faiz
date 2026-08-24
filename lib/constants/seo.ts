@@ -1,3 +1,5 @@
+export const RSS_FEED_PATH = '/feed.xml';
+
 export const PAGE_META = {
   about: {
     canonical: '/',

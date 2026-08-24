@@ -1,6 +1,13 @@
 import type { Metadata } from 'next';
 
+import { RSS_FEED_PATH } from '@/lib/constants/seo';
+
 const MAX_DESCRIPTION_LENGTH = 160;
+
+/** Resolved against `metadataBase`, which the root layout sets from meta.json. */
+export const RSS_ALTERNATE_TYPES = {
+  'application/rss+xml': [{ url: RSS_FEED_PATH, title: 'RSS Feed' }],
+};
 
 const stripMarkdown = (content: string) => {
   return content
@@ -66,6 +73,10 @@ export const buildPageMetadata = ({
     description,
     alternates: {
       canonical,
+      // Metadata replaces `alternates` wholesale rather than merging it, so a
+      // page that only set `canonical` used to drop the root layout's feed
+      // declaration and leave the site with no discoverable RSS at all.
+      types: RSS_ALTERNATE_TYPES,
     },
     openGraph: mergedOpenGraph,
     twitter: mergedTwitter,
