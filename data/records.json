@@ -187,6 +187,15 @@
   ],
   "music": [
     {
+      "title": "灰太阳",
+      "link": "https://music.douban.com/subject/37241317/",
+      "coverUrl": "/api/image/assets/records/music_灰太阳.webp",
+      "createdTime": "2026-08-25",
+      "rating": 7.3,
+      "comment": "跟专辑名一样，忧郁、浪漫、chill，以及一点慢慢的小欢快。",
+      "type": "music"
+    },
+    {
       "title": "哥们废了",
       "link": "https://music.douban.com/subject/36365699/",
       "coverUrl": "/api/image/assets/records/music_哥们废了.webp",
