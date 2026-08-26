@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { Suspense } from 'react';
 
+import Comments from '@/components/comments';
 import { MDX } from '@/components/mdx';
 import MotionWrapper from '@/components/motion-wrapper';
 import { getPostListInfo } from '@/lib/data/data';
@@ -72,6 +73,7 @@ export default async function PostPage({ params }: IPostPageProps) {
             <PostTocDeferred />
           </PostDetailInlineSection>
         </div>
+        <Comments />
       </MotionWrapper>
       <Suspense fallback={null}>
         <PostMatchScroll />
