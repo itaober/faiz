@@ -20,16 +20,13 @@ const TWEET_REVALIDATE_SECONDS = 60 * 60 * 24;
  */
 const TweetLink = ({ id }: { id: string }) => (
   <a
-    className="focus-ring border-border text-muted-foreground hover:bg-muted/65 hover:text-foreground block rounded-lg border px-4 py-3 text-sm transition-colors"
+    className="focus-ring border-border text-muted-foreground hover:bg-muted/65 hover:text-foreground flex items-center gap-1.5 rounded-lg border px-4 py-3 text-sm transition-colors"
     href={`https://x.com/i/status/${id}`}
     rel="noreferrer noopener"
     target="_blank"
   >
     Preview unavailable · Read on X
-    <ExternalLinkIcon
-      aria-hidden="true"
-      className="ml-0.5 inline size-3 align-[0.05em] opacity-55"
-    />
+    <ExternalLinkIcon aria-hidden="true" className="size-3 shrink-0 opacity-55" />
     <span className="sr-only select-none">(opens in a new tab)</span>
   </a>
 );
