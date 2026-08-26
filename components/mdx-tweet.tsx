@@ -1,6 +1,9 @@
 import { Tweet } from 'react-tweet';
 
 import 'react-tweet/theme.css';
+// Loaded after the upstream theme so the two travel together; the overrides also
+// outrank it on specificity, so import order is not what makes them apply.
+import './mdx-tweet.css';
 
 /**
  * A tweet never changes once posted; only its counters do. A day keeps the post
@@ -14,14 +17,14 @@ const TWEET_REVALIDATE_SECONDS = 60 * 60 * 24;
  */
 const TweetUnavailable = ({ id }: { id: string }) => (
   <p className="text-muted-foreground border-border rounded-lg border border-dashed px-4 py-3 text-sm">
-    推文已不可用 ·{' '}
+    Tweet unavailable ·{' '}
     <a
       className="text-accent underline underline-offset-2"
       href={`https://x.com/i/status/${id}`}
       rel="noreferrer noopener"
       target="_blank"
     >
-      在 X 上查看
+      View on X
     </a>
   </p>
 );
