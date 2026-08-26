@@ -4,6 +4,7 @@
    inside a light page. Restating every colour it touches, at a specificity the
    media block cannot reach, both fixes that and applies the site palette. */
 :root .react-tweet-theme {
+  margin-inline: auto;
   --tweet-bg-color: var(--surface);
   --tweet-bg-color-hover: var(--muted);
   --tweet-border: 1px solid var(--border);

@@ -288,7 +288,7 @@ export const normalizeEditorImageMarkup = (value: string) =>
   transformOutsideFencedCode(value, segment => markdownImagesToMdx(normalizeMdxImageTags(segment)));
 
 const mdxImageTagPattern = /<Image\b[\s\S]*?\/>/g;
-const mdxImageRunPattern = /(?:<Image\b[\s\S]*?\/>\s*){2,}/g;
+const mdxImageRunPattern = /(?:<Image\b[^>]*\/>\s*){2,}/g;
 
 export const groupConsecutiveMdxImages = (value: string) =>
   transformOutsideFencedCode(value, segment =>

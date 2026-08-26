@@ -72,6 +72,25 @@ test('consecutive images group into a gallery that converts back to each image',
   assert.equal(groupConsecutiveMdxImages(single), single);
 });
 
+test('images separated by prose or another component stay separate', () => {
+  const source = [
+    '<Image src="assets/posts/one.webp" alt="one" />',
+    '',
+    'text between images',
+    '',
+    '<Image src="assets/posts/two.webp" alt="two" />',
+    '',
+    '<Tweet id="123" />',
+    '',
+    '<Image src="assets/posts/three.webp" alt="three" />',
+  ].join('\\n');
+
+  const grouped = groupConsecutiveMdxImages(source);
+
+  assert.equal(grouped, source);
+  assert.doesNotMatch(grouped, /<ImageGallery/);
+});
+
 test('todo lists survive a round trip and re-converting is stable', () => {
   const markdown = '- [x] done thing\n- [ ] open thing';
   const mdx = markdownTodoListsToMdx(markdown);
