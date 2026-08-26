@@ -1,0 +1,54 @@
+/*
+ * giscus theme mirroring the faiz light palette (`:root` in app/globals.css).
+ *
+ * The stylesheet is loaded inside the giscus iframe, which cannot see the site's
+ * CSS variables — every value below is a literal copy of the matching token, so
+ * changes to globals.css have to be mirrored here by hand. The import keeps the
+ * ~90 Primer variables we do not override in sync with upstream.
+ */
+@import url('https://giscus.app/themes/light.css');
+
+main {
+  /* Show the page background instead of stacking a second surface on top. */
+  --color-canvas-default: transparent;
+  --color-canvas-overlay: oklch(0.995 0.001 106); /* --surface */
+  --color-canvas-subtle: oklch(0.95 0.004 106); /* --muted */
+  --color-canvas-inset: oklch(0.95 0.004 106);
+
+  --color-fg-default: oklch(0.23 0.008 106); /* --foreground */
+  --color-fg-muted: oklch(0.49 0.01 106); /* --muted-foreground */
+  --color-fg-subtle: oklch(0.49 0.01 106);
+
+  --color-border-default: oklch(0.89 0.004 106); /* --border */
+  --color-border-muted: oklch(0.89 0.004 106);
+
+  --color-accent-fg: oklch(0.58 0.05 252); /* --accent */
+  --color-accent-emphasis: oklch(0.58 0.05 252);
+
+  --color-danger-fg: oklch(0.59 0.18 25); /* --danger */
+  --color-success-fg: oklch(0.62 0.13 150); /* --success */
+
+  --color-btn-text: oklch(0.23 0.008 106);
+  --color-btn-bg: oklch(0.995 0.001 106);
+  --color-btn-border: oklch(0.89 0.004 106);
+  --color-btn-hover-bg: oklch(0.95 0.004 106);
+
+  /* Upstream tints every primary-button state with GitHub green, which clashes
+     with the blue accent — the disabled state most visibly, since the comment
+     button sits disabled until you type. */
+  --color-btn-primary-bg: oklch(0.58 0.05 252);
+  --color-btn-primary-border: oklch(0.58 0.05 252);
+  --color-btn-primary-hover-bg: oklch(0.52 0.05 252);
+  --color-btn-primary-selected-bg: oklch(0.48 0.05 252);
+  --color-btn-primary-disabled-bg: oklch(0.78 0.03 252);
+
+  --color-segmented-control-bg: oklch(0.95 0.004 106);
+  --color-segmented-control-button-bg: oklch(0.995 0.001 106);
+  --color-social-reaction-bg-hover: oklch(0.95 0.004 106);
+
+  /* The `body` stack from app/globals.css without Inter: next/font serves it
+     from a hashed path the iframe cannot resolve. */
+  font-family:
+    'PingFang SC', 'HarmonyOS Sans SC', 'Noto Sans SC', 'Microsoft YaHei', ui-sans-serif, system-ui,
+    sans-serif;
+}

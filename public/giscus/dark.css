@@ -1,0 +1,51 @@
+/*
+ * giscus theme mirroring the faiz dark palette (`.dark` in app/globals.css).
+ * See light.css for why the values are literals rather than variables.
+ */
+@import url('https://giscus.app/themes/dark.css');
+
+main {
+  /* Show the page background instead of stacking a second surface on top. */
+  --color-canvas-default: transparent;
+  --color-canvas-overlay: oklch(0.22 0.004 106); /* --surface */
+  --color-canvas-subtle: oklch(0.27 0.005 106); /* --muted */
+  --color-canvas-inset: oklch(0.27 0.005 106);
+
+  --color-fg-default: oklch(0.93 0.003 106); /* --foreground */
+  --color-fg-muted: oklch(0.73 0.008 106); /* --muted-foreground */
+  --color-fg-subtle: oklch(0.73 0.008 106);
+
+  --color-border-default: oklch(0.33 0.004 106); /* --border */
+  --color-border-muted: oklch(0.33 0.004 106);
+
+  --color-accent-fg: oklch(0.74 0.035 252); /* --accent */
+  --color-accent-emphasis: oklch(0.74 0.035 252);
+
+  --color-danger-fg: oklch(0.71 0.14 25); /* --danger */
+  --color-success-fg: oklch(0.72 0.12 150); /* --success */
+
+  --color-btn-text: oklch(0.93 0.003 106);
+  --color-btn-bg: oklch(0.22 0.004 106);
+  --color-btn-border: oklch(0.33 0.004 106);
+  --color-btn-hover-bg: oklch(0.27 0.005 106);
+
+  /* The dark accent is a light blue, so the primary button needs dark text —
+     upstream's white would land at roughly 1.8:1. */
+  --color-btn-primary-text: oklch(0.18 0.004 106);
+  --color-btn-primary-bg: oklch(0.74 0.035 252);
+  --color-btn-primary-border: oklch(0.74 0.035 252);
+  --color-btn-primary-hover-bg: oklch(0.79 0.035 252);
+  --color-btn-primary-selected-bg: oklch(0.68 0.035 252);
+  --color-btn-primary-disabled-bg: oklch(0.45 0.02 252);
+  --color-btn-primary-disabled-text: oklch(0.73 0.008 106);
+
+  --color-segmented-control-bg: oklch(0.27 0.005 106);
+  --color-segmented-control-button-bg: oklch(0.22 0.004 106);
+  --color-social-reaction-bg-hover: oklch(0.27 0.005 106);
+
+  /* The `body` stack from app/globals.css without Inter: next/font serves it
+     from a hashed path the iframe cannot resolve. */
+  font-family:
+    'PingFang SC', 'HarmonyOS Sans SC', 'Noto Sans SC', 'Microsoft YaHei', ui-sans-serif, system-ui,
+    sans-serif;
+}

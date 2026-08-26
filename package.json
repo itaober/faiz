@@ -17,6 +17,7 @@
     "commit-msg": "npx --no-install commitlint --edit $1"
   },
   "dependencies": {
+    "@giscus/react": "^3.1.0",
     "@jsquash/jpeg": "^1.6.0",
     "@jsquash/png": "^3.1.1",
     "@jsquash/resize": "^2.1.1",
