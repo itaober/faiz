@@ -17,6 +17,7 @@ import type { ICheckboxRootProps } from './checkbox';
 import { Checkbox, CheckboxLabel, CheckboxRoot } from './checkbox';
 import MdxColumns from './mdx-columns';
 import MDXImageGallery from './mdx-image-gallery';
+import MdxTweet from './mdx-tweet';
 import ParticleImage from './particle-image';
 
 interface ITodoListProps {
@@ -172,6 +173,7 @@ const components: MDXComponents = {
   Image,
   ImageGallery: MDXImageGallery,
   ParticleImage,
+  Tweet: MdxTweet,
   img: Image,
 };
 

@@ -1202,3 +1202,61 @@ button {
   --tw-prose-kbd: var(--foreground);
   --tw-prose-kbd-shadows: var(--border);
 }
+
+/* react-tweet hangs its light palette off `.light` / `[data-theme='light']`, which
+   this site never sets — it only toggles `.dark`. That leaves the stylesheet's
+   trailing `@media (prefers-color-scheme: dark)` block free to darken a tweet
+   inside a light page. Restating every colour it touches, at a specificity the
+   media block cannot reach, both fixes that and applies the site palette. */
+:root .react-tweet-theme {
+  --tweet-bg-color: var(--surface);
+  --tweet-bg-color-hover: var(--muted);
+  --tweet-border: 1px solid var(--border);
+  --tweet-font-family: inherit;
+  --tweet-font-color: var(--foreground);
+  --tweet-font-color-secondary: var(--muted-foreground);
+  --tweet-color-blue-primary: var(--accent);
+  --tweet-color-blue-primary-hover: color-mix(in oklch, var(--accent) 85%, var(--foreground));
+  --tweet-color-blue-secondary: var(--accent);
+  --tweet-color-blue-secondary-hover: color-mix(in oklch, var(--accent) 12%, transparent);
+  --tweet-color-green-primary: var(--success);
+  --tweet-color-green-primary-hover: color-mix(in oklch, var(--success) 12%, transparent);
+  --tweet-color-red-primary: var(--danger);
+  --tweet-color-red-primary-hover: color-mix(in oklch, var(--danger) 12%, transparent);
+  --tweet-twitter-icon-color: var(--muted-foreground);
+  --tweet-verified-blue-color: var(--accent);
+  --tweet-verified-old-color: var(--muted-foreground);
+  --tweet-skeleton-gradient: linear-gradient(
+    270deg,
+    var(--muted),
+    var(--surface),
+    var(--surface),
+    var(--muted)
+  );
+}
+
+.dark .react-tweet-theme {
+  --tweet-bg-color: var(--surface);
+  --tweet-bg-color-hover: var(--muted);
+  --tweet-border: 1px solid var(--border);
+  --tweet-font-color: var(--foreground);
+  --tweet-font-color-secondary: var(--muted-foreground);
+  --tweet-color-blue-primary: var(--accent);
+  --tweet-color-blue-primary-hover: color-mix(in oklch, var(--accent) 85%, var(--foreground));
+  --tweet-color-blue-secondary: var(--accent);
+  --tweet-color-blue-secondary-hover: color-mix(in oklch, var(--accent) 16%, transparent);
+  --tweet-color-green-primary: var(--success);
+  --tweet-color-green-primary-hover: color-mix(in oklch, var(--success) 16%, transparent);
+  --tweet-color-red-primary: var(--danger);
+  --tweet-color-red-primary-hover: color-mix(in oklch, var(--danger) 16%, transparent);
+  --tweet-twitter-icon-color: var(--muted-foreground);
+  --tweet-verified-blue-color: var(--accent);
+  --tweet-verified-old-color: var(--muted-foreground);
+  --tweet-skeleton-gradient: linear-gradient(
+    270deg,
+    var(--muted),
+    var(--surface),
+    var(--surface),
+    var(--muted)
+  );
+}
