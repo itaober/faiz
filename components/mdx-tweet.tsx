@@ -1,3 +1,4 @@
+import { ExternalLinkIcon } from 'lucide-react';
 import { Tweet } from 'react-tweet';
 
 import 'react-tweet/theme.css';
@@ -12,21 +13,25 @@ import './mdx-tweet.css';
 const TWEET_REVALIDATE_SECONDS = 60 * 60 * 24;
 
 /**
- * The upstream fallback drops the URL, which leaves a reader with no way to go
- * look for themselves once a tweet is deleted or the syndication API refuses.
+ * Stands in whenever the embed cannot be built, which most often means the
+ * syndication API timed out or throttled us rather than that anything happened
+ * to the post — so the copy scopes the failure to the preview and hands over the
+ * permalink. The upstream fallback drops the URL, leaving a reader nowhere to go.
  */
-const TweetUnavailable = ({ id }: { id: string }) => (
-  <p className="text-muted-foreground border-border rounded-lg border border-dashed px-4 py-3 text-sm">
-    Tweet unavailable ·{' '}
-    <a
-      className="text-accent underline underline-offset-2"
-      href={`https://x.com/i/status/${id}`}
-      rel="noreferrer noopener"
-      target="_blank"
-    >
-      View on X
-    </a>
-  </p>
+const TweetLink = ({ id }: { id: string }) => (
+  <a
+    className="focus-ring border-border text-muted-foreground hover:bg-muted/65 hover:text-foreground block rounded-lg border px-4 py-3 text-sm transition-colors"
+    href={`https://x.com/i/status/${id}`}
+    rel="noreferrer noopener"
+    target="_blank"
+  >
+    Preview unavailable · Read on X
+    <ExternalLinkIcon
+      aria-hidden="true"
+      className="ml-0.5 inline size-3 align-[0.05em] opacity-55"
+    />
+    <span className="sr-only select-none">(opens in a new tab)</span>
+  </a>
 );
 
 /**
@@ -41,7 +46,7 @@ const MdxTweet = ({ id }: { id: string }) => (
     <Tweet
       id={id}
       fetchOptions={{ next: { revalidate: TWEET_REVALIDATE_SECONDS } }}
-      components={{ TweetNotFound: () => <TweetUnavailable id={id} /> }}
+      components={{ TweetNotFound: () => <TweetLink id={id} /> }}
     />
   </div>
 );
