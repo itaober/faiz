@@ -187,6 +187,15 @@
   ],
   "music": [
     {
+      "title": "Life After Small Town",
+      "link": "https://www.douban.com/doubanapp/dispatch/music/36934934",
+      "coverUrl": "/api/image/assets/records/music_life-after-small-town.webp",
+      "createdTime": "2026-09-04",
+      "rating": 7.7,
+      "comment": "不是《钱专》，也带满着「钱」的味道。",
+      "type": "music"
+    },
+    {
       "title": "勇気",
       "link": "https://music.douban.com/subject/37392834/",
       "coverUrl": "/api/image/assets/records/music_勇気.webp",
