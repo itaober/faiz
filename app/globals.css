@@ -743,12 +743,6 @@ button {
     color: var(--foreground);
     font-size: 15px;
   }
-  /* ≥16px on touch widths, or iOS Safari zooms the page on focus. */
-  @media (max-width: 767px) {
-    .fz-search-input-row input {
-      font-size: 16px;
-    }
-  }
   .fz-search-filters {
     padding: 8px 12px;
     border-bottom: 1px solid var(--border);
@@ -1201,4 +1195,20 @@ button {
   --tw-prose-td-borders: var(--border);
   --tw-prose-kbd: var(--foreground);
   --tw-prose-kbd-shadows: var(--border);
+}
+
+/*
+ * iOS zooms the whole layout when a focused field renders under 16px, and in the
+ * standalone PWA there is no address bar to snap the zoom back from — so every
+ * tap into an editor field leaves the page enlarged.
+ *
+ * Unlayered on purpose: the fields carry `text-[13px]` utilities, which would
+ * otherwise win. `max(16px, 1em)` only lifts the small ones — inherit-sized
+ * fields (post/page titles inside their heading) keep the heading's size.
+ */
+@media (max-width: 767px) {
+  input:not([type='file'], [type='checkbox']),
+  textarea {
+    font-size: max(16px, 1em);
+  }
 }

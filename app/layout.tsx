@@ -2,7 +2,7 @@ import './globals.css';
 
 import { Analytics } from '@vercel/analytics/next';
 import { SpeedInsights } from '@vercel/speed-insights/next';
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Geist_Mono, Inter } from 'next/font/google';
 import { ThemeProvider } from 'next-themes';
 import { Toaster } from 'sonner';
@@ -45,6 +45,14 @@ const geistMono = Geist_Mono({
   variable: '--font-geist-mono',
   subsets: ['latin'],
 });
+
+// Android Chrome 108+ / Firefox 132+: shrink the layout viewport when the soft
+// keyboard opens so fixed panels (drawers, edit dock) dock above it instead of
+// being covered. iOS ignores interactive-widget; vaul + the tiptap toolbar's
+// visualViewport tracking cover that path.
+export const viewport: Viewport = {
+  interactiveWidget: 'resizes-content',
+};
 
 export async function generateMetadata(): Promise<Metadata> {
   const authorInfo = await getMetaInfo();
