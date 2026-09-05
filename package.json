@@ -70,7 +70,7 @@
     "react-doctor": "^0.1.6",
     "simple-git-hooks": "^2.14.0",
     "tailwindcss": "^4.3.3",
-    "typescript": "^5.9.3"
+    "typescript": "^7.0.2"
   },
   "packageManager": "pnpm@11.1.2",
   "engines": {
