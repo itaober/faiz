@@ -9,19 +9,12 @@ import { MemosProvider } from './_context/memos-context';
 
 export const metadata = buildPageMetadata(PAGE_META.memos);
 
-interface MemosPageProps {
-  searchParams?: Promise<{
-    end?: string;
-    limit?: string;
-  }>;
-}
-
-export default function MemosPage({ searchParams }: MemosPageProps) {
+export default function MemosPage() {
   return (
     <MemosProvider>
       <MemosTitle />
       <Suspense fallback={null}>
-        <MemosList searchParams={searchParams} />
+        <MemosList />
       </Suspense>
     </MemosProvider>
   );
