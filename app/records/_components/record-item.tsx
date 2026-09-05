@@ -14,7 +14,7 @@ import { ANIMATION } from '@/lib/constants/animation';
 import type { RecordItem as RecordDataItem } from '@/lib/data/data';
 import { cn } from '@/lib/utils';
 
-import type { Tab } from '../_constants';
+import { isSquareCoverType, type Tab } from '../_constants';
 import { useRecordsInlineComposer } from './use-records-inline-composer';
 
 interface IRecordItemProps extends RecordDataItem {
@@ -38,7 +38,7 @@ export default function RecordItem({
   const { isEditMode } = useEditMode();
   const { editingRecordKey, setEditingRecordKey, mode } = useRecordsInlineComposer();
   const mounted = useMounted();
-  const isMusicTab = tab === 'music';
+  const isSquareGridTab = isSquareCoverType(tab);
   const recordKey = `${type}-${createdTime}-${title}`;
   const coverSizes =
     '(max-width: 640px) calc((100vw - 4rem) / 2), (max-width: 768px) calc((100vw - 5rem) / 3), 11rem';
@@ -57,7 +57,44 @@ export default function RecordItem({
         .filter(Boolean)
     : [];
 
-  const coverImage = (
+  // Album art is square; in the mixed (2:3) grid, letterbox it instead of
+  // cropping. The music tab's grid is already square. The square content lives
+  // in its own element (not object-contain) so the preview's FLIP measures 1:1.
+  const isLetterboxedSquare = isSquareCoverType(type) && !isSquareGridTab;
+
+  const squareCoverImage = (
+    <Image
+      src={coverUrl}
+      alt={title}
+      width={0}
+      height={0}
+      sizes={coverSizes}
+      loading={preloadCover ? 'eager' : undefined}
+      preload={preloadCover}
+      className={cn(
+        'aspect-square w-full object-cover transition-transform duration-(--fz-dur-slow)',
+        !canEdit && 'group-hover:scale-[1.015]',
+      )}
+    />
+  );
+
+  const letterboxFrame = (content: React.ReactNode) => (
+    <span className="fz-img-outline relative block aspect-[2/3] w-full overflow-hidden rounded-md bg-[var(--fz-image-frame)]">
+      <Image
+        src={coverUrl}
+        alt=""
+        aria-hidden
+        width={0}
+        height={0}
+        sizes={coverSizes}
+        data-cover-blur
+        className="absolute inset-0 h-full w-full scale-125 object-cover blur-lg opacity-50"
+      />
+      <span className="absolute inset-x-0 top-1/2 block -translate-y-1/2">{content}</span>
+    </span>
+  );
+
+  const coverImage = isLetterboxedSquare ? null : (
     <Image
       src={coverUrl}
       alt={title}
@@ -68,7 +105,7 @@ export default function RecordItem({
       preload={preloadCover}
       className={cn(
         'fz-img-outline relative aspect-[2/3] w-full rounded-md object-cover transition-transform duration-(--fz-dur-slow)',
-        isMusicTab && 'aspect-square',
+        isSquareGridTab && 'aspect-square',
         !canEdit && 'group-hover:scale-[1.015]',
       )}
     />
@@ -99,17 +136,30 @@ export default function RecordItem({
               : 'group-hover:shadow-[0_0_0_2px_var(--background),0_0_0_3px_var(--border)]',
           )}
         >
-          {coverImage}
+          {isLetterboxedSquare ? letterboxFrame(squareCoverImage) : coverImage}
         </div>
       ) : (
         <Preview>
-          <PreviewTrigger
-            previewSrc={coverUrl}
-            ariaLabel={`Open cover preview: ${title}`}
-            className="rounded-md"
-          >
-            <div className="overflow-hidden rounded-md">{coverImage}</div>
-          </PreviewTrigger>
+          {isLetterboxedSquare ? (
+            letterboxFrame(
+              <PreviewTrigger
+                as="span"
+                previewSrc={coverUrl}
+                ariaLabel={`Open cover preview: ${title}`}
+                className="block"
+              >
+                {squareCoverImage}
+              </PreviewTrigger>,
+            )
+          ) : (
+            <PreviewTrigger
+              previewSrc={coverUrl}
+              ariaLabel={`Open cover preview: ${title}`}
+              className="rounded-md"
+            >
+              <div className="overflow-hidden rounded-md">{coverImage}</div>
+            </PreviewTrigger>
+          )}
           <PreviewPortal
             ariaLabel={`Cover preview: ${title}`}
             aside={

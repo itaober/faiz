@@ -21,7 +21,7 @@ import { SUPPORTED_IMAGE_TYPES } from '@/lib/constants/image';
 import type { RecordItem } from '@/lib/data/data';
 import { buildEditorImageStoragePath } from '@/lib/utils/editor-image';
 
-import { tabList } from '../_constants';
+import { isSquareCoverType, tabList } from '../_constants';
 
 // Reuse the read-side tab labels so the type segment stays in sync (e.g. "TV").
 const typeOptions = tabList.filter(tab => tab.value !== 'all') as {
@@ -209,7 +209,9 @@ export default function RecordsSidePanel({
 
             {/* biome-ignore lint/a11y/noStaticElementInteractions: drop zone layered over the file-picker button below, which is the keyboard path */}
             <div
-              className="fz-cover mx-auto mt-1 mb-[22px] aspect-[2/3] w-[132px]"
+              className={`fz-cover mx-auto mt-1 mb-[22px] w-[132px] ${
+                isSquareCoverType(type) ? 'aspect-square' : 'aspect-[2/3]'
+              }`}
               onDragOver={event => {
                 event.preventDefault();
                 setIsDragging(true);
