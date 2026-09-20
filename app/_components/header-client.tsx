@@ -56,7 +56,13 @@ export default function HeaderClient({ avatar, avatarAlt, navNodes }: IHeaderCli
         <Link href="/">
           <motion.div
             className="relative"
-            initial={{ scale: 0.96, opacity: 0 }}
+            // `initial={false}` rather than fading in from opacity 0: the server
+            // HTML would otherwise arrive invisible and only appear once rAF
+            // runs, which a background tab or a PWA resumed from the app
+            // switcher can defer indefinitely — the failure motion-wrapper.tsx
+            // was rewritten to avoid. The header is the one thing that must
+            // never be the casualty of that.
+            initial={false}
             animate={{ scale: 1, opacity: 1 }}
             transition={{ duration: ANIMATION.duration.slow, ease: ANIMATION.ease.out }}
             whileHover={{ scale: 1.04 }}
@@ -79,7 +85,7 @@ export default function HeaderClient({ avatar, avatarAlt, navNodes }: IHeaderCli
         </Link>
         <nav aria-label="Primary navigation">
           <ul className="group flex items-center gap-2.5 text-[15px] md:gap-6 md:text-base">
-            {navNodes.map((el, index) => {
+            {navNodes.map(el => {
               const active = el.href ? isActive(el.key) : false;
               const node =
                 el.href && isValidElement<{ 'aria-current'?: 'page' }>(el.node)
@@ -91,13 +97,17 @@ export default function HeaderClient({ avatar, avatarAlt, navNodes }: IHeaderCli
               return (
                 <motion.li
                   key={el.key}
-                  initial={{ opacity: 0 }}
+                  // Same reason as the avatar above. The opacity here is state,
+                  // not an entrance — 0.7 inactive, 1 active — so starting at
+                  // the animate value keeps the nav legible in server HTML and
+                  // still cross-fades when the route changes. The entrance
+                  // stagger went with it; it had nothing left to stagger.
+                  initial={false}
                   animate={{
                     opacity: active ? 1 : 0.7,
                     y: 0,
                   }}
                   transition={{
-                    delay: index * ANIMATION.stagger.fast + 0.2,
                     duration: ANIMATION.duration.normal,
                     ease: ANIMATION.ease.out,
                   }}

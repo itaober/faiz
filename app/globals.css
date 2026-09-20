@@ -101,6 +101,13 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans);
+  /*
+   * `viewport-fit=cover` hands us the full display, cutout included, so in
+   * landscape the notch would otherwise sit on top of the header and the prose.
+   * Both insets are 0 in portrait and on every non-notched screen.
+   */
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
 }
 
 button {
@@ -849,6 +856,9 @@ button {
        locked: vaul's `fixed` mode shrinks this height to sit above the keyboard,
        which a min-height would otherwise block. */
     height: 85dvh;
+    /* Docked to the bottom edge, so the last result would otherwise sit under
+       the home indicator. */
+    padding-bottom: env(safe-area-inset-bottom);
     background: var(--surface);
     border: 1px solid var(--border);
     border-bottom: none;

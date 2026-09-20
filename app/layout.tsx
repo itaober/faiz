@@ -52,6 +52,19 @@ const geistMono = Geist_Mono({
 // visualViewport tracking cover that path.
 export const viewport: Viewport = {
   interactiveWidget: 'resizes-content',
+  // Lets the page paint into the display cutout, and — the reason it is here —
+  // makes `env(safe-area-inset-*)` report real values. Without it iOS insets the
+  // standalone webview itself and every inset reads 0, so the fixed panels that
+  // already guard with `max(1.25rem, env(safe-area-inset-bottom))` were silently
+  // taking the 1.25rem branch and sitting under the home indicator.
+  viewportFit: 'cover',
+  // iOS tints the standalone status bar from this, never from the manifest's
+  // theme_color. Both values are --background in globals.css, resolved to sRGB
+  // because Safari will not take an oklch() here.
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#f8f9f6' },
+    { media: '(prefers-color-scheme: dark)', color: '#121210' },
+  ],
 };
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -79,7 +92,16 @@ export async function generateMetadata(): Promise<Metadata> {
       template: `%s - ${authorInfo.name}`,
     },
     description: buildDescription(authorInfo?.bio, authorInfo.name),
-    icons: authorInfo?.avatar,
+    // Not the avatar: `site`'s avatar is the 3024px original, and pointing the
+    // favicon at it made every visitor download 276 KB to paint 16 CSS pixels.
+    // These are the halftone icons in public/, sized for the job.
+    icons: {
+      icon: [
+        { url: '/favicon-32x32.png', sizes: '32x32', type: 'image/png' },
+        { url: '/icon-192x192.png', sizes: '192x192', type: 'image/png' },
+      ],
+      apple: { url: '/apple-touch-icon.png', sizes: '180x180', type: 'image/png' },
+    },
     authors: authorInfo?.site ? [{ name: authorInfo.name, url: authorInfo.site }] : undefined,
     alternates: {
       types: RSS_ALTERNATE_TYPES,
