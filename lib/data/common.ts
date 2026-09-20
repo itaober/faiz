@@ -4,6 +4,7 @@ import { cache } from 'react';
 import { formatTimeForId } from '@/lib/dayjs';
 import { GitHubApiError, gitHubApiError } from '@/lib/errors';
 
+import { type IGitHubApiOptions, parseContentSource } from './content-source';
 import { fetchWithRetry } from './fetch-with-retry';
 
 /** GitHub Token from environment variables */
@@ -61,15 +62,6 @@ const getGitHubToken = (providedToken?: string) => {
   return providedToken || GITHUB_TOKEN;
 };
 
-/** GitHub API configuration options interface */
-interface IGitHubApiOptions {
-  owner: string;
-  repo: string;
-  branch?: string;
-}
-
-const CONTENT_BRANCH =
-  process.env.GITHUB_CONTENT_BRANCH || process.env.NEXT_PUBLIC_GITHUB_CONTENT_BRANCH || 'content';
 const GITHUB_CONTENT_CACHE_TAG = 'github-content';
 const GITHUB_CONTENT_TAG_PREFIX = `${GITHUB_CONTENT_CACHE_TAG}:`;
 
@@ -89,11 +81,9 @@ const revalidateGitHubContent = (path: string) => {
 };
 
 /** Default GitHub API configuration */
-export const GIT_HUB_API_OPTIONS: IGitHubApiOptions = {
-  owner: 'itaober',
-  repo: 'faiz',
-  branch: CONTENT_BRANCH,
-};
+export const GIT_HUB_API_OPTIONS: IGitHubApiOptions = parseContentSource(
+  process.env.GITHUB_CONTENT || 'itaober/faiz#content',
+);
 
 /**
  * Builds GitHub Contents API URL
@@ -103,7 +93,7 @@ export const GIT_HUB_API_OPTIONS: IGitHubApiOptions = {
  * @returns Complete GitHub API URL
  */
 const getGitHubApiUrl = (path: string, { owner, repo, branch } = GIT_HUB_API_OPTIONS) =>
-  `https://api.github.com/repos/${owner}/${repo}/contents/${path}?ref=${branch}`;
+  `https://api.github.com/repos/${owner}/${repo}/contents/${path}?ref=${encodeURIComponent(branch ?? '')}`;
 
 /**
  * Low-level GitHub API fetch function
