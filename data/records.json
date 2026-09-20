@@ -29,6 +29,15 @@
   ],
   "movie": [
     {
+      "title": "无双",
+      "link": "https://www.douban.com/doubanapp/dispatch/movie/26425063",
+      "coverUrl": "/api/image/assets/records/movie_无双.webp",
+      "createdTime": "2026-09-19",
+      "rating": 8,
+      "comment": "看的第二遍，依旧精彩。\n可惜核心诡计不是原创，跟《非常嫌疑犯》的设计如出一辙，结尾阮文的反转也让我想到《恶意》。",
+      "type": "movie"
+    },
+    {
       "title": "欢迎来龙餐馆",
       "link": "https://www.douban.com/doubanapp/dispatch/movie/35811064?dt_dapp=1",
       "coverUrl": "/api/image/assets/records/movie_欢迎来龙餐馆.webp",
