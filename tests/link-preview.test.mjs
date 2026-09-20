@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { getLinkPreview, isBlockedLinkAddress } from '../lib/server/link-preview.ts';
+import { capRead, getLinkPreview, isBlockedLinkAddress } from '../lib/server/link-preview.ts';
 import { signLinkIconUrl, verifyLinkIconSignature } from '../lib/server/link-preview-signature.ts';
 
 test('keeps public IPv4 separate from IPv4-mapped IPv6 blocking', () => {
@@ -57,4 +57,24 @@ test('rejects invalid preview URLs before any request is made', async () => {
     /Non-standard link ports are not allowed/,
   );
   await assert.rejects(getLinkPreview('http://staging.localhost/'), /Local links are not allowed/);
+});
+
+test('caps oversized HTML instead of refusing it, but still refuses oversized icons', () => {
+  const max = 100;
+
+  // Under budget: keep everything, keep reading.
+  assert.deepEqual(capRead(0, 40, max, true), { keep: 40, done: false });
+  assert.deepEqual(capRead(60, 40, max, true), { keep: 40, done: false });
+
+  // Over budget with truncation (HTML): keep what fits, stop. A page that
+  // inlines a hydration payload runs past the cap long after </head>.
+  assert.deepEqual(capRead(0, 291_429, max, true), { keep: 100, done: true });
+  assert.deepEqual(capRead(90, 40, max, true), { keep: 10, done: true });
+
+  // Over budget without truncation (icons): reject — half an image is corrupt.
+  assert.equal(capRead(0, 291_429, max, false), undefined);
+  assert.equal(capRead(90, 40, max, false), undefined);
+
+  // Exactly at the cap is not over it.
+  assert.deepEqual(capRead(60, 40, max, false), { keep: 40, done: false });
 });

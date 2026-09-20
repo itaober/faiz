@@ -91,7 +91,31 @@ interface ResourceOptions {
   accept: string;
   maxBytes: number;
   contentTypes: ReadonlySet<string>;
+  /**
+   * Whether `maxBytes` caps the read or rejects the response. HTML keeps what
+   * fits — everything we parse lives in <head>, and pages that inline a hydration
+   * payload run far past the cap. A truncated image is just corrupt, so icons
+   * still refuse anything oversized.
+   */
+  truncate: boolean;
 }
+
+/**
+ * How much of an incoming read to keep. `undefined` means the response is over
+ * budget and must be rejected; `done` means the cap was reached and the rest of
+ * the body can be dropped.
+ */
+export const capRead = (
+  received: number,
+  incoming: number,
+  maxBytes: number,
+  truncate: boolean,
+): { keep: number; done: boolean } | undefined => {
+  if (received + incoming <= maxBytes) {
+    return { keep: incoming, done: false };
+  }
+  return truncate ? { keep: maxBytes - received, done: true } : undefined;
+};
 
 const previewCache = new Map<string, CachedValue<LinkPreviewData>>();
 const previewRequests = new Map<string, Promise<LinkPreviewData>>();
@@ -358,7 +382,7 @@ const requestResource = async (
         }
 
         const contentLength = Number(response.headers['content-length'] ?? 0);
-        if (contentLength > options.maxBytes) {
+        if (!capRead(0, contentLength, options.maxBytes, options.truncate)) {
           response.resume();
           reject(new Error('Link preview response is too large'));
           return;
@@ -366,17 +390,32 @@ const requestResource = async (
 
         const chunks: Buffer[] = [];
         let totalBytes = 0;
+        let settled = false;
+        const finish = () => {
+          if (settled) {
+            return;
+          }
+          settled = true;
+          resolve({ status, contentType, body: Buffer.concat(chunks) });
+        };
+
         response.on('data', (chunk: Buffer) => {
-          totalBytes += chunk.length;
-          if (totalBytes > options.maxBytes) {
+          if (settled) {
+            return;
+          }
+          const capped = capRead(totalBytes, chunk.length, options.maxBytes, options.truncate);
+          if (!capped) {
             response.destroy(new Error('Link preview response is too large'));
             return;
           }
-          chunks.push(chunk);
+          chunks.push(capped.keep === chunk.length ? chunk : chunk.subarray(0, capped.keep));
+          totalBytes += capped.keep;
+          if (capped.done) {
+            response.destroy();
+            finish();
+          }
         });
-        response.on('end', () => {
-          resolve({ status, contentType, body: Buffer.concat(chunks) });
-        });
+        response.on('end', finish);
         response.on('error', reject);
       },
     );
@@ -419,6 +458,7 @@ const fetchPreview = async (input: string) => {
     accept: 'text/html,application/xhtml+xml;q=0.9',
     maxBytes: MAX_HTML_BYTES,
     contentTypes: HTML_CONTENT_TYPES,
+    truncate: true,
   });
   return parseMetadata(response.body?.toString('utf8') ?? '', url);
 };
@@ -428,6 +468,7 @@ const fetchIcon = async (input: string): Promise<LinkIconData> => {
     accept: 'image/png,image/jpeg,image/webp,image/gif,image/x-icon,*/*;q=0.1',
     maxBytes: MAX_ICON_BYTES,
     contentTypes: ICON_CONTENT_TYPES,
+    truncate: false,
   });
   if (!response.body || !response.contentType) {
     throw new Error('Unable to load link icon');
