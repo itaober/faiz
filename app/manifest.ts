@@ -19,6 +19,9 @@ export default function manifest(): MetadataRoute.Manifest {
     // page it handed over to.
     background_color: '#f8f9f6',
     theme_color: '#f8f9f6',
+    // Halftone renders of the About page's portrait, so the installed app looks
+    // like the site rather than like a cropped selfie. Regenerate with
+    // `node scripts/generate-icons.mjs <cutout.png>`.
     icons: [
       {
         src: '/icon-192x192.png',
@@ -32,8 +35,8 @@ export default function manifest(): MetadataRoute.Manifest {
         type: 'image/png',
         purpose: 'any',
       },
-      // Full-bleed photo has the hair running off the top edge, which a circular
-      // Android mask would clip. This one is inset to sit inside the safe zone.
+      // The portrait runs the full height of the square, so a circular Android
+      // mask would clip it. This one is scaled down to clear the safe zone.
       {
         src: '/icon-maskable-512x512.png',
         sizes: '512x512',

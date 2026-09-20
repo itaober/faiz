@@ -94,7 +94,7 @@ export async function generateMetadata(): Promise<Metadata> {
     description: buildDescription(authorInfo?.bio, authorInfo.name),
     // Not the avatar: `site`'s avatar is the 3024px original, and pointing the
     // favicon at it made every visitor download 276 KB to paint 16 CSS pixels.
-    // These are the same face, pre-sized in public/ alongside the manifest icons.
+    // These are the halftone icons in public/, sized for the job.
     icons: {
       icon: [
         { url: '/favicon-32x32.png', sizes: '32x32', type: 'image/png' },

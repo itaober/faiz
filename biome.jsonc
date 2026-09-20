@@ -84,6 +84,15 @@
       }
     },
     {
+      // Build scripts report what they wrote.
+      "includes": ["scripts/**"],
+      "linter": {
+        "rules": {
+          "suspicious": { "noConsole": "off" }
+        }
+      }
+    },
+    {
       "includes": ["public/sw.js"],
       "javascript": {
         "globals": ["self", "clients", "caches", "skipWaiting", "registration"]
