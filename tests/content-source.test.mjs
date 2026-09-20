@@ -25,6 +25,10 @@ test('parses owner/repo#branch, defaulting the branch', () => {
 test('refuses anything that would not stay inside the contents path', () => {
   // owner and repo are interpolated straight into the GitHub API URL.
   for (const value of ['faiz', '', '../../etc#content', 'a/b?ref=x', 'a/b/c', 'a/b#a?b', 'a/b#']) {
-    assert.throws(() => parseContentSource(value), /GITHUB_CONTENT must look like/);
+    assert.throws(() => parseContentSource(value), /GITHUB_CONTENT must name the repo/);
   }
+});
+
+test("has no default, so an unset value cannot publish somebody else's blog", () => {
+  assert.throws(() => parseContentSource(undefined), /got no value at all/);
 });
