@@ -82,7 +82,7 @@ const revalidateGitHubContent = (path: string) => {
 
 /** Default GitHub API configuration */
 export const GIT_HUB_API_OPTIONS: IGitHubApiOptions = parseContentSource(
-  process.env.GITHUB_CONTENT || 'itaober/faiz#content',
+  process.env.GITHUB_CONTENT,
 );
 
 /**
