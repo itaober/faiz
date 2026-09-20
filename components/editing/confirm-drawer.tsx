@@ -32,7 +32,7 @@ export default function ConfirmDrawer({
       <Drawer.Portal>
         <Drawer.Overlay className="bg-foreground/40 fixed inset-0 z-30" />
         <Drawer.Content className="bg-background fixed right-0 bottom-0 left-0 z-30 rounded-t-xl outline-none">
-          <div className="space-y-3 px-4 pt-5 pb-6">
+          <div className="space-y-3 px-4 pt-5 pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
             <Drawer.Title className="text-center text-sm font-medium">{title}</Drawer.Title>
             {description && (
               <Drawer.Description className="text-muted-foreground text-center text-sm">

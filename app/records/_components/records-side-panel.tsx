@@ -370,7 +370,7 @@ export default function RecordsSidePanel({
             </div>
           </div>
 
-          <div className="border-border flex shrink-0 items-center justify-end gap-2 border-t px-4 py-3">
+          <div className="border-border flex shrink-0 items-center justify-end gap-2 border-t px-4 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
             {isEdit && (
               <button
                 type="button"
