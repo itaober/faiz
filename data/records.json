@@ -196,6 +196,15 @@
   ],
   "music": [
     {
+      "title": "商业与玩法",
+      "link": "https://163cn.tv/bhw0V3eu",
+      "coverUrl": "/api/image/assets/records/music_商业与玩法.webp",
+      "createdTime": "2026-09-30",
+      "rating": 7.6,
+      "comment": "有意思！",
+      "type": "music"
+    },
+    {
       "title": "蛋专",
       "link": "https://music.douban.com/subject/38909667/",
       "coverUrl": "/api/image/assets/records/music_蛋专.webp",
