@@ -196,6 +196,14 @@
   ],
   "music": [
     {
+      "title": "蛋专",
+      "link": "https://music.douban.com/subject/38909667/",
+      "coverUrl": "/api/image/assets/records/music_蛋专.webp",
+      "createdTime": "2026-09-30",
+      "rating": 7.1,
+      "type": "music"
+    },
+    {
       "title": "Life After Small Town",
       "link": "https://www.douban.com/doubanapp/dispatch/music/36934934",
       "coverUrl": "/api/image/assets/records/music_life-after-small-town.webp",
