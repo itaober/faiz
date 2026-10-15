@@ -30,10 +30,9 @@ const nextConfig: NextConfig = {
     root: __dirname,
   },
   // Vercel Hobby bills every cache MISS/STALE per (image × width) against 5K/month.
-  // Content images are immutable (random id in the path), so cache them for the
-  // 31-day max, and keep only the widths our layouts actually pick. Uploads are
-  // capped at 1920px; 2560 only serves older full-size post photos in the
-  // Retina lightbox.
+  // Cache for the 31-day max (editor uploads always get a fresh random-id path) and
+  // keep only the widths our layouts pick. Uploads cap at 1920px; 2560 serves older
+  // full-size post photos in the Retina lightbox.
   images: {
     minimumCacheTTL: 2678400,
     deviceSizes: [640, 1200, 1920, 2560],
