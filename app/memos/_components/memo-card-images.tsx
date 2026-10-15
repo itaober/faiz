@@ -4,6 +4,7 @@ import Image from 'next/image';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { Preview, PreviewImage, PreviewPortal, PreviewTrigger } from '@/components/preview';
+import type { ImageMeta } from '@/lib/data/images';
 import { cn } from '@/lib/utils';
 import { toApiImageUrl } from '@/lib/utils/editor-image';
 
@@ -24,10 +25,11 @@ const getMemoImageSizes = (columns: number) => {
 };
 
 interface MemoCardImagesProps {
-  images: string[];
+  images: { path: string; meta: ImageMeta | null }[];
+  eager?: boolean;
 }
 
-export default function MemoCardImages({ images }: MemoCardImagesProps) {
+export default function MemoCardImages({ images, eager }: MemoCardImagesProps) {
   const layout = getMemoImageLayout(images.length);
   const { columns, visibleCount } = layout;
   const visibleImages = useMemo(() => images.slice(0, visibleCount), [images, visibleCount]);
@@ -35,7 +37,10 @@ export default function MemoCardImages({ images }: MemoCardImagesProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const touchStartXRef = useRef<number | null>(null);
   const touchStartYRef = useRef<number | null>(null);
-  const previewUrls = useMemo(() => visibleImages.map(toApiImageUrl), [visibleImages]);
+  const previewUrls = useMemo(
+    () => visibleImages.map(image => toApiImageUrl(image.path)),
+    [visibleImages],
+  );
 
   useEffect(() => {
     setCurrentIndex(index => Math.min(index, Math.max(0, visibleCount - 1)));
@@ -111,14 +116,17 @@ export default function MemoCardImages({ images }: MemoCardImagesProps) {
       >
         {previewUrls.map((url, index) => {
           const imageAlt = `Memo image ${index + 1}`;
+          const { meta } = visibleImages[index];
           return (
             <PreviewTrigger
               key={url}
               previewSrc={url}
               onOpen={() => setCurrentIndex(index)}
               ariaLabel={`Open ${imageAlt}`}
+              // The single-image cap mirrors its `sizes` slot, which used to set the width.
               className={cn('rounded-md text-left', {
-                'w-fit': columns === 1,
+                'w-fit max-w-[min(100%,calc(100vw_-_5.5rem))] md:max-w-[min(100%,36rem)]':
+                  columns === 1,
                 'w-full': columns > 1,
               })}
             >
@@ -130,14 +138,20 @@ export default function MemoCardImages({ images }: MemoCardImagesProps) {
                     columns > 1,
                 })}
               >
+                {/* With a known size the box is reserved before the file arrives; without
+                    one, w-auto keeps the old shrink-to-loaded-size behaviour. */}
                 <Image
                   src={url}
                   alt={imageAlt}
-                  width={0}
-                  height={0}
+                  width={meta?.width ?? 0}
+                  height={meta?.height ?? 0}
                   sizes={imageSizes}
+                  loading={eager ? 'eager' : undefined}
+                  placeholder={meta ? 'blur' : 'empty'}
+                  blurDataURL={meta?.blurDataURL}
                   className={cn({
-                    'h-auto w-auto max-w-full rounded-md': columns === 1,
+                    'h-auto max-w-full rounded-md': columns === 1,
+                    'w-auto': columns === 1 && !meta,
                     'relative aspect-square w-full rounded-md object-cover': columns > 1,
                   })}
                 />

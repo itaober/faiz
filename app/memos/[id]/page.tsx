@@ -8,7 +8,6 @@ import { getMemoById, getMemosByMonths, getMemosIndex } from '@/lib/data/memos';
 import { buildDescription, buildPageMetadata } from '@/lib/utils/seo';
 
 import MemoCard from '../_components/memo-card';
-import MemoItemWrapper from '../_components/memo-item-wrapper';
 import MemoList from '../_components/memo-list';
 import { MemosProvider } from '../_context/memos-context';
 
@@ -57,9 +56,7 @@ export default async function MemoPage({ params }: IMemoPageProps) {
             Memos
           </Link>
           <MemoList>
-            <MemoItemWrapper>
-              <MemoCard memo={memo} />
-            </MemoItemWrapper>
+            <MemoCard memo={memo} eager />
           </MemoList>
         </div>
       </MotionWrapper>

@@ -1,10 +1,11 @@
 import MemoCard from '@/app/memos/_components/memo-card';
-import MemoItemWrapper from '@/app/memos/_components/memo-item-wrapper';
 import MemosStream from '@/app/memos/_components/memos-stream';
 import MotionWrapper from '@/components/motion-wrapper';
 import { getMemosByMonths, getMemosIndex } from '@/lib/data/memos';
 
 const INITIAL_MONTHS = 2;
+/** Roughly the memos in the first viewport: their images load eagerly. */
+const EAGER_MEMOS = 3;
 
 /**
  * Static first page: the newest months render into the prerendered HTML (data
@@ -22,10 +23,10 @@ export default async function MemosList() {
     <MotionWrapper>
       <div className="mt-6">
         <MemosStream initialNextOffset={nextOffset}>
-          {memos.map(memo => (
-            <MemoItemWrapper key={memo.id}>
-              <MemoCard memo={memo} />
-            </MemoItemWrapper>
+          {memos.map((memo, index) => (
+            <MotionWrapper key={memo.id}>
+              <MemoCard memo={memo} eager={index < EAGER_MEMOS} />
+            </MotionWrapper>
           ))}
         </MemosStream>
       </div>

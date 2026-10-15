@@ -1,9 +1,9 @@
 'use server';
 
+import MotionWrapper from '@/components/motion-wrapper';
 import { getMemosByMonths, getMemosIndex } from '@/lib/data/memos';
 
 import MemoCard from '../_components/memo-card';
-import MemoItemWrapper from '../_components/memo-item-wrapper';
 
 export interface LoadedMemosPage {
   items: React.ReactNode;
@@ -27,9 +27,9 @@ export async function loadMemosPageAction(offset: number): Promise<LoadedMemosPa
 
   return {
     items: memos.map(memo => (
-      <MemoItemWrapper key={memo.id}>
+      <MotionWrapper key={memo.id}>
         <MemoCard memo={memo} />
-      </MemoItemWrapper>
+      </MotionWrapper>
     )),
     nextOffset: index + 1 < months.length ? index + 1 : null,
   };

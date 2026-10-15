@@ -29,6 +29,16 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: __dirname,
   },
+  // Vercel Hobby bills every cache MISS/STALE per (image × width) against 5K/month.
+  // Content images are immutable (random id in the path), so cache them for the
+  // 31-day max, and keep only the widths our layouts actually pick. Uploads are
+  // capped at 1920px; 2560 only serves older full-size post photos in the
+  // Retina lightbox.
+  images: {
+    minimumCacheTTL: 2678400,
+    deviceSizes: [640, 1200, 1920, 2560],
+    imageSizes: [64, 128, 256, 384],
+  },
   experimental: {
     serverActions: {
       // Keep this at Vercel's Function payload limit (request/response body max: 4.5 MB):
