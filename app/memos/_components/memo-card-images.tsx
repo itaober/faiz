@@ -123,7 +123,8 @@ export default function MemoCardImages({ images, eager }: MemoCardImagesProps) {
               previewSrc={url}
               onOpen={() => setCurrentIndex(index)}
               ariaLabel={`Open ${imageAlt}`}
-              // The single-image cap mirrors its `sizes` slot, which used to set the width.
+              // Cap single images at their `sizes` slot; the width attribute alone would
+              // stretch them to the column.
               className={cn('rounded-md text-left', {
                 'w-fit max-w-[min(100%,calc(100vw_-_5.5rem))] md:max-w-[min(100%,36rem)]':
                   columns === 1,
@@ -138,8 +139,8 @@ export default function MemoCardImages({ images, eager }: MemoCardImagesProps) {
                     columns > 1,
                 })}
               >
-                {/* With a known size the box is reserved before the file arrives; without
-                    one, w-auto keeps the old shrink-to-loaded-size behaviour. */}
+                {/* A known size reserves the box before the file loads; without one, w-auto
+                    sizes it on load. */}
                 <Image
                   src={url}
                   alt={imageAlt}

@@ -33,8 +33,12 @@ export default function MemosStream({ children, initialNextOffset }: MemosStream
     requestedOffsetRef.current = nextOffset;
     startTransition(async () => {
       const page = await loadMemosPageAction(nextOffset);
-      setPages(prev => [...prev, page.items]);
-      setNextOffset(page.nextOffset);
+      // Updates after an `await` fall out of the transition; as urgent updates the
+      // still-streaming items would suspend the page-level <Suspense> and blank the list.
+      startTransition(() => {
+        setPages(prev => [...prev, page.items]);
+        setNextOffset(page.nextOffset);
+      });
     });
   }, [nextOffset]);
 

@@ -33,7 +33,8 @@ export async function getImageMeta(path: string): Promise<ImageMeta | null> {
 
   try {
     const res = await fetchGitHubApi(path, { next: { revalidate: 7 * 24 * 60 * 60 } });
-    // ponytail: re-decoded on every render (a few ms per image); wrap in a persistent cache if renders get slow.
+    // ponytail: re-decoded on every render (a few ms per image); wrap in a persistent
+    // cache if renders get slow.
     const image = sharp(Buffer.from(await res.arrayBuffer()));
     const { autoOrient } = await image.metadata();
     const blur = await image.autoOrient().resize(8, 8, { fit: 'inside' }).webp().toBuffer();
