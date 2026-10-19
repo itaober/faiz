@@ -168,9 +168,12 @@ button {
    * stalling at opacity 0.217). Animating from a keyframe leaves the markup
    * visible on its own, so no-JS, crawlers and throttled tabs all still read it.
    * The reduced-motion block above neutralises it for free.
+   * Fill backwards only: a forwards fill leaves an identity transform on the
+   * wrapper, which turns it into the containing block for `position: fixed`
+   * descendants such as the post TOC.
    */
   .fz-enter {
-    animation: fz-enter var(--fz-dur-normal) var(--ease-out) both;
+    animation: fz-enter var(--fz-dur-normal) var(--ease-out) backwards;
   }
   @keyframes fz-enter {
     from {
