@@ -1,4 +1,5 @@
-export type LinkCardType = 'music' | 'podcast';
+export const LINK_CARD_TYPES = ['music', 'podcast'] as const;
+export type LinkCardType = (typeof LINK_CARD_TYPES)[number];
 export type LinkCardProvider = 'netease' | 'apple-music' | 'xiaoyuzhou';
 export type LinkCardResource = 'track' | 'album' | 'playlist' | 'episode' | 'show';
 
@@ -200,7 +201,7 @@ export const parseLinkCardMarkup = (source: string): LinkCardProps | null => {
   );
   const href = attrs.get('href');
   const type = attrs.get('type');
-  if (!href || (type && type !== 'music' && type !== 'podcast')) return null;
+  if (!href || (type && !(LINK_CARD_TYPES as readonly string[]).includes(type))) return null;
   const props: LinkCardProps = { href, ...(type ? { type: type as LinkCardType } : {}) };
   for (const key of SNAPSHOT_TEXT) {
     const value = attrs.get(key);

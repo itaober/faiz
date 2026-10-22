@@ -50,23 +50,22 @@ function LinkCardNodeView({ node, editor, selected, updateAttributes }: NodeView
     ...(node.attrs.card || {}),
   };
   const snapshot = getLinkCardSnapshot(stored);
-  const storedMarkup = formatLinkCard(stored);
-  const { data: fetched, loading, valid } = useLinkCard(href, stored.type);
-  const data = fetched && !fetched.unavailable ? fetched : snapshot || fetched;
-  // Once the editor has the card data it stores the canonical address and a
-  // snapshot, so the published page never has to ask the provider — which may
-  // not answer from its region (163cn.tv share links) or at build time at all.
+  const hasSnapshot = snapshot !== null;
+  // A snapshot needs no request. Link-only markup is fetched once, and what
+  // comes back — canonical address included — is stored, so the published
+  // page never has to ask the provider (which may not answer from its region
+  // for 163cn.tv share links, or at build time at all).
+  const live = useLinkCard(hasSnapshot ? '' : href, stored.type);
+  const data = snapshot ?? live.data;
   useEffect(() => {
-    if (!editor.isEditable || !fetched || fetched.unavailable) return;
-    const { href: url, type, ...card } = toLinkCardProps(fetched);
-    if (formatLinkCard({ href: url, type, ...card }) !== storedMarkup) {
-      updateAttributes({
-        href: url,
-        cardType: type,
-        card: Object.fromEntries(Object.entries(card).filter(([, value]) => value !== undefined)),
-      });
-    }
-  }, [editor, fetched, storedMarkup, updateAttributes]);
+    if (!editor.isEditable || hasSnapshot || !live.data || live.data.unavailable) return;
+    const { href: url, type, ...card } = toLinkCardProps(live.data);
+    updateAttributes({
+      href: url,
+      cardType: type,
+      card: Object.fromEntries(Object.entries(card).filter(([, value]) => value !== undefined)),
+    });
+  }, [editor, hasSnapshot, live.data, updateAttributes]);
   return (
     <NodeViewWrapper
       contentEditable={false}
@@ -77,8 +76,8 @@ function LinkCardNodeView({ node, editor, selected, updateAttributes }: NodeView
         isEditable && selected && 'ring-accent ring-offset-background ring-2 ring-offset-2',
       )}
     >
-      {data && valid ? (
-        <LinkCard data={data} loading={loading && !snapshot} preview={isEditable} />
+      {data && (hasSnapshot || live.valid) ? (
+        <LinkCard data={data} loading={!hasSnapshot && live.loading} preview={isEditable} />
       ) : (
         <div className="border-border text-muted-foreground my-3 rounded-lg border p-3 text-sm">
           {href || 'Link card'}
