@@ -27,7 +27,7 @@ declare module '@tiptap/core' {
 export const isLinkCardSelection = (selection: Selection): selection is NodeSelection =>
   selection instanceof NodeSelection && selection.node.type.name === 'linkCard';
 
-function LinkCardNodeView({ node, editor, selected }: NodeViewProps) {
+function LinkCardNodeView({ node, editor, selected, updateAttributes }: NodeViewProps) {
   const [isEditable, setIsEditable] = useState(editor.isEditable);
   useEffect(() => {
     const sync = () => setIsEditable(editor.isEditable);
@@ -38,6 +38,14 @@ function LinkCardNodeView({ node, editor, selected }: NodeViewProps) {
   }, [editor]);
   const href = String(node.attrs.href || '');
   const { data, loading, valid } = useLinkCard(href, node.attrs.cardType || undefined);
+  // Share links such as 163cn.tv only resolve from some networks, so once the
+  // editor has the canonical address, store that: the published page then
+  // never has to follow the short link itself.
+  useEffect(() => {
+    if (editor.isEditable && data && !data.unavailable && data.url !== href) {
+      updateAttributes({ href: data.url });
+    }
+  }, [editor, data, href, updateAttributes]);
   return (
     <NodeViewWrapper
       contentEditable={false}
