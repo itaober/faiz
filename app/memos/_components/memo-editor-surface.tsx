@@ -174,14 +174,15 @@ export default function MemoEditorSurface({ memo, onCancel }: IMemoEditorSurface
       ]
     : [];
 
-  // Image grid mirrors the read view (3-col, aspect-square) with a remove control
-  // on each image + a dashed add box — same layout/size as how memos display.
-  const imagesFooter = (
-    <div className="not-prose grid grid-cols-3 gap-2 pb-4 md:gap-4">
+  // Attachment strip, shown only once something is attached: images already get
+  // in via /image, the mobile toolbar, paste and drop, so an empty tray would
+  // just take space. Thumbnails stay compact — the read view sizes the real grid.
+  const imagesFooter = attachments.length ? (
+    <div className="not-prose flex flex-wrap gap-2 pb-4">
       {attachments.map(attachment => (
         <div
           key={attachment.id}
-          className="group bg-muted/30 relative aspect-square overflow-hidden rounded-md"
+          className="group bg-muted/30 relative size-24 overflow-hidden rounded-md"
         >
           {/* biome-ignore lint/performance/noImgElement: editor preview of a local blob: URL, not optimizable by next/image */}
           <img
@@ -207,13 +208,13 @@ export default function MemoEditorSurface({ memo, onCancel }: IMemoEditorSurface
       <button
         type="button"
         onClick={() => setImageUploadRequestId(requestId => requestId + 1)}
-        className="fz-cover-empty aspect-square w-full"
+        className="fz-cover-empty size-24"
         aria-label="Add image"
       >
         <PlusIcon className="size-5" />
       </button>
     </div>
-  );
+  ) : null;
 
   useDockedActionBar({
     context: isEditMode ? 'Memo' : 'New memo',

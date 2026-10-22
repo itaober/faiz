@@ -98,6 +98,7 @@ interface ResourceOptions {
    * still refuse anything oversized.
    */
   truncate: boolean;
+  validateUrl?: (url: URL) => void;
 }
 
 /**
@@ -185,7 +186,7 @@ const decodeHtmlEntities = (value: string) =>
     return Number.isFinite(number) ? String.fromCodePoint(number) : entity;
   });
 
-const cleanText = (value: string | undefined, maxLength: number) => {
+export const cleanText = (value: string | undefined, maxLength: number) => {
   if (!value) {
     return undefined;
   }
@@ -246,7 +247,7 @@ const getIconUrl = (html: string, pageUrl: URL) => {
   }
 };
 
-const parseMetadata = (html: string, url: URL): LinkPreviewData => {
+export const parseHtmlMetadata = (html: string) => {
   const metadata = new Map<string, string>();
   for (const tag of html.match(/<meta\b[^>]*>/gi) ?? []) {
     const attributes = parseAttributes(tag);
@@ -257,6 +258,11 @@ const parseMetadata = (html: string, url: URL): LinkPreviewData => {
     }
   }
 
+  return metadata;
+};
+
+const parseMetadata = (html: string, url: URL): LinkPreviewData => {
+  const metadata = parseHtmlMetadata(html);
   const htmlTitle = html.match(/<title\b[^>]*>([\s\S]*?)<\/title>/i)?.[1];
   const title =
     cleanText(metadata.get('og:title') || metadata.get('twitter:title') || htmlTitle, 140) ||
@@ -434,11 +440,12 @@ const requestResource = async (
   });
 };
 
-const fetchResource = async (input: string, options: ResourceOptions) => {
+export const fetchLinkResource = async (input: string, options: ResourceOptions) => {
   let url = normalizeUrl(input);
   const deadline = Date.now() + TOTAL_TIMEOUT_MS;
 
   for (let redirects = 0; redirects <= MAX_REDIRECTS; redirects += 1) {
+    options.validateUrl?.(url);
     const response = await requestResource(url, deadline, options);
     if (response.location) {
       if (redirects === MAX_REDIRECTS) {
@@ -454,7 +461,7 @@ const fetchResource = async (input: string, options: ResourceOptions) => {
 };
 
 const fetchPreview = async (input: string) => {
-  const { response, url } = await fetchResource(input, {
+  const { response, url } = await fetchLinkResource(input, {
     accept: 'text/html,application/xhtml+xml;q=0.9',
     maxBytes: MAX_HTML_BYTES,
     contentTypes: HTML_CONTENT_TYPES,
@@ -464,7 +471,7 @@ const fetchPreview = async (input: string) => {
 };
 
 const fetchIcon = async (input: string): Promise<LinkIconData> => {
-  const { response } = await fetchResource(input, {
+  const { response } = await fetchLinkResource(input, {
     accept: 'image/png,image/jpeg,image/webp,image/gif,image/x-icon,*/*;q=0.1',
     maxBytes: MAX_ICON_BYTES,
     contentTypes: ICON_CONTENT_TYPES,
