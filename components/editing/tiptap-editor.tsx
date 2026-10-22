@@ -4,28 +4,14 @@ import { TaskItem, TaskList } from '@tiptap/extension-list';
 import { Table, TableCell, TableHeader, TableRow } from '@tiptap/extension-table';
 import { Placeholder } from '@tiptap/extensions';
 import { Markdown } from '@tiptap/markdown';
-import { EditorContent, useEditor } from '@tiptap/react';
-import { BubbleMenu } from '@tiptap/react/menus';
+import { EditorContent, useEditor, useEditorState } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
-import {
-  BoldIcon,
-  CheckIcon,
-  ChevronDownIcon,
-  CodeIcon,
-  Heading2Icon,
-  ImageIcon,
-  ItalicIcon,
-  LinkIcon,
-  ListIcon,
-  ListTodoIcon,
-  QuoteIcon,
-  StrikethroughIcon,
-} from 'lucide-react';
-import { AnimatePresence, motion } from 'motion/react';
+import { AnimatePresence } from 'motion/react';
 import { type ReactNode, useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 import { useIsMobile } from '@/hooks/use-is-mobile';
+import { getLinkCardTarget } from '@/lib/link-card';
 import { cn } from '@/lib/utils';
 import {
   buildEditorImageStoragePath,
@@ -47,6 +33,7 @@ import {
 
 import type { EditViewMode } from './action-bar';
 import { useSetMobileEditing } from './edit-session';
+import { MobileFormatToolbar, SelectionBubble, selectToolbarState } from './tiptap/editor-toolbar';
 import {
   groupAdjacentImages,
   ImageGallery,
@@ -55,6 +42,7 @@ import {
   SlashCommand,
   StagedImage,
 } from './tiptap/extensions';
+import { EditorLinkCard } from './tiptap/link-card-extension';
 
 interface ITiptapEditorProps {
   value: string;
@@ -75,225 +63,6 @@ interface ITiptapEditorProps {
   onImagesStaged?: (images: StagedEditorImage[]) => void;
   editorFooter?: ReactNode;
   autoFocus?: boolean;
-}
-
-// ── Selection bubble (marks + link) ──────────────────────────────────────────
-function SelectionBubble({
-  editor,
-  enabled,
-}: {
-  editor: ReturnType<typeof useEditor>;
-  enabled: boolean;
-}) {
-  const [linkOpen, setLinkOpen] = useState(false);
-  const [linkValue, setLinkValue] = useState('');
-
-  if (!editor) {
-    return null;
-  }
-
-  const mark = (active: boolean) => (active ? 'true' : undefined);
-  const openLink = () => {
-    setLinkValue(editor.getAttributes('link').href ?? '');
-    setLinkOpen(true);
-  };
-  const applyLink = () => {
-    const href = linkValue.trim();
-    if (href) {
-      editor.chain().focus().extendMarkRange('link').setLink({ href }).run();
-    } else {
-      editor.chain().focus().extendMarkRange('link').unsetLink().run();
-    }
-    setLinkOpen(false);
-  };
-
-  return (
-    <BubbleMenu
-      editor={editor}
-      pluginKey="fzSelectionBubble"
-      shouldShow={({ editor: e, from, to }) =>
-        enabled && e.isEditable && from !== to && !e.isActive('codeBlock') && !e.isActive('image')
-      }
-    >
-      {/* biome-ignore lint/a11y/noStaticElementInteractions: container only swallows mousedown so the editor keeps its selection; the controls inside are buttons */}
-      <div className="fz-bubble" onMouseDown={event => event.preventDefault()}>
-        {linkOpen ? (
-          <>
-            <input
-              // biome-ignore lint/a11y/noAutofocus: link popover opens on user intent; focusing its only input is the expected behaviour
-              autoFocus
-              value={linkValue}
-              onChange={event => setLinkValue(event.target.value)}
-              onKeyDown={event => {
-                if (event.key === 'Enter') {
-                  event.preventDefault();
-                  applyLink();
-                }
-                if (event.key === 'Escape') {
-                  setLinkOpen(false);
-                }
-              }}
-              placeholder="Paste link…"
-            />
-            <button type="button" onClick={applyLink} aria-label="Apply link">
-              <CheckIcon className="size-[15px]" />
-            </button>
-          </>
-        ) : (
-          <>
-            <button
-              type="button"
-              data-active={mark(editor.isActive('bold'))}
-              onClick={() => editor.chain().focus().toggleBold().run()}
-              aria-label="Bold"
-            >
-              <BoldIcon className="size-[15px]" />
-            </button>
-            <button
-              type="button"
-              data-active={mark(editor.isActive('italic'))}
-              onClick={() => editor.chain().focus().toggleItalic().run()}
-              aria-label="Italic"
-            >
-              <ItalicIcon className="size-[15px]" />
-            </button>
-            <button
-              type="button"
-              data-active={mark(editor.isActive('strike'))}
-              onClick={() => editor.chain().focus().toggleStrike().run()}
-              aria-label="Strikethrough"
-            >
-              <StrikethroughIcon className="size-[15px]" />
-            </button>
-            <button
-              type="button"
-              data-active={mark(editor.isActive('code'))}
-              onClick={() => editor.chain().focus().toggleCode().run()}
-              aria-label="Inline code"
-            >
-              <CodeIcon className="size-[15px]" />
-            </button>
-            <span className="fz-tb-div" />
-            <button
-              type="button"
-              data-active={mark(editor.isActive('link'))}
-              onClick={openLink}
-              aria-label="Link"
-            >
-              <LinkIcon className="size-[15px]" />
-            </button>
-          </>
-        )}
-      </div>
-    </BubbleMenu>
-  );
-}
-
-// ── Mobile formatting pill ───────────────────────────────────────────────────
-// Mirrors the docked ActionBar's pill (same shape + bottom-center anchor, raised
-// above the keyboard) so it cross-fades in place with the action pill — one bar
-// that morphs between "document actions" and "formatting" as you focus the text.
-const FORMAT_PILL_MOTION = {
-  initial: { opacity: 0, x: '-50%', y: 8, scale: 0.96 },
-  animate: { opacity: 1, x: '-50%', y: 0, scale: 1 },
-  exit: { opacity: 0, x: '-50%', y: 8, scale: 0.96 },
-} as const;
-
-function MobileFormatToolbar({
-  editor,
-  onImage,
-  bottom,
-}: {
-  editor: NonNullable<ReturnType<typeof useEditor>>;
-  onImage: () => void;
-  bottom: number;
-}) {
-  const tools: {
-    key: string;
-    label: string;
-    icon: typeof BoldIcon;
-    run: () => void;
-    on?: boolean;
-  }[] = [
-    {
-      key: 'bold',
-      label: 'Bold',
-      icon: BoldIcon,
-      run: () => editor.chain().focus().toggleBold().run(),
-      on: editor.isActive('bold'),
-    },
-    {
-      key: 'italic',
-      label: 'Italic',
-      icon: ItalicIcon,
-      run: () => editor.chain().focus().toggleItalic().run(),
-      on: editor.isActive('italic'),
-    },
-    {
-      key: 'h2',
-      label: 'Heading',
-      icon: Heading2Icon,
-      run: () => editor.chain().focus().toggleHeading({ level: 2 }).run(),
-      on: editor.isActive('heading', { level: 2 }),
-    },
-    {
-      key: 'list',
-      label: 'List',
-      icon: ListIcon,
-      run: () => editor.chain().focus().toggleBulletList().run(),
-      on: editor.isActive('bulletList'),
-    },
-    {
-      key: 'todo',
-      label: 'Todo',
-      icon: ListTodoIcon,
-      run: () => editor.chain().focus().toggleTaskList().run(),
-      on: editor.isActive('taskList'),
-    },
-    {
-      key: 'quote',
-      label: 'Quote',
-      icon: QuoteIcon,
-      run: () => editor.chain().focus().toggleBlockquote().run(),
-      on: editor.isActive('blockquote'),
-    },
-    { key: 'image', label: 'Image', icon: ImageIcon, run: onImage },
-  ];
-
-  return (
-    <motion.div
-      {...FORMAT_PILL_MOTION}
-      transition={{ type: 'spring', stiffness: 520, damping: 40, mass: 0.6 }}
-      className="fz-actionbar fz-format-pill"
-      style={{ bottom: `calc(${bottom}px + max(1.25rem, env(safe-area-inset-bottom)))` }}
-      onMouseDown={event => event.preventDefault()}
-    >
-      {tools.map(tool => {
-        const Icon = tool.icon;
-        return (
-          <button
-            key={tool.key}
-            type="button"
-            className="fz-iconbtn"
-            data-active={tool.on ? 'true' : undefined}
-            aria-label={tool.label}
-            onClick={tool.run}
-          >
-            <Icon className="size-[18px]" />
-          </button>
-        );
-      })}
-      <span className="fz-actionbar-sep" />
-      <button
-        type="button"
-        className="fz-iconbtn"
-        aria-label="Dismiss keyboard"
-        onClick={() => editor.commands.blur()}
-      >
-        <ChevronDownIcon className="size-[18px]" />
-      </button>
-    </motion.div>
-  );
 }
 
 export default function TiptapEditor({
@@ -458,6 +227,7 @@ export default function TiptapEditor({
       Placeholder.configure({ placeholder }),
       StagedImage,
       ImageGallery,
+      EditorLinkCard,
       TaskList,
       TaskItem.configure({ nested: true }),
       Table.configure({ resizable: false }),
@@ -493,6 +263,19 @@ export default function TiptapEditor({
           insertFiles(files).catch(() => undefined);
           return true;
         }
+        // A bare supported URL becomes a card; a URL inside prose stays a plain link.
+        const text = event.clipboardData?.getData('text/plain').trim() ?? '';
+        const current = editorRef.current;
+        if (
+          current &&
+          getLinkCardTarget(text) &&
+          !current.isActive('codeBlock') &&
+          !current.isActive('code')
+        ) {
+          event.preventDefault();
+          current.chain().focus().insertLinkCard(text).run();
+          return true;
+        }
         return false;
       },
       handleDrop: (_view, event) => {
@@ -519,6 +302,7 @@ export default function TiptapEditor({
     onFocus: () => setIsFocused(true),
     onBlur: () => setIsFocused(false),
   });
+  const toolbar = useEditorState({ editor, selector: selectToolbarState });
 
   useEffect(() => {
     editorRef.current = editor;
@@ -560,8 +344,9 @@ export default function TiptapEditor({
   }, []);
 
   // While the formatting pill is up on mobile, tell the dock to yield its slot so
-  // the two pills cross-fade in place instead of overlapping.
-  const showMobileToolbar = isMobile && isFocused && mode === 'wysiwyg';
+  // the two pills cross-fade in place instead of overlapping. A selected card
+  // keeps the pill up even without a caret, since its tools live there.
+  const showMobileToolbar = isMobile && mode === 'wysiwyg' && (isFocused || Boolean(toolbar?.card));
   useEffect(() => {
     setMobileEditing(showMobileToolbar);
     return () => setMobileEditing(false);
@@ -603,7 +388,7 @@ export default function TiptapEditor({
     previousModeRef.current = mode;
   }, [editor, mode, autoFocus, insertUploadedImages]);
 
-  if (!editor) {
+  if (!editor || !toolbar) {
     return <div className={cn('text-muted-foreground/60 text-sm', minHeightClassName)} />;
   }
 
@@ -641,12 +426,13 @@ export default function TiptapEditor({
           >
             <EditorContent editor={editor} />
           </div>
-          <SelectionBubble editor={editor} enabled={!isMobile} />
+          <SelectionBubble editor={editor} state={toolbar} enabled={!isMobile} />
           <AnimatePresence>
             {showMobileToolbar ? (
               <MobileFormatToolbar
                 key="format-pill"
                 editor={editor}
+                state={toolbar}
                 onImage={openFilePicker}
                 bottom={keyboardBottom}
               />

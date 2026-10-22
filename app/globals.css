@@ -306,6 +306,15 @@ button {
     line-height: 1.75;
   }
 
+  /* The memo editor sits under `not-prose`, so typography's link style has to
+     be restated for it to match the read view (which also skips `.not-prose`
+     links such as the link card). */
+  .memo-editor-content a:not(.not-prose) {
+    color: var(--tw-prose-links);
+    font-weight: 500;
+    text-decoration: underline;
+  }
+
   .site-prose-editor-content {
     line-height: 1.75;
   }
@@ -390,8 +399,9 @@ button {
     pointer-events: auto;
   }
   /* Mobile formatting pill — same look as the action bar, raised above the
-     keyboard; cross-fades in place with the action pill (one morphing bar). */
-  .fz-format-pill {
+     keyboard; cross-fades in place with the action pill (one morphing bar).
+     Compound selector so its symmetric padding beats the bar's text inset. */
+  .fz-actionbar.fz-format-pill {
     position: fixed;
     left: 50%;
     z-index: 40;
@@ -558,59 +568,30 @@ button {
     cursor: not-allowed;
   }
 
-  /* divider used inside the selection bubble */
-  .fz-tb-div {
-    width: 1px;
-    height: 18px;
-    background: var(--border);
-    margin: 0 3px;
-    flex-shrink: 0;
-  }
-
-  /* ── Selection bubble (dark, floats over text) ──────────────────────────── */
+  /* ── Selection bubble — the action bar's surface, squared off to float over text.
+     The outer box is animated to the measured inner content, so switching
+     levels morphs the bubble instead of snapping it. ─────────────────────── */
   .fz-bubble {
-    display: inline-flex;
-    align-items: center;
-    gap: 1px;
-    padding: 4px;
+    display: block;
+    box-sizing: content-box;
+    padding: 0;
+    overflow: hidden;
     border-radius: var(--fz-radius-md);
-    background: oklch(0.21 0.005 106);
-    box-shadow: var(--fz-shadow-lg);
   }
-  .fz-bubble button {
+  .fz-bubble-inner {
     display: inline-flex;
     align-items: center;
-    justify-content: center;
-    width: 30px;
-    height: 30px;
-    border: none;
-    background: transparent;
-    color: oklch(0.82 0.003 106);
-    border-radius: var(--fz-radius-sm);
-    transition: background-color var(--fz-dur-fast) var(--ease-out);
+    gap: 2px;
+    padding: 4px;
   }
-  .fz-bubble button:hover {
-    background: oklch(0.32 0.006 106);
-    color: white;
+  /* Concentric with the bubble: its radius minus the 4px inset. */
+  .fz-bubble .fz-iconbtn {
+    border-radius: var(--fz-radius-xs);
   }
-  .fz-bubble button[data-active='true'] {
-    background: oklch(0.36 0.006 106);
-    color: white;
-  }
-  .fz-bubble .fz-tb-div {
-    background: oklch(0.4 0.006 106);
-  }
-  .fz-bubble input {
-    background: transparent;
-    border: none;
-    outline: none;
-    color: white;
-    font-size: 13px;
-    min-width: 12rem;
+  .fz-bubble .fz-input {
+    width: 16rem;
     padding: 0 6px;
-  }
-  .fz-bubble input::placeholder {
-    color: oklch(0.6 0.006 106);
+    font-size: 13px;
   }
 
   /* ── Slash command palette (compact single-line) ────────────────────────── */
@@ -1050,7 +1031,10 @@ button {
   .ProseMirror {
     outline: none;
   }
-  .tiptap :first-child {
+  /* Posts and pages read through `.prose`, whose `> :first-child` drops the
+     first block's top margin; memos read without it and keep theirs. The
+     editors mirror that, so both are 1:1 with their read view. */
+  .site-prose-editor-content .tiptap > :first-child {
     margin-top: 0;
   }
   /* List items render markdown content as <p>; drop its margins so bullet/ordered
@@ -1124,6 +1108,11 @@ button {
   .tiptap .ProseMirror-selectednode {
     outline: 2px solid var(--accent);
     border-radius: var(--fz-radius-sm);
+  }
+  /* The link card draws its own ring on the card's box; the renderer wrapper
+     this class lands on spans the whole column. */
+  .tiptap .node-linkCard.ProseMirror-selectednode {
+    outline: none;
   }
   /* Gallery node view fills the editor column so its fixed-ratio frame can size
      (the node-view wrapper is otherwise shrink-to-fit and would collapse). */

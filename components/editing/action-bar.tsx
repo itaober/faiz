@@ -69,7 +69,7 @@ const BAR_MOTION = {
   exit: { opacity: 0, y: 10, scale: 0.96 },
 } as const;
 
-function IconButton({
+export function IconButton({
   icon: Icon,
   label,
   onClick,
