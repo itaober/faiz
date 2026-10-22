@@ -440,12 +440,34 @@ const requestResource = async (
   });
 };
 
-export const fetchLinkResource = async (input: string, options: ResourceOptions) => {
+/**
+ * Follows redirects to the resource. With `stopAt`, following ends — without
+ * a request — at the first hop the predicate accepts: that is how share links
+ * resolve, since the hop's address is the answer and the page behind it is
+ * never needed (nor served to every region).
+ */
+export function fetchLinkResource(
+  input: string,
+  options: ResourceOptions,
+): Promise<{ response: ResourceResponse; url: URL }>;
+export function fetchLinkResource(
+  input: string,
+  options: ResourceOptions,
+  stopAt: (url: URL) => boolean,
+): Promise<{ response?: ResourceResponse; url: URL }>;
+export async function fetchLinkResource(
+  input: string,
+  options: ResourceOptions,
+  stopAt?: (url: URL) => boolean,
+): Promise<{ response?: ResourceResponse; url: URL }> {
   let url = normalizeUrl(input);
   const deadline = Date.now() + TOTAL_TIMEOUT_MS;
 
   for (let redirects = 0; redirects <= MAX_REDIRECTS; redirects += 1) {
     options.validateUrl?.(url);
+    if (stopAt?.(url)) {
+      return { url };
+    }
     const response = await requestResource(url, deadline, options);
     if (response.location) {
       if (redirects === MAX_REDIRECTS) {
@@ -458,7 +480,7 @@ export const fetchLinkResource = async (input: string, options: ResourceOptions)
   }
 
   throw new Error('Unable to load link preview');
-};
+}
 
 const fetchPreview = async (input: string) => {
   const { response, url } = await fetchLinkResource(input, {
