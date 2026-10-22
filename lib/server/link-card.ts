@@ -211,21 +211,30 @@ export const parseLinkCardMetadata = (html: string, target: LinkCardTarget): Lin
   return data;
 };
 
-const readResource = async (url: string, provider: LinkCardProvider, json = false) => {
-  const { response, url: resolved } = await fetchLinkResource(url, {
-    accept: json ? 'application/json' : 'text/html,application/xhtml+xml;q=0.9',
-    maxBytes: 2 * 1024 * 1024,
-    contentTypes: new Set(
-      json ? ['application/json', 'text/plain'] : ['text/html', 'application/xhtml+xml'],
-    ),
-    truncate: !json,
-    validateUrl: next => {
-      if (next.protocol !== 'https:' || !HOSTS[provider].has(next.hostname)) {
-        throw new Error('Unsupported link card redirect');
-      }
+const readResource = async (
+  url: string,
+  provider: LinkCardProvider,
+  json = false,
+  stopAt: (next: URL) => boolean = () => false,
+) => {
+  const { response, url: resolved } = await fetchLinkResource(
+    url,
+    {
+      accept: json ? 'application/json' : 'text/html,application/xhtml+xml;q=0.9',
+      maxBytes: 2 * 1024 * 1024,
+      contentTypes: new Set(
+        json ? ['application/json', 'text/plain'] : ['text/html', 'application/xhtml+xml'],
+      ),
+      truncate: !json,
+      validateUrl: next => {
+        if (next.protocol !== 'https:' || !HOSTS[provider].has(next.hostname)) {
+          throw new Error('Unsupported link card redirect');
+        }
+      },
     },
-  });
-  return { body: response.body?.toString('utf8') || '', url: resolved.toString() };
+    stopAt,
+  );
+  return { body: response?.body?.toString('utf8') || '', url: resolved.toString() };
 };
 
 export const parseArtistAvatar = (
@@ -377,7 +386,10 @@ export const getLinkCard = async (href: string, type?: LinkCardType): Promise<Li
     let refreshFailed = false;
     try {
       if (!target.resource) {
-        const resolved = await readResource(target.url, target.provider);
+        // A share link is followed only until a hop names the resource.
+        const resolved = await readResource(target.url, target.provider, false, next =>
+          Boolean(getLinkCardTarget(next.toString())?.resource),
+        );
         target = getLinkCardTarget(resolved.url);
         if (!target?.resource || target.provider !== initial.provider)
           throw new Error('Unresolved link card');
@@ -402,7 +414,11 @@ export const getLinkCard = async (href: string, type?: LinkCardType): Promise<Li
           data.avatarUrl = await fetchArtistAvatar('apple-music', artist?.url);
         }
       }
-    } catch {
+    } catch (error) {
+      console.warn(
+        `Link card unavailable for ${initial.url}:`,
+        error instanceof Error ? error.message : error,
+      );
       refreshFailed = true;
       data = cached && !cached.data.unavailable ? cached.data : getLinkCardFallback(initial);
     }

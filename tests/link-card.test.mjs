@@ -1,7 +1,13 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { formatLinkCard, getLinkCardTarget, parseLinkCardMarkup } from '../lib/link-card.ts';
+import {
+  formatLinkCard,
+  getLinkCardSnapshot,
+  getLinkCardTarget,
+  parseLinkCardMarkup,
+  toLinkCardProps,
+} from '../lib/link-card.ts';
 import { parseLinkCardMetadata } from '../lib/server/link-card.ts';
 
 test('recognizes all eight supported resources and infers semantic type', () => {
@@ -74,6 +80,36 @@ test('MDX LinkCard attributes survive serialization without double decoding', ()
   assert.deepEqual(parseLinkCardMarkup(formatLinkCard(escaped)), escaped);
   assert.equal(parseLinkCardMarkup('<LinkCard type="video" href="https://example.com" />'), null);
   assert.equal(parseLinkCardMarkup('<LinkCard />'), null);
+});
+
+test('a snapshot round-trips through the markup and renders without the provider', () => {
+  const data = {
+    url: 'https://music.163.com/album?id=36190',
+    type: 'music',
+    provider: 'netease',
+    resource: 'album',
+    id: '36190',
+    title: '果冻帝国',
+    subtitle: '木马Muma',
+    imageUrl: 'https://p1.music.126.net/cover.jpg',
+    avatarUrl: 'https://p1.music.126.net/artist.jpg?param=96y96',
+    publishedAt: '2004-08-31T16:00:00.000Z',
+    itemCount: 11,
+  };
+  const markup = formatLinkCard(toLinkCardProps(data));
+  assert.match(
+    markup,
+    /^<LinkCard type="music" href="https:\/\/music\.163\.com\/album\?id=36190" title="果冻帝国" /,
+  );
+  assert.deepEqual(getLinkCardSnapshot(parseLinkCardMarkup(markup)), {
+    ...data,
+    description: undefined,
+    duration: undefined,
+  });
+  // MDX hands numbers over as strings; junk values are dropped, not trusted.
+  assert.equal(getLinkCardSnapshot({ href: data.url, title: 'x', count: '11' }).itemCount, 11);
+  assert.equal(parseLinkCardMarkup(`<LinkCard href="${data.url}" count="-3" />`).count, undefined);
+  assert.equal(getLinkCardSnapshot({ href: data.url }), null);
 });
 
 const appleTarget = getLinkCardTarget('https://music.apple.com/cn/song/better-together/1440857786');

@@ -1,7 +1,12 @@
 import { Suspense } from 'react';
 
 import LinkCard from '@/components/link-card';
-import { getLinkCardFallback, getLinkCardTarget, type LinkCardProps } from '@/lib/link-card';
+import {
+  getLinkCardFallback,
+  getLinkCardSnapshot,
+  getLinkCardTarget,
+  type LinkCardProps,
+} from '@/lib/link-card';
 import { getLinkCard } from '@/lib/server/link-card';
 
 async function ResolvedLinkCard({ href, type }: LinkCardProps) {
@@ -9,7 +14,8 @@ async function ResolvedLinkCard({ href, type }: LinkCardProps) {
   return <LinkCard data={data} />;
 }
 
-export default function MdxLinkCard({ href, type }: LinkCardProps) {
+export default function MdxLinkCard(props: LinkCardProps) {
+  const { href, type } = props;
   const target = getLinkCardTarget(href);
   if (!target || (type && type !== target.type)) {
     let url: URL | undefined;
@@ -25,6 +31,12 @@ export default function MdxLinkCard({ href, type }: LinkCardProps) {
     ) : (
       <span>{href}</span>
     );
+  }
+  // A snapshot written by the editor renders as-is: no provider request at
+  // build or request time. Older markup without one is still fetched.
+  const snapshot = getLinkCardSnapshot(props);
+  if (snapshot) {
+    return <LinkCard data={snapshot} />;
   }
   return (
     <Suspense fallback={<LinkCard data={getLinkCardFallback(target)} loading />}>

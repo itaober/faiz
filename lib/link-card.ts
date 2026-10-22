@@ -1,4 +1,5 @@
-export type LinkCardType = 'music' | 'podcast';
+export const LINK_CARD_TYPES = ['music', 'podcast'] as const;
+export type LinkCardType = (typeof LINK_CARD_TYPES)[number];
 export type LinkCardProvider = 'netease' | 'apple-music' | 'xiaoyuzhou';
 export type LinkCardResource = 'track' | 'album' | 'playlist' | 'episode' | 'show';
 
@@ -25,7 +26,22 @@ export interface LinkCardData extends LinkCardTarget {
 export interface LinkCardProps {
   href: string;
   type?: LinkCardType;
+  /**
+   * Snapshot of the card taken when it was inserted, so the published page
+   * renders without asking the provider again.
+   */
+  title?: string;
+  subtitle?: string;
+  image?: string;
+  avatar?: string;
+  description?: string;
+  date?: string;
+  duration?: number;
+  count?: number;
 }
+
+const SNAPSHOT_TEXT = ['title', 'subtitle', 'image', 'avatar', 'description', 'date'] as const;
+const SNAPSHOT_NUMBER = ['duration', 'count'] as const;
 
 /** Provider names as they brand themselves. */
 export const LINK_CARD_PROVIDERS: Record<LinkCardProvider, string> = {
@@ -119,20 +135,62 @@ export const getLinkCardFallback = (target: LinkCardTarget): LinkCardData => ({
   unavailable: true,
 });
 
-export const formatLinkCard = ({ href, type }: LinkCardProps) => {
+export const toLinkCardProps = (data: LinkCardData): LinkCardProps => ({
+  href: data.url,
+  type: data.type,
+  title: data.title,
+  subtitle: data.subtitle,
+  image: data.imageUrl,
+  avatar: data.avatarUrl,
+  description: data.description,
+  date: data.publishedAt,
+  duration: data.duration,
+  count: data.itemCount,
+});
+
+const positive = (value: unknown) => {
+  const number = Number(value);
+  return Number.isFinite(number) && number > 0 ? number : undefined;
+};
+
+/** Card data from a stored snapshot; null when the markup only carries the link. */
+export const getLinkCardSnapshot = (props: LinkCardProps): LinkCardData | null => {
+  const target = getLinkCardTarget(props.href);
+  if (!target || !props.title) return null;
+  return {
+    ...target,
+    title: props.title,
+    subtitle: props.subtitle,
+    imageUrl: props.image,
+    avatarUrl: props.avatar,
+    description: props.description,
+    publishedAt: props.date,
+    duration: positive(props.duration),
+    itemCount: positive(props.count),
+  };
+};
+
+export const formatLinkCard = (props: LinkCardProps) => {
   const escapeAttribute = (value: string) =>
     value
       .replace(/&/g, '&amp;')
       .replace(/"/g, '&quot;')
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;');
-  return `<LinkCard${type ? ` type="${type}"` : ''} href="${escapeAttribute(href)}" />`;
+  const attrs = [
+    ['type', props.type],
+    ['href', props.href],
+    ...[...SNAPSHOT_TEXT, ...SNAPSHOT_NUMBER].map(key => [key, props[key]] as const),
+  ]
+    .filter(([, value]) => value !== undefined && value !== '')
+    .map(([key, value]) => `${key}="${escapeAttribute(String(value))}"`);
+  return `<LinkCard ${attrs.join(' ')} />`;
 };
 
 export const parseLinkCardMarkup = (source: string): LinkCardProps | null => {
   if (!/^<LinkCard\b[\s\S]*?\/>$/.test(source.trim())) return null;
   const attrs = new Map(
-    [...source.matchAll(/(?:^|\s)(href|type)\s*=\s*(["'])(.*?)\2/gs)].map(match => [
+    [...source.matchAll(/(?:^|\s)([a-z]+)\s*=\s*(["'])(.*?)\2/gs)].map(match => [
       match[1],
       match[3]
         .replace(/&quot;/g, '"')
@@ -143,6 +201,15 @@ export const parseLinkCardMarkup = (source: string): LinkCardProps | null => {
   );
   const href = attrs.get('href');
   const type = attrs.get('type');
-  if (!href || (type && type !== 'music' && type !== 'podcast')) return null;
-  return { href, ...(type ? { type: type as LinkCardType } : {}) };
+  if (!href || (type && !(LINK_CARD_TYPES as readonly string[]).includes(type))) return null;
+  const props: LinkCardProps = { href, ...(type ? { type: type as LinkCardType } : {}) };
+  for (const key of SNAPSHOT_TEXT) {
+    const value = attrs.get(key);
+    if (value) props[key] = value;
+  }
+  for (const key of SNAPSHOT_NUMBER) {
+    const value = positive(attrs.get(key));
+    if (value) props[key] = value;
+  }
+  return props;
 };
