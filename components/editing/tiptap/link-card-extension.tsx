@@ -5,7 +5,14 @@ import { useEffect, useState } from 'react';
 
 import LinkCard from '@/components/link-card';
 import useLinkCard from '@/hooks/use-link-card';
-import { formatLinkCard, getLinkCardTarget, parseLinkCardMarkup } from '@/lib/link-card';
+import {
+  formatLinkCard,
+  getLinkCardSnapshot,
+  getLinkCardTarget,
+  type LinkCardProps,
+  parseLinkCardMarkup,
+  toLinkCardProps,
+} from '@/lib/link-card';
 import { cn } from '@/lib/utils';
 
 declare module '@tiptap/core' {
@@ -37,15 +44,29 @@ function LinkCardNodeView({ node, editor, selected, updateAttributes }: NodeView
     };
   }, [editor]);
   const href = String(node.attrs.href || '');
-  const { data, loading, valid } = useLinkCard(href, node.attrs.cardType || undefined);
-  // Share links such as 163cn.tv only resolve from some networks, so once the
-  // editor has the canonical address, store that: the published page then
-  // never has to follow the short link itself.
+  const stored: LinkCardProps = {
+    href,
+    type: node.attrs.cardType || undefined,
+    ...(node.attrs.card || {}),
+  };
+  const snapshot = getLinkCardSnapshot(stored);
+  const storedMarkup = formatLinkCard(stored);
+  const { data: fetched, loading, valid } = useLinkCard(href, stored.type);
+  const data = fetched && !fetched.unavailable ? fetched : snapshot || fetched;
+  // Once the editor has the card data it stores the canonical address and a
+  // snapshot, so the published page never has to ask the provider — which may
+  // not answer from its region (163cn.tv share links) or at build time at all.
   useEffect(() => {
-    if (editor.isEditable && data && !data.unavailable && data.url !== href) {
-      updateAttributes({ href: data.url });
+    if (!editor.isEditable || !fetched || fetched.unavailable) return;
+    const { href: url, type, ...card } = toLinkCardProps(fetched);
+    if (formatLinkCard({ href: url, type, ...card }) !== storedMarkup) {
+      updateAttributes({
+        href: url,
+        cardType: type,
+        card: Object.fromEntries(Object.entries(card).filter(([, value]) => value !== undefined)),
+      });
     }
-  }, [editor, data, href, updateAttributes]);
+  }, [editor, fetched, storedMarkup, updateAttributes]);
   return (
     <NodeViewWrapper
       contentEditable={false}
@@ -57,7 +78,7 @@ function LinkCardNodeView({ node, editor, selected, updateAttributes }: NodeView
       )}
     >
       {data && valid ? (
-        <LinkCard data={data} loading={loading} preview={isEditable} />
+        <LinkCard data={data} loading={loading && !snapshot} preview={isEditable} />
       ) : (
         <div className="border-border text-muted-foreground my-3 rounded-lg border p-3 text-sm">
           {href || 'Link card'}
@@ -84,6 +105,17 @@ export const EditorLinkCard = Node.create({
         default: null,
         parseHTML: element => element.getAttribute('data-card-type'),
         renderHTML: attrs => ({ 'data-card-type': attrs.cardType }),
+      },
+      card: {
+        default: null,
+        parseHTML: element => {
+          try {
+            return JSON.parse(element.getAttribute('data-card') || 'null');
+          } catch {
+            return null;
+          }
+        },
+        renderHTML: attrs => ({ 'data-card': attrs.card ? JSON.stringify(attrs.card) : null }),
       },
     };
   },
@@ -164,16 +196,18 @@ export const EditorLinkCard = Node.create({
     },
   },
   parseMarkdown(token, helpers) {
-    const attrs = token.attrs as { href: string; type?: string };
+    const { href, type, ...card } = token.attrs as LinkCardProps;
     return helpers.createNode('linkCard', {
-      href: attrs.href,
-      cardType: attrs.type || getLinkCardTarget(attrs.href)?.type || null,
+      href,
+      cardType: type || getLinkCardTarget(href)?.type || null,
+      card: Object.keys(card).length ? card : null,
     });
   },
   renderMarkdown(node) {
     return formatLinkCard({
       href: node.attrs?.href || '',
       type: node.attrs?.cardType || undefined,
+      ...(node.attrs?.card || {}),
     });
   },
 });
