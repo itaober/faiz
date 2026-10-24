@@ -4,6 +4,11 @@ import { useEffect, useRef } from 'react';
 
 import { cn } from '@/lib/utils';
 
+// The effect reads one pixel per `spacing` px of canvas, so a 384px rendition
+// from the image optimizer carries all it samples at a tenth of the original's bytes.
+const toSampleSrc = (src: string) =>
+  src.startsWith('/') ? `/_next/image?url=${encodeURIComponent(src)}&w=384&q=75` : src;
+
 interface Particle {
   baseX: number;
   baseY: number;
@@ -313,7 +318,7 @@ export default function ParticleImage({
 
     const loadedImage = new view.Image();
     loadedImage.crossOrigin = 'anonymous';
-    loadedImage.src = src;
+    loadedImage.src = toSampleSrc(src);
     loadedImage
       .decode()
       .then(() => {

@@ -1,3 +1,4 @@
+import { unstable_cache } from 'next/cache';
 import sharp from 'sharp';
 
 import { isSupportedImageType, MAX_IMAGE_SIZE } from '@/lib/constants/image';
@@ -11,6 +12,7 @@ import {
   deleteGitHubFile,
   fetchGitHubApi,
   fetchGitHubContentsMeta,
+  getGitHubContentTag,
   putGitHubFile,
 } from '@/lib/data/common';
 
@@ -20,11 +22,31 @@ export interface ImageMeta {
   blurDataURL: string;
 }
 
+/** Same window as /api/image, so the size is never older than the bytes it describes. */
+const IMAGE_REVALIDATE_SECONDS = 7 * 24 * 60 * 60;
+
+const readImageMeta = async (path: string): Promise<ImageMeta> => {
+  const res = await fetchGitHubApi(path, { next: { revalidate: IMAGE_REVALIDATE_SECONDS } });
+  const image = sharp(Buffer.from(await res.arrayBuffer()));
+  const { autoOrient } = await image.metadata();
+  const blur = await image.autoOrient().resize(8, 8, { fit: 'inside' }).webp().toBuffer();
+
+  return {
+    width: autoOrient.width,
+    height: autoOrient.height,
+    blurDataURL: `data:image/webp;base64,${blur.toString('base64')}`,
+  };
+};
+
 /**
  * Intrinsic size plus an 8px blurred preview, so a page can reserve the image's
- * box and paint the preview while the real file loads. Same request as
- * /api/image, so the bytes come out of the shared fetch cache. Returns null on
- * any failure; the image then renders without a placeholder.
+ * box and paint the preview while the real file loads. Returns null on any
+ * failure; the image then renders without a placeholder.
+ *
+ * Cached on its own because the bytes can be too large for the fetch cache. The
+ * path's content tag drops it when the app rewrites that file; the revalidate
+ * window covers files replaced outside the app. A failure throws past the cache,
+ * so it is retried rather than kept.
  */
 export async function getImageMeta(path: string): Promise<ImageMeta | null> {
   if (!isContentImageReadPath(path.split('/'))) {
@@ -32,18 +54,10 @@ export async function getImageMeta(path: string): Promise<ImageMeta | null> {
   }
 
   try {
-    const res = await fetchGitHubApi(path, { next: { revalidate: 7 * 24 * 60 * 60 } });
-    // ponytail: re-decoded on every render (a few ms per image); wrap in a persistent
-    // cache if renders get slow.
-    const image = sharp(Buffer.from(await res.arrayBuffer()));
-    const { autoOrient } = await image.metadata();
-    const blur = await image.autoOrient().resize(8, 8, { fit: 'inside' }).webp().toBuffer();
-
-    return {
-      width: autoOrient.width,
-      height: autoOrient.height,
-      blurDataURL: `data:image/webp;base64,${blur.toString('base64')}`,
-    };
+    return await unstable_cache(() => readImageMeta(path), ['image-meta', path], {
+      revalidate: IMAGE_REVALIDATE_SECONDS,
+      tags: [getGitHubContentTag(path)],
+    })();
   } catch (error) {
     console.warn(`Failed to read image meta for ${path}:`, error);
     return null;
