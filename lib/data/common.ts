@@ -67,7 +67,7 @@ const GITHUB_CONTENT_TAG_PREFIX = `${GITHUB_CONTENT_CACHE_TAG}:`;
 
 const normalizeGitHubPath = (path: string) => path.replace(/^\/+/, '').replace(/\/+/g, '/');
 
-const getGitHubContentTag = (path: string) =>
+export const getGitHubContentTag = (path: string) =>
   `${GITHUB_CONTENT_TAG_PREFIX}${normalizeGitHubPath(path)}`.slice(0, 256);
 
 const getGitHubFetchTags = (path: string, existingTags?: string[]) =>
