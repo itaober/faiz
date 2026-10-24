@@ -8,9 +8,13 @@ import { getMemos } from '@/lib/data/memos';
 import { mdxTodoListsToMarkdown } from '@/lib/mdx-editing';
 import { mdxImagesToMarkdown } from '@/lib/utils/editor-image';
 
-// RSS readers poll this often, and building it walks every post. The write path
-// already calls revalidatePath('/feed.xml').
+// RSS readers poll this often, and building it reads each listed post's MDX. The
+// write path already calls revalidatePath('/feed.xml').
 export const revalidate = 300;
+
+// Readers keep what they have already fetched, so the feed only carries recent
+// items: the newest posts, plus the memos getMemos() returns (latest two months).
+const FEED_POST_LIMIT = 20;
 
 interface IFeedItem {
   title: string;
@@ -31,8 +35,13 @@ const createPostFeedItems = async (
   postList: PostList,
   feedDomain: string,
 ): Promise<IFeedItem[]> => {
+  // The index lists pinned posts first, so order by date before cutting.
+  const latestPosts = [...postList]
+    .sort((a, b) => dayjs(b.createdTime).diff(dayjs(a.createdTime)))
+    .slice(0, FEED_POST_LIMIT);
+
   const items = await Promise.all(
-    postList.map(async ({ slug, title, createdTime, tags }): Promise<IFeedItem | null> => {
+    latestPosts.map(async ({ slug, title, createdTime, tags }): Promise<IFeedItem | null> => {
       const mdx = await getPostMDX(slug);
       if (!mdx) {
         return null;
