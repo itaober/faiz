@@ -19,7 +19,7 @@ interface RecordsListClientProps {
 }
 
 export function RecordsListClient({ records }: RecordsListClientProps) {
-  const { tab: activeTab } = useRecordsTab();
+  const activeTab = useRecordsTab();
   const { isComposerOpen, setComposerOpen, editingRecordKey, setEditingRecordKey } =
     useRecordsInlineComposer();
 

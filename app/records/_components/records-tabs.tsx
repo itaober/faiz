@@ -9,7 +9,7 @@ import { tabList } from '../_constants';
 import { useRecordsTab } from './records-tab';
 
 export default function RecordsTabs() {
-  const { tab: activeTab } = useRecordsTab();
+  const activeTab = useRecordsTab();
 
   return (
     <nav aria-label="Record categories">
