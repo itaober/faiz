@@ -87,6 +87,7 @@ export default function RecordItem({
         width={0}
         height={0}
         sizes={coverSizes}
+        loading={preloadCover ? 'eager' : undefined}
         data-cover-blur
         className="absolute inset-0 h-full w-full scale-125 object-cover blur-lg opacity-50"
       />

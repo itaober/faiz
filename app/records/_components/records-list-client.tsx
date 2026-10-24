@@ -1,23 +1,25 @@
 'use client';
 import dayjs from 'dayjs';
-import { useSearchParams } from 'next/navigation';
+import dynamic from 'next/dynamic';
 import { useMemo } from 'react';
 
 import MotionWrapper from '@/components/motion-wrapper';
 import type { RecordItem as RecordDataItem, Records } from '@/lib/data/data';
 
-import { normalizeTab, type Tab, tabList } from '../_constants';
+import { type Tab, tabList } from '../_constants';
 import RecordItem from './record-item';
-import RecordsSidePanel from './records-side-panel';
+import { useRecordsTab } from './records-tab';
 import { useRecordsInlineComposer } from './use-records-inline-composer';
+
+// Edit-mode only: keeps the drawer and upload code out of the reader's bundle.
+const RecordsSidePanel = dynamic(() => import('./records-side-panel'), { ssr: false });
 
 interface RecordsListClientProps {
   records: Records | null;
 }
 
 export function RecordsListClient({ records }: RecordsListClientProps) {
-  const searchParams = useSearchParams();
-  const activeTab = normalizeTab(searchParams.get('tab'));
+  const { tab: activeTab } = useRecordsTab();
   const { isComposerOpen, setComposerOpen, editingRecordKey, setEditingRecordKey } =
     useRecordsInlineComposer();
 

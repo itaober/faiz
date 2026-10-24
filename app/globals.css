@@ -800,6 +800,11 @@ button {
       box-shadow: 0 0 0 2px color-mix(in oklch, var(--accent) 0%, transparent);
     }
   }
+  /* Set by the records page's inline script on a hard load of ?tab=: keep the
+     prerendered "all" tab hidden until the client has switched to the right one. */
+  [data-records-tab-query] [data-records-tab-pending] {
+    display: none;
+  }
   .fz-search-foot {
     display: flex;
     align-items: center;

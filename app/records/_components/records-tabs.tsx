@@ -1,16 +1,15 @@
 'use client';
 
 import { motion } from 'motion/react';
-import { useSearchParams } from 'next/navigation';
 
 import { ANIMATION } from '@/lib/constants/animation';
 import { cn } from '@/lib/utils';
 
-import { normalizeTab, tabList } from '../_constants';
+import { tabList } from '../_constants';
+import { useRecordsTab } from './records-tab';
 
 export default function RecordsTabs() {
-  const searchParams = useSearchParams();
-  const activeTab = normalizeTab(searchParams.get('tab'));
+  const { tab: activeTab } = useRecordsTab();
 
   return (
     <nav aria-label="Record categories">
