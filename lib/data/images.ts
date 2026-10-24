@@ -1,3 +1,4 @@
+import { unstable_cache } from 'next/cache';
 import sharp from 'sharp';
 
 import { isSupportedImageType, MAX_IMAGE_SIZE } from '@/lib/constants/image';
@@ -21,20 +22,12 @@ export interface ImageMeta {
 }
 
 /**
- * Intrinsic size plus an 8px blurred preview, so a page can reserve the image's
- * box and paint the preview while the real file loads. Same request as
- * /api/image, so the bytes come out of the shared fetch cache. Returns null on
- * any failure; the image then renders without a placeholder.
+ * Kept indefinitely: uploads get a fresh random-id path, so the file behind a
+ * path does not change. Throws on failure so that a failure is never cached.
  */
-export async function getImageMeta(path: string): Promise<ImageMeta | null> {
-  if (!isContentImageReadPath(path.split('/'))) {
-    return null;
-  }
-
-  try {
+const readImageMeta = unstable_cache(
+  async (path: string): Promise<ImageMeta> => {
     const res = await fetchGitHubApi(path, { next: { revalidate: 7 * 24 * 60 * 60 } });
-    // ponytail: re-decoded on every render (a few ms per image); wrap in a persistent
-    // cache if renders get slow.
     const image = sharp(Buffer.from(await res.arrayBuffer()));
     const { autoOrient } = await image.metadata();
     const blur = await image.autoOrient().resize(8, 8, { fit: 'inside' }).webp().toBuffer();
@@ -44,6 +37,22 @@ export async function getImageMeta(path: string): Promise<ImageMeta | null> {
       height: autoOrient.height,
       blurDataURL: `data:image/webp;base64,${blur.toString('base64')}`,
     };
+  },
+  ['image-meta'],
+);
+
+/**
+ * Intrinsic size plus an 8px blurred preview, so a page can reserve the image's
+ * box and paint the preview while the real file loads. Returns null on any
+ * failure; the image then renders without a placeholder.
+ */
+export async function getImageMeta(path: string): Promise<ImageMeta | null> {
+  if (!isContentImageReadPath(path.split('/'))) {
+    return null;
+  }
+
+  try {
+    return await readImageMeta(path);
   } catch (error) {
     console.warn(`Failed to read image meta for ${path}:`, error);
     return null;

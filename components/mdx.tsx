@@ -1,15 +1,17 @@
 import type { MDXComponents } from 'mdx/types';
-import NextImage from 'next/image';
 import NextLink from 'next/link';
 import type { MDXRemoteProps } from 'next-mdx-remote/rsc';
 import { MDXRemote } from 'next-mdx-remote/rsc';
 import type { AnchorHTMLAttributes, ImgHTMLAttributes } from 'react';
 
+import BlurImage from '@/components/blur-image';
 import ExternalLinkHoverCard from '@/components/external-link-hover-card';
 import { Preview, PreviewImage, PreviewPortal, PreviewTrigger } from '@/components/preview';
+import { getImageMeta } from '@/lib/data/images';
 import {
   groupConsecutiveMdxImages,
   normalizeEditorImageMarkup,
+  toApiImageUrl,
   unescapeMarkdownValue,
 } from '@/lib/utils/editor-image';
 
@@ -116,13 +118,15 @@ const MarkdownLink = ({ href = '', children, hoverCard = true, ...props }: Markd
   );
 };
 
+const API_IMAGE_PREFIX = toApiImageUrl('');
+
 interface IImageProps extends ImgHTMLAttributes<HTMLImageElement> {
   src?: string;
   alt?: string;
   caption?: string;
 }
 
-const Image = ({ src, alt = '', caption }: IImageProps) => {
+const Image = async ({ src, alt = '', caption }: IImageProps) => {
   if (!src) {
     return null;
   }
@@ -133,6 +137,9 @@ const Image = ({ src, alt = '', caption }: IImageProps) => {
   const resolvedAlt = imageAlt.trim() || _caption || 'Content image';
   const previewLabel = `Open image preview${resolvedAlt ? `: ${resolvedAlt}` : ''}`;
   const imageSizes = '(max-width: 768px) calc(100vw - 3rem), 36rem';
+  const meta = imageSrc.startsWith(API_IMAGE_PREFIX)
+    ? await getImageMeta(imageSrc.slice(API_IMAGE_PREFIX.length))
+    : null;
 
   return (
     <Preview>
@@ -143,12 +150,13 @@ const Image = ({ src, alt = '', caption }: IImageProps) => {
           ariaLabel={previewLabel}
           className="mx-auto block w-full max-w-xl overflow-hidden rounded-md md:rounded-lg"
         >
-          <NextImage
+          <BlurImage
             src={imageSrc}
             alt={resolvedAlt}
-            width={0}
-            height={0}
+            width={meta?.width ?? 0}
+            height={meta?.height ?? 0}
             sizes={imageSizes}
+            blurDataURL={meta?.blurDataURL}
             className="fz-img-outline h-auto w-full"
           />
         </PreviewTrigger>
