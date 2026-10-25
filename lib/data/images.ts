@@ -19,7 +19,7 @@ import {
 export interface ImageMeta {
   width: number;
   height: number;
-  blurDataURL: string;
+  blurDataURL: `data:image/webp;base64,${string}`;
 }
 
 /** Same window as /api/image, so the size is never older than the bytes it describes. */
@@ -29,7 +29,7 @@ const readImageMeta = async (path: string): Promise<ImageMeta> => {
   const res = await fetchGitHubApi(path, { next: { revalidate: IMAGE_REVALIDATE_SECONDS } });
   const image = sharp(Buffer.from(await res.arrayBuffer()));
   const { autoOrient } = await image.metadata();
-  const blur = await image.autoOrient().resize(8, 8, { fit: 'inside' }).webp().toBuffer();
+  const blur = await image.autoOrient().resize(8, 8, { fit: 'inside' }).blur(1).webp().toBuffer();
 
   return {
     width: autoOrient.width,
@@ -54,7 +54,7 @@ export async function getImageMeta(path: string): Promise<ImageMeta | null> {
   }
 
   try {
-    return await unstable_cache(() => readImageMeta(path), ['image-meta', path], {
+    return await unstable_cache(() => readImageMeta(path), ['image-meta-v2', path], {
       revalidate: IMAGE_REVALIDATE_SECONDS,
       tags: [getGitHubContentTag(path)],
     })();
