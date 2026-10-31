@@ -1,8 +1,8 @@
 'use client';
 
+import Image from 'next/image';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import BlurImage from '@/components/blur-image';
 import { Preview, PreviewImage, PreviewPortal, PreviewTrigger } from '@/components/preview';
 import type { ImageMeta } from '@/lib/data/images';
 import { cn } from '@/lib/utils';
@@ -132,7 +132,7 @@ export default function MemoCardImages({ images, eager }: MemoCardImagesProps) {
               })}
             >
               <div
-                className={cn('fz-img-outline relative', {
+                className={cn('fz-img-outline', {
                   'bg-muted/30 w-fit max-w-full cursor-pointer overflow-hidden rounded-md':
                     columns === 1,
                   'bg-muted/30 aspect-square w-full cursor-pointer overflow-hidden rounded-md':
@@ -141,14 +141,14 @@ export default function MemoCardImages({ images, eager }: MemoCardImagesProps) {
               >
                 {/* A known size reserves the box before the file loads; without one, w-auto
                     sizes it on load. */}
-                <BlurImage
+                <Image
                   src={url}
                   alt={imageAlt}
                   width={meta?.width ?? 0}
                   height={meta?.height ?? 0}
                   sizes={imageSizes}
                   loading={eager ? 'eager' : undefined}
-                  blurDataURL={meta?.blurDataURL}
+                  placeholder={meta?.blurDataURL ?? 'empty'}
                   className={cn({
                     'h-auto max-w-full rounded-md': columns === 1,
                     'w-auto': columns === 1 && !meta,

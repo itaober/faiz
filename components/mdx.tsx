@@ -1,10 +1,10 @@
 import type { MDXComponents } from 'mdx/types';
+import NextImage from 'next/image';
 import NextLink from 'next/link';
 import type { MDXRemoteProps } from 'next-mdx-remote/rsc';
 import { MDXRemote } from 'next-mdx-remote/rsc';
 import type { AnchorHTMLAttributes, ImgHTMLAttributes } from 'react';
 
-import BlurImage from '@/components/blur-image';
 import ExternalLinkHoverCard from '@/components/external-link-hover-card';
 import { Preview, PreviewImage, PreviewPortal, PreviewTrigger } from '@/components/preview';
 import { getImageMeta } from '@/lib/data/images';
@@ -150,13 +150,13 @@ const Image = async ({ src, alt = '', caption }: IImageProps) => {
           ariaLabel={previewLabel}
           className="mx-auto block w-full max-w-xl overflow-hidden rounded-md md:rounded-lg"
         >
-          <BlurImage
+          <NextImage
             src={imageSrc}
             alt={resolvedAlt}
             width={meta?.width ?? 0}
             height={meta?.height ?? 0}
             sizes={imageSizes}
-            blurDataURL={meta?.blurDataURL}
+            placeholder={meta?.blurDataURL ?? 'empty'}
             className="fz-img-outline h-auto w-full"
           />
         </PreviewTrigger>
