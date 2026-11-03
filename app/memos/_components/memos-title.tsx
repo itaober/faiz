@@ -43,7 +43,7 @@ export default function MemosTitle() {
       <div className="mb-8">
         {/* biome-ignore lint/a11y/useKeyWithClickEvents: hidden owner-only gesture (consecutive clicks open the composer); exposing it to the keyboard would put it in every reader's tab order */}
         <h1
-          className="cursor-default text-3xl leading-tight font-bold tracking-tight text-balance select-none md:text-4xl md:leading-10"
+          className="cursor-default text-3xl leading-tight font-bold tracking-tight select-none md:text-4xl md:leading-10"
           onClick={handleClick}
         >
           Memos
