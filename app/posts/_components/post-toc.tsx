@@ -11,6 +11,7 @@ import {
 } from 'react';
 
 import { useWindowResize, useWindowScroll } from '@/hooks/use-window-event';
+import { cn } from '@/lib/utils';
 
 interface TocItem {
   id: string;
@@ -65,12 +66,6 @@ const collectTocFromArticle = (article: HTMLElement): TocItem[] => {
   return picked.map(({ id, text, level }) => ({ id, text, depth: level === top ? 0 : 1 }));
 };
 
-/**
- * A column of dashes at the page's right edge, one per heading: length is the
- * level, the darker one is where you are. Resting on it a beat fades the titles
- * in beside their dashes (pure CSS, see `.fz-toc` in globals.css). Pinned at the
- * body's first line, so it never moves while you scroll.
- */
 export default function PostToc() {
   const [tocItems, setTocItems] = useState<TocItem[]>([]);
   // Null while the margin right of the body is too narrow to hold the TOC.
@@ -165,22 +160,47 @@ export default function PostToc() {
   return (
     <nav
       aria-label="Table of contents"
-      className="fz-toc fz-enter"
       style={
         { '--toc-limit': `${bounds.limit}px`, '--toc-top': `${bounds.top}px` } as CSSProperties
       }
+      className={cn(
+        // Only the dashes and the shown titles take the pointer, so the empty
+        // margin around them never opens the titles.
+        'group/toc fz-enter pointer-events-none fixed z-20 flex w-max flex-col overflow-y-auto overscroll-contain [scrollbar-width:none]',
+        // The 20px dash column sits on the back-to-top button's axis (its
+        // right-5 plus half its size-8), never crosses --toc-limit, and stops
+        // above the button.
+        'top-(--toc-top) right-[calc(2.25rem-10px)] max-h-[calc(100dvh-var(--toc-top)-4.25rem)] max-w-[calc(100%-2.25rem+10px-var(--toc-limit))]',
+      )}
     >
       {tocItems.map(item => (
         <a
           key={item.id}
           href={`#${item.id}`}
-          className="fz-toc-item focus-ring"
-          data-depth={item.depth}
           aria-current={item.id === activeId ? 'location' : undefined}
           onClick={event => onTocLinkClick(event, item.id)}
+          className="group/item focus-ring text-border hover:text-foreground focus-visible:text-foreground aria-[current=location]:text-foreground/60 grid h-6 grid-cols-[minmax(0,1fr)_20px] items-center gap-2.5 transition-colors duration-(--fz-dur-fast)"
         >
-          <span className="fz-toc-label">{item.text}</span>
-          <span className="fz-toc-dash" aria-hidden="true" />
+          <span
+            className={cn(
+              'text-foreground/50 group-hover/item:text-foreground group-focus-visible/item:text-foreground group-aria-[current=location]/item:text-foreground pointer-events-auto max-w-[14em] truncate text-[13px]',
+              // Rest a beat before fading in, linger as long before fading out.
+              'invisible opacity-0 transition-[opacity,visibility] delay-300 duration-(--fz-dur-fast) ease-(--ease-out)',
+              'group-hover/toc:visible group-hover/toc:opacity-100 group-hover/toc:duration-(--fz-dur-morph)',
+              'group-has-focus-visible/toc:visible group-has-focus-visible/toc:opacity-100',
+              item.depth === 1 && 'pl-3',
+            )}
+          >
+            {item.text}
+          </span>
+          <span
+            aria-hidden="true"
+            className="pointer-events-auto flex h-full items-center justify-end"
+          >
+            <span
+              className={cn('h-[3px] rounded-full bg-current', item.depth === 1 ? 'w-3.5' : 'w-5')}
+            />
+          </span>
         </a>
       ))}
     </nav>
