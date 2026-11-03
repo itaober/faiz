@@ -204,6 +204,20 @@ button {
   h2,
   h3 {
     scroll-margin-top: 3rem;
+    text-wrap: balance;
+  }
+  p,
+  li {
+    text-wrap: pretty;
+  }
+  a {
+    text-decoration-color: color-mix(in oklch, currentColor 35%, transparent);
+    text-decoration-thickness: 1px;
+    text-underline-offset: 0.25em;
+    transition: text-decoration-color var(--fz-dur-fast) var(--ease-out);
+    &:hover {
+      text-decoration-color: currentColor;
+    }
   }
   ul {
     @apply ps-5;
@@ -222,7 +236,7 @@ button {
     }
   }
   blockquote {
-    @apply text-muted-foreground text-sm font-normal not-italic md:text-base;
+    @apply text-muted-foreground font-normal not-italic;
     p {
       &:first-of-type::before,
       &:last-of-type::after {
@@ -315,7 +329,7 @@ button {
   .memo-editor-content a:not(.not-prose) {
     color: var(--tw-prose-links);
     font-weight: 500;
-    text-decoration: underline;
+    text-decoration-line: underline;
   }
 
   .site-prose-editor-content {
