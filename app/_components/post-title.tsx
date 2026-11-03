@@ -78,7 +78,7 @@ const PostTitle = ({
       <div className="flex items-start justify-between gap-4">
         {/* biome-ignore lint/a11y/useKeyWithClickEvents: hidden owner-only gesture (consecutive clicks toggle edit mode); exposing it to the keyboard would put it in every reader's tab order */}
         <h1
-          className="cursor-default text-4xl font-bold tracking-tight select-none"
+          className="cursor-default text-3xl leading-tight font-bold tracking-tight text-balance select-none md:text-4xl md:leading-10"
           onClick={handleTitleClick}
         >
           {titleNode ?? title}

@@ -16,7 +16,7 @@ interface NormalizedImage {
   src: string;
 }
 
-const IMAGE_SIZES = '(max-width: 768px) calc(100vw - 3rem), 36rem';
+const IMAGE_SIZES = '(max-width: 768px) calc(100vw - 2.5rem), 36rem';
 
 const isExternalImage = (src: string) => /^(https?:)?\/\//.test(src);
 

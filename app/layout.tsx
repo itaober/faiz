@@ -140,7 +140,9 @@ export default function RootLayout({
             <EditModeProvider>
               <EditDockProvider>
                 <Header />
-                <main className="mx-auto max-w-3xl px-6 py-12">{children}</main>
+                <main className="mx-auto max-w-3xl px-5 pt-8 pb-12 md:px-6 md:pt-12">
+                  {children}
+                </main>
                 <BackToTop />
               </EditDockProvider>
             </EditModeProvider>
