@@ -204,7 +204,6 @@ button {
   h2,
   h3 {
     scroll-margin-top: 3rem;
-    text-wrap: balance;
   }
   a {
     text-decoration-color: color-mix(in oklch, currentColor 35%, transparent);
