@@ -11,8 +11,7 @@ export default function NewPostEditorPage() {
   const router = useRouter();
   const { isEditMode, isEditModeLoaded } = useEditMode();
 
-  // Writing a post only exists inside edit mode: landing here without it, or
-  // leaving it mid-draft, goes back to the list.
+  // Edit mode lives in localStorage, out of the server's sight.
   useEffect(() => {
     if (isEditModeLoaded && !isEditMode) {
       router.replace('/posts');
