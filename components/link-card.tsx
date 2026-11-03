@@ -166,7 +166,7 @@ export default function LinkCard({
               ) : null}
               <span
                 className={cn(
-                  'text-lg leading-6 font-semibold text-pretty',
+                  'text-lg leading-6 font-semibold',
                   podcast && !inset ? 'line-clamp-3' : 'line-clamp-2',
                 )}
               >
