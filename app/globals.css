@@ -181,6 +181,92 @@ button {
       transform: translateY(4px);
     }
   }
+
+  /*
+   * Post TOC (app/posts/_components/post-toc.tsx): dashes at the right edge;
+   * resting on them for --toc-intent fades the titles in beside them. Width
+   * opens while the titles are still transparent and closes only after they
+   * fade, so they never slide in from the side.
+   */
+  .fz-toc {
+    --toc-intent: 300ms;
+    /* Puts the 20px dash column (inside the 12px padding) on the back-to-top
+       button's axis: its right-5 plus half its size-8. */
+    --toc-right: calc(1.25rem + 1rem - 10px - 12px);
+    position: fixed;
+    z-index: 20;
+    top: calc(var(--toc-top) - 6px);
+    right: var(--toc-right);
+    display: flex;
+    flex-direction: column;
+    width: max-content;
+    /* Never past --toc-limit, the body's edge plus a gap. */
+    max-width: calc(100% - var(--toc-right) - var(--toc-limit));
+    /* Ends above the back-to-top button: bottom-5 + size-8 + 1rem. */
+    max-height: calc(100dvh - var(--toc-top) - 4.25rem);
+    /* Only widens the pointer target around the 3px dashes. */
+    padding: 6px 12px;
+    overflow: hidden auto;
+    overscroll-behavior: contain;
+    scrollbar-width: none;
+  }
+  /* The dash reads `currentColor`, so a row's dash and title light up together. */
+  .fz-toc-item {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 20px;
+    align-items: center;
+    gap: 10px;
+    height: 24px;
+    color: var(--border);
+    transition: color var(--fz-dur-fast) var(--ease-out);
+  }
+  .fz-toc-item[aria-current] {
+    color: color-mix(in oklch, var(--foreground) 60%, transparent);
+  }
+  .fz-toc-item:hover,
+  .fz-toc-item:focus-visible {
+    color: var(--foreground);
+  }
+  .fz-toc-dash {
+    justify-self: end;
+    width: 20px;
+    height: 3px;
+    border-radius: var(--fz-radius-pill);
+    background: currentColor;
+  }
+  .fz-toc-item[data-depth='1'] .fz-toc-dash {
+    width: 14px;
+  }
+  .fz-toc-label {
+    justify-self: end;
+    max-width: 0;
+    overflow: hidden;
+    font-size: 13px;
+    color: color-mix(in oklch, var(--foreground) 40%, transparent);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    opacity: 0;
+    transition:
+      opacity var(--fz-dur-fast) var(--ease-out) var(--toc-intent),
+      max-width 0s linear calc(var(--toc-intent) + var(--fz-dur-fast)),
+      color var(--fz-dur-fast) var(--ease-out);
+  }
+  .fz-toc-item[aria-current] .fz-toc-label {
+    color: color-mix(in oklch, var(--foreground) 72%, transparent);
+  }
+  .fz-toc-item:hover .fz-toc-label,
+  .fz-toc-item:focus-visible .fz-toc-label {
+    color: var(--foreground);
+  }
+  .fz-toc:hover .fz-toc-label,
+  .fz-toc:has(:focus-visible) .fz-toc-label {
+    max-width: 100%;
+    opacity: 1;
+    transition:
+      opacity var(--fz-dur-morph) var(--ease-out) var(--toc-intent),
+      max-width 0s,
+      color var(--fz-dur-fast) var(--ease-out);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
