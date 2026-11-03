@@ -143,8 +143,7 @@ export default function PostToc() {
     }
 
     const top = heading.getBoundingClientRect().top + window.scrollY - 32;
-    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    window.scrollTo({ top, behavior: reduceMotion ? 'auto' : 'smooth' });
+    window.scrollTo({ top, behavior: 'instant' });
     setActiveId(id);
     // A pointer click is done once it jumps; a lingering focus would hold the
     // titles open. Keyboard focus (detail 0) stays with the keyboard.
