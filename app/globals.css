@@ -206,10 +206,6 @@ button {
     scroll-margin-top: 3rem;
     text-wrap: balance;
   }
-  p,
-  li {
-    text-wrap: pretty;
-  }
   a {
     text-decoration-color: color-mix(in oklch, currentColor 35%, transparent);
     text-decoration-thickness: 1px;
