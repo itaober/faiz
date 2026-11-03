@@ -220,9 +220,13 @@ export default function ExternalLinkHoverCard({
             className={cn('inline', className)}
           >
             {children}
+            {/* Word joiner: a wrapping URL never leaves the icon alone on the next line. */}
+            {'\u2060'}
+            {/* The glyph's box has 1/8 padding; the negative align sets its bottom on the baseline. */}
             <ExternalLinkIcon
               aria-hidden="true"
-              className="ml-0.5 inline size-3 align-[0.05em] opacity-55"
+              strokeWidth={1.75}
+              className="ml-[0.15em] inline size-[0.875em] align-[-0.11em] opacity-55"
             />
             <span className="sr-only select-none">(opens in a new tab)</span>
           </a>
