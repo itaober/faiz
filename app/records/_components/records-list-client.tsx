@@ -89,7 +89,7 @@ export function RecordsListClient({ records }: RecordsListClientProps) {
         <article className="mt-8 space-y-8">
           {sortedRecordsByYear.map(([year, recordList], sectionIndex) => (
             <section key={year}>
-              <h2 className="mb-4 text-2xl font-bold">{year}</h2>
+              <h2 className="mb-3 text-2xl font-bold">{year}</h2>
               <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
                 {recordList.map((record, recordIndex) => (
                   <RecordItem

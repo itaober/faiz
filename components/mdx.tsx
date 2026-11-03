@@ -136,7 +136,7 @@ const Image = async ({ src, alt = '', caption }: IImageProps) => {
   const _caption = caption || imageAlt;
   const resolvedAlt = imageAlt.trim() || _caption || 'Content image';
   const previewLabel = `Open image preview${resolvedAlt ? `: ${resolvedAlt}` : ''}`;
-  const imageSizes = '(max-width: 768px) calc(100vw - 3rem), 36rem';
+  const imageSizes = '(max-width: 768px) calc(100vw - 2.5rem), 36rem';
   const meta = imageSrc.startsWith(API_IMAGE_PREFIX)
     ? await getImageMeta(imageSrc.slice(API_IMAGE_PREFIX.length))
     : null;

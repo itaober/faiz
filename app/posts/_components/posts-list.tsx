@@ -34,7 +34,7 @@ export default function PostsList({ sortedPostsByYear }: IPostsListProps) {
             }}
             transition={{ duration: ANIMATION.duration.slow }}
           >
-            <h2 className="mb-2 text-2xl font-bold">{groupTitle}</h2>
+            <h2 className="mb-3 text-2xl font-bold">{groupTitle}</h2>
             <motion.ul
               className="flex flex-col gap-6 md:gap-4"
               variants={{
