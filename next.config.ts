@@ -29,14 +29,11 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: __dirname,
   },
-  // Vercel Hobby bills every cache MISS/STALE per (image × width) against 5K/month.
-  // Cache for the 31-day max (editor uploads always get a fresh random-id path) and
-  // keep only the widths our layouts pick. Uploads cap at 1920px; 2560 serves older
-  // full-size post photos in the Retina lightbox.
+  // Vercel Hobby caps optimization at 5K transforms/month; past it every uncached
+  // /_next/image returns 402 and the image breaks. Uploads are already webp ≤1920px,
+  // so serve them as-is from /api/image (CDN-cached) instead.
   images: {
-    minimumCacheTTL: 2678400,
-    deviceSizes: [640, 1200, 1920, 2560],
-    imageSizes: [64, 128, 256, 384],
+    unoptimized: true,
   },
   experimental: {
     serverActions: {
