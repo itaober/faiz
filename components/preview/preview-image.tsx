@@ -28,8 +28,8 @@ const ProgressivePreviewImage = ({
   const isActiveSource = activeSourceImage?.src === src;
   const placeholderSrc = isActiveSource ? activeSourceImage.currentSrc : sourceImages.get(src);
   const [isLoaded, setIsLoaded] = useState(false);
-  // Closing keeps the source crop too, so the media flying home re-crops
-  // toward the exact rendition the grid cell will show at handover.
+  // Opening and closing keep the source rendition, so the pixels at handover match the grid cell
+  // exactly; its crop only matters when the frame's shape had to fall back to the cell's.
   const preserveSourceCrop = isActiveSource && (phase === 'opening' || phase === 'closing');
   const showPlaceholder = Boolean(placeholderSrc) && (!isLoaded || preserveSourceCrop);
   const showPreview = !placeholderSrc || (isLoaded && !preserveSourceCrop);

@@ -404,7 +404,8 @@ export const PreviewPortal = ({
   }, []);
 
   useEffect(() => {
-    if (!interactive || !hasNavigation) {
+    // Paging only once open: the opening flight is computed for the current image's shape.
+    if (!controlsVisible || !hasNavigation) {
       return;
     }
     const handleKey = (event: KeyboardEvent) => {
@@ -418,7 +419,7 @@ export const PreviewPortal = ({
     };
     document.addEventListener('keydown', handleKey);
     return () => document.removeEventListener('keydown', handleKey);
-  }, [hasNavigation, interactive]);
+  }, [controlsVisible, hasNavigation]);
 
   useEffect(() => {
     return () => {
@@ -480,8 +481,8 @@ export const PreviewPortal = ({
         aria-label={ariaLabel}
         tabIndex={-1}
         onKeyDown={handleDialogKeyDown}
-        onTouchStart={interactive ? onTouchStart : undefined}
-        onTouchEnd={interactive ? onTouchEnd : undefined}
+        onTouchStart={controlsVisible ? onTouchStart : undefined}
+        onTouchEnd={controlsVisible ? onTouchEnd : undefined}
         className="relative flex max-h-full max-w-full items-center justify-center"
       >
         <div

@@ -51,13 +51,20 @@ export const getCoverFlip = (
   };
 };
 
-/** Corner radius the source media is drawn with, so the flight starts and lands on its shape. */
+/**
+ * Corner radius the source media is drawn with, so the flight starts and lands on its shape. The
+ * rounding sits on the image, a clipping wrapper, or the trigger just outside `source`.
+ */
 export const getSourceRadius = (source: HTMLElement | null) => {
+  const boundary = source?.parentElement ?? source;
   let element = source?.querySelector('img') ?? source;
   while (element) {
     const radius = Number.parseFloat(getComputedStyle(element).borderTopLeftRadius);
-    if (radius > 0 || element === source) {
-      return radius || 0;
+    if (radius > 0) {
+      return radius;
+    }
+    if (element === boundary) {
+      return 0;
     }
     element = element.parentElement;
   }
