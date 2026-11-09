@@ -104,6 +104,11 @@ export default function MemoCardImages({ images, eager }: MemoCardImagesProps) {
 
   const currentPreviewUrl = previewUrls[currentIndex];
   const currentAlt = `Memo image ${currentIndex + 1}`;
+  const currentMeta = visibleImages[currentIndex]?.meta;
+  // The preview takes each image's own shape — grid cells are square crops — so opening un-crops
+  // the cell and paging resizes the frame. Without meta the portal falls back to the loaded file.
+  const currentAspectRatio =
+    currentMeta?.width && currentMeta.height ? currentMeta.width / currentMeta.height : undefined;
   const hasMultipleImages = visibleCount > 1;
 
   return (
@@ -163,7 +168,7 @@ export default function MemoCardImages({ images, eager }: MemoCardImagesProps) {
 
       <PreviewPortal
         ariaLabel="Image preview"
-        targetAspectRatio={columns > 1 ? 1 : undefined}
+        targetAspectRatio={currentAspectRatio}
         onPrevious={hasMultipleImages ? showPrev : undefined}
         onNext={hasMultipleImages ? showNext : undefined}
         onTouchStart={handleTouchStart}

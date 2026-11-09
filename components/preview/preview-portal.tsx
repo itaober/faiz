@@ -7,15 +7,17 @@ import { useCallback, useEffect, useLayoutEffect, useRef } from 'react';
 import Overlay from '@/components/overlay';
 import { cn } from '@/lib/utils';
 
-import { type IPreviewRect, usePreview } from './context.ts';
+import { usePreview } from './context.ts';
 import {
   areRectsEqual,
-  getFlipTransform,
+  getCoverFlip,
   getFocusableElements,
+  getSourceRadius,
   isValidRect,
   PREVIEW_CLOSE_TIMEOUT_MS,
   PREVIEW_DURATION_MS,
   PREVIEW_EASING,
+  PREVIEW_FULL_FRAME,
   prefersReducedMotion,
   toPreviewRect,
   whenPaintable,
@@ -215,8 +217,10 @@ export const PreviewPortal = ({
       return;
     }
 
-    const currentTransform = getComputedStyle(frame).transform;
-    frame.style.transform = currentTransform === 'none' ? 'none' : currentTransform;
+    const { transform, clipPath } = getComputedStyle(frame);
+    frame.style.transform = transform;
+    // `none` can't interpolate to inset(); leaving it unset lets the close start from the full frame.
+    frame.style.clipPath = clipPath === 'none' ? '' : clipPath;
     cancelAnimation();
     setPhase('closing');
   }, [cancelAnimation, finishClose, getReturnRect, originRectRef, phaseRef, setPhase]);
@@ -236,11 +240,12 @@ export const PreviewPortal = ({
 
     const frame = mediaFrameRef.current;
     const source = sourceMediaRef.current;
-    const fromTransform = getFlipTransform(sourceRect, targetRect);
+    const from = getCoverFlip(sourceRect, targetRect, getSourceRadius(source));
     frame.style.visibility = 'visible';
     frame.style.transformOrigin = '0 0';
-    frame.style.transform = fromTransform;
-    frame.style.willChange = 'transform';
+    frame.style.transform = from.transform;
+    frame.style.clipPath = from.clipPath;
+    frame.style.willChange = 'transform, clip-path';
 
     const generation = ++animationGenerationRef.current;
     let cancelled = false;
@@ -262,12 +267,13 @@ export const PreviewPortal = ({
 
       if (prefersReducedMotion()) {
         frame.style.transform = 'none';
+        frame.style.clipPath = '';
         frame.style.willChange = '';
         setPhase('open');
         return;
       }
 
-      const animation = frame.animate([{ transform: fromTransform }, { transform: 'none' }], {
+      const animation = frame.animate([from, PREVIEW_FULL_FRAME], {
         duration: PREVIEW_DURATION_MS,
         easing: PREVIEW_EASING,
         fill: 'forwards',
@@ -280,6 +286,7 @@ export const PreviewPortal = ({
           }
           animationRef.current = null;
           frame.style.transform = 'none';
+          frame.style.clipPath = '';
           frame.style.willChange = '';
           animation.cancel();
           setPhase('open');
@@ -320,29 +327,22 @@ export const PreviewPortal = ({
       return;
     }
 
-    // Fly home by animating the frame's box, not a transform: a scale FLIP is
-    // non-uniform whenever the source box crops the media (a square cover in a
-    // 2:3 cell), so the media lands visibly squashed for its final frames.
-    // Box keyframes let object-fit re-crop every frame instead — together with
-    // the source-crop placeholder the landing frame matches the cell exactly.
-    const currentRect = toPreviewRect(frame.getBoundingClientRect());
-    const fromBox = isValidRect(currentRect) ? currentRect : targetRect;
-    frame.style.transform = 'none';
-
-    const toBoxKeyframe = (rect: IPreviewRect) => ({
-      left: `${rect.left - targetRect.left}px`,
-      top: `${rect.top - targetRect.top}px`,
-      width: `${rect.width}px`,
-      height: `${rect.height}px`,
-    });
-
     if (prefersReducedMotion()) {
       finishClose(frame, 'none');
       return;
     }
 
+    // Starts from wherever the media sits now (fully open, or frozen mid-opening by handleClose).
+    const from = {
+      transform: frame.style.transform || PREVIEW_FULL_FRAME.transform,
+      clipPath: frame.style.clipPath || PREVIEW_FULL_FRAME.clipPath,
+    };
+    const to = getCoverFlip(returnRect, targetRect, getSourceRadius(sourceMediaRef.current));
+    frame.style.transformOrigin = '0 0';
+    frame.style.willChange = 'transform, clip-path';
+
     const generation = ++animationGenerationRef.current;
-    const animation = frame.animate([toBoxKeyframe(fromBox), toBoxKeyframe(returnRect)], {
+    const animation = frame.animate([from, to], {
       duration: PREVIEW_DURATION_MS,
       easing: PREVIEW_EASING,
       fill: 'forwards',
@@ -355,7 +355,8 @@ export const PreviewPortal = ({
         }
         animationRef.current = null;
         animation.cancel();
-        finishClose(frame, 'none');
+        frame.style.clipPath = to.clipPath;
+        finishClose(frame, to.transform);
       })
       .catch(() => undefined);
 
@@ -364,7 +365,7 @@ export const PreviewPortal = ({
         cancelAnimation();
       }
     };
-  }, [cancelAnimation, finishClose, getReturnRect, phase, phaseRef]);
+  }, [cancelAnimation, finishClose, getReturnRect, phase, phaseRef, sourceMediaRef]);
 
   useLayoutEffect(() => {
     if (phase === 'open') {
