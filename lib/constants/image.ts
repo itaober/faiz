@@ -9,7 +9,12 @@ export const SUPPORTED_IMAGE_TYPES = [
   'image/heif',
 ] as const;
 
-export const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10MB
+// Stored (already-compressed WebP) size, checked on the server.
+export const MAX_IMAGE_SIZE = 10 * 1024 * 1024;
+
+// Picked file before compression. Phone photos and screenshots routinely exceed the
+// stored limit but compress to a few hundred KB, so this only guards browser decode memory.
+export const MAX_SOURCE_IMAGE_SIZE = 50 * 1024 * 1024;
 
 export function isSupportedImageType(mimeType: string): boolean {
   return SUPPORTED_IMAGE_TYPES.includes(mimeType as (typeof SUPPORTED_IMAGE_TYPES)[number]);

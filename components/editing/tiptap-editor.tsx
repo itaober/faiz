@@ -27,7 +27,7 @@ import {
   compressImage,
   fileToBase64,
   isSupportedImageType,
-  MAX_IMAGE_SIZE,
+  MAX_SOURCE_IMAGE_SIZE,
   SUPPORTED_IMAGE_TYPES,
 } from '@/lib/utils/image';
 
@@ -123,8 +123,10 @@ export default function TiptapEditor({
           toast.error(`Unsupported format: ${file.name}`);
           return false;
         }
-        if (file.size > MAX_IMAGE_SIZE) {
-          toast.error(`File too large: ${file.name}`);
+        if (file.size > MAX_SOURCE_IMAGE_SIZE) {
+          toast.error(
+            `File too large (max ${MAX_SOURCE_IMAGE_SIZE / 1024 / 1024}MB): ${file.name}`,
+          );
           return false;
         }
         return true;
