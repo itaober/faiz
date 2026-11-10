@@ -1,16 +1,16 @@
 import { AwsClient } from 'aws4fetch';
-import { updateTag } from 'next/cache';
+import { unstable_cache, updateTag } from 'next/cache';
 
-import { assetObjectKey } from '@/lib/assets';
+import { assetObjectKey, encodeKey } from '@/lib/assets';
 import { fetchWithRetry } from '@/lib/data/fetch-with-retry';
 import { StorageError } from '@/lib/errors';
 import { getServerEnv } from '@/lib/server/env';
 
 /**
  * The only module that talks to R2. Content (private bucket) is read through the Next data cache
- * and tagged per key, so a write refreshes exactly the pages built from it. Every overwrite or
- * delete of content first copies the current revision into `_history/`, which a bucket lifecycle
- * rule expires; assets are immutable and need no history.
+ * under one tag, so a write refreshes every page built from content. Every overwrite or delete of
+ * content first copies the current revision into `_history/`, which a bucket lifecycle rule
+ * expires; assets are immutable and need no history.
  */
 
 const CONTENT_TAG = 'content';
@@ -31,15 +31,11 @@ const getClient = () => {
   return client;
 };
 
-const encodeKey = (key: string) => key.split('/').map(encodeURIComponent).join('/');
-
 const objectUrl = (bucket: string, key = '') =>
   `https://${getServerEnv().R2_ACCOUNT_ID}.r2.cloudflarestorage.com/${bucket}/${encodeKey(key)}`;
 
 const contentBucket = () => getServerEnv().R2_CONTENT_BUCKET;
 const assetsBucket = () => getServerEnv().R2_ASSETS_BUCKET;
-
-export const contentTag = (key: string) => `${CONTENT_TAG}:${key}`.slice(0, 256);
 
 type SignedInit = Omit<RequestInit, 'body'> & { body?: string };
 
@@ -62,22 +58,23 @@ const storageError = (res: Response, context: string) =>
 
 // ── Content ──────────────────────────────────────────────────────────────
 
+// Signed requests carry a fresh date header each time and fetch's cache keys on headers, so the
+// read is cached around the request rather than by fetch. A throw is not cached.
+const cachedRead = <T>(name: string, key: string, revalidate: number, read: () => Promise<T>) =>
+  unstable_cache(read, [name, key], { revalidate, tags: [CONTENT_TAG] })();
+
 /** Cached read for rendering; null when the object does not exist. */
-export const readContent = async (
-  key: string,
-  revalidate = CONTENT_REVALIDATE_SECONDS,
-): Promise<string | null> => {
-  const res = await send(objectUrl(contentBucket(), key), {
-    next: { revalidate, tags: [CONTENT_TAG, contentTag(key)] },
+export const readContent = (key: string, revalidate = CONTENT_REVALIDATE_SECONDS) =>
+  cachedRead('r2-content-v1', key, revalidate, async (): Promise<string | null> => {
+    const res = await send(objectUrl(contentBucket(), key), { cache: 'no-store' });
+    if (res.status === 404) {
+      return null;
+    }
+    if (!res.ok) {
+      throw storageError(res, `Failed to read ${key}`);
+    }
+    return res.text();
   });
-  if (res.status === 404) {
-    return null;
-  }
-  if (!res.ok) {
-    throw storageError(res, `Failed to read ${key}`);
-  }
-  return res.text();
-};
 
 export const readContentJson = async <T = unknown>(key: string, revalidate?: number) => {
   const text = await readContent(key, revalidate);
@@ -102,7 +99,11 @@ export const readContentForUpdate = async (
   if (!res.ok) {
     throw storageError(res, `Failed to read ${key}`);
   }
-  return { text: await res.text(), revision: res.headers.get('etag') ?? '' };
+  const revision = res.headers.get('etag');
+  if (!revision) {
+    throw new StorageError(502, `No revision returned for ${key}`);
+  }
+  return { text: await res.text(), revision };
 };
 
 export const readContentJsonForUpdate = async <T>(key: string) => {
@@ -111,33 +112,29 @@ export const readContentJsonForUpdate = async <T>(key: string) => {
 };
 
 /** Keys under a prefix, relative to the bucket root. */
-export const listContent = async (
-  prefix: string,
-  revalidate = CONTENT_REVALIDATE_SECONDS,
-): Promise<string[]> => {
-  const keys: string[] = [];
-  let continuationToken: string | undefined;
-  do {
-    const url = new URL(objectUrl(contentBucket()));
-    url.searchParams.set('list-type', '2');
-    url.searchParams.set('prefix', prefix);
-    if (continuationToken) {
-      url.searchParams.set('continuation-token', continuationToken);
-    }
-    const res = await send(url.toString(), {
-      next: { revalidate, tags: [CONTENT_TAG, contentTag(prefix)] },
-    });
-    if (!res.ok) {
-      throw storageError(res, `Failed to list ${prefix}`);
-    }
-    const xml = await res.text();
-    for (const match of xml.matchAll(/<Key>([^<]+)<\/Key>/g)) {
-      keys.push(decodeXml(match[1]));
-    }
-    continuationToken = xml.match(/<NextContinuationToken>([^<]+)<\/NextContinuationToken>/)?.[1];
-  } while (continuationToken);
-  return keys;
-};
+export const listContent = (prefix: string, revalidate = CONTENT_REVALIDATE_SECONDS) =>
+  cachedRead('r2-list-v1', prefix, revalidate, async () => {
+    const keys: string[] = [];
+    let continuationToken: string | undefined;
+    do {
+      const url = new URL(objectUrl(contentBucket()));
+      url.searchParams.set('list-type', '2');
+      url.searchParams.set('prefix', prefix);
+      if (continuationToken) {
+        url.searchParams.set('continuation-token', continuationToken);
+      }
+      const res = await send(url.toString(), { cache: 'no-store' });
+      if (!res.ok) {
+        throw storageError(res, `Failed to list ${prefix}`);
+      }
+      const xml = await res.text();
+      for (const match of xml.matchAll(/<Key>([^<]+)<\/Key>/g)) {
+        keys.push(decodeXml(match[1]));
+      }
+      continuationToken = xml.match(/<NextContinuationToken>([^<]+)<\/NextContinuationToken>/)?.[1];
+    } while (continuationToken);
+    return keys;
+  });
 
 const decodeXml = (value: string) =>
   value
@@ -175,15 +172,6 @@ const archiveContent = async (key: string, revision?: string) => {
   return true;
 };
 
-const refreshContent = (key: string) => {
-  updateTag(CONTENT_TAG);
-  updateTag(contentTag(key));
-  const folder = key.slice(0, key.lastIndexOf('/') + 1);
-  if (folder) {
-    updateTag(contentTag(folder));
-  }
-};
-
 /**
  * Writes content under an if-unchanged check. `revision` is what the caller read: a string means
  * "replace exactly that revision", null means "create, it must not exist yet". A mismatch throws
@@ -216,23 +204,26 @@ export const writeContent = async (
   if (!res.ok) {
     throw storageError(res, `Failed to write ${key}`);
   }
-  refreshContent(key);
+  updateTag(CONTENT_TAG);
   return { revision: res.headers.get('etag') ?? '' };
 };
 
 export const writeContentJson = (key: string, data: unknown, revision: string | null) =>
   writeContent(key, `${JSON.stringify(data, null, 2)}\n`, revision, 'application/json');
 
-/** Deletes content after archiving it; false when it did not exist. */
-export const deleteContent = async (key: string): Promise<boolean> => {
-  if (!(await archiveContent(key))) {
+/**
+ * Deletes content after archiving it; false when it did not exist. With a revision, the archive
+ * only goes ahead if that is still the stored revision (StorageError 412 otherwise).
+ */
+export const deleteContent = async (key: string, revision?: string): Promise<boolean> => {
+  if (!(await archiveContent(key, revision))) {
     return false;
   }
   const res = await send(objectUrl(contentBucket(), key), { method: 'DELETE' }, 0);
   if (!res.ok && res.status !== 404) {
     throw storageError(res, `Failed to delete ${key}`);
   }
-  refreshContent(key);
+  updateTag(CONTENT_TAG);
   return true;
 };
 

@@ -36,8 +36,9 @@ export async function getImageMeta(key: string): Promise<ImageMeta | null> {
 
 /** Delete images an edit dropped; only keys we generated for this scope are touched. */
 export async function deleteImages(keys: string[], scope: ContentImageScope): Promise<void> {
-  const safeKeys = keys.map(normalizeContentImagePath).filter(key => {
-    const safe = isSafeContentImagePath(key, scope);
+  // Delete exactly what content held: a key that only matches once normalized names another file.
+  const safeKeys = keys.filter(key => {
+    const safe = normalizeContentImagePath(key) === key && isSafeContentImagePath(key, scope);
     if (!safe) {
       console.warn(`Skipping unsafe image delete key: ${key}`);
     }

@@ -5,7 +5,7 @@
 export const CONTENT_KEYS = {
   site: 'site.json',
   records: 'records.json',
-  /** Generated on every post save from the posts' frontmatter; rebuildable at any time. */
+  /** Every post's frontmatter, kept in step on each post save, so lists never read the posts. */
   postsIndex: 'posts/_index.json',
   post: (slug: string) => `posts/${slug}.mdx`,
   page: (page: string) => `pages/${page}.mdx`,

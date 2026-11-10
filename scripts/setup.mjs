@@ -286,7 +286,11 @@ try {
       try {
         wrangler('r2', 'object', 'get', `${bucket}/site.json`, '--remote', '--pipe');
         done(`${bucket}/site.json already exists`);
-      } catch {
+      } catch (error) {
+        // Only a missing object is seeded; any other failure must not end in overwriting it.
+        if (!/does not exist|not found|NoSuchKey|10007/i.test(error.message)) {
+          throw error;
+        }
         wrangler(
           'r2',
           'object',

@@ -13,7 +13,14 @@ import { createRateLimiter } from '@/lib/server/rate-limit';
 // The key is 32 random bytes, so this is defense in depth rather than what stops guessing.
 const allowSignInAttempt = createRateLimiter({ windowMs: 60 * 1000, max: 10 });
 
+// Editing used to keep a GitHub token in this cookie; browsers still send it until it is removed.
+const LEGACY_TOKEN_COOKIE = 'FAIZ_GITHUB_TOKEN';
+
 export async function GET() {
+  const cookieStore = await cookies();
+  if (cookieStore.has(LEGACY_TOKEN_COOKIE)) {
+    cookieStore.delete(LEGACY_TOKEN_COOKIE);
+  }
   return NextResponse.json({ signedIn: await hasEditSession() });
 }
 

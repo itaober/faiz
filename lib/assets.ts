@@ -15,7 +15,7 @@ export const ASSETS_FOLDER = assetsUrl?.pathname.replace(/^\/+|\/+$/g, '') ?? ''
 // Resizing exists only on a Cloudflare zone; an r2.dev address (try-out, local) serves the file as-is.
 export const CAN_TRANSFORM_ASSETS = Boolean(assetsUrl) && !assetsUrl?.hostname.endsWith('.r2.dev');
 
-const encodeKey = (key: string) => key.split('/').map(encodeURIComponent).join('/');
+export const encodeKey = (key: string) => key.split('/').map(encodeURIComponent).join('/');
 
 /** Object key in the assets bucket for a key stored in content. */
 export const assetObjectKey = (key: string) => (ASSETS_FOLDER ? `${ASSETS_FOLDER}/${key}` : key);

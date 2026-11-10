@@ -37,7 +37,7 @@ const nextConfig: NextConfig = {
     loaderFile: './lib/image-loader.ts',
     deviceSizes: [640, 1200, 1920, 2560],
     imageSizes: [64, 128, 256, 384],
-    qualities: [75, 85],
+    qualities: [75],
   },
   // Image URLs from before the move to R2 live on in feed readers and shared links. Same layout
   // as the migration: files at the top of the old folder (the avatars) went to `site/`.
