@@ -14,18 +14,15 @@ import { useIsMobile } from '@/hooks/use-is-mobile';
 import { getLinkCardTarget } from '@/lib/link-card';
 import { cn } from '@/lib/utils';
 import {
-  buildEditorImageStoragePath,
+  buildAssetKey,
   type EditorImageScope,
-  formatMdxImage,
   generateEditorImageId,
   getImageCaptionFromFilename,
   mdxImagesToMarkdown,
   type StagedEditorImage,
-  toApiImageUrl,
 } from '@/lib/utils/editor-image';
 import {
   compressImage,
-  fileToBase64,
   isSupportedImageType,
   MAX_SOURCE_IMAGE_SIZE,
   SUPPORTED_IMAGE_TYPES,
@@ -139,29 +136,16 @@ export default function TiptapEditor({
         const staged: StagedEditorImage[] = [];
         for (const file of valid) {
           const compressed = await compressImage(file);
-          const imageBase64 = await fileToBase64(compressed);
           const imageId = generateEditorImageId();
-          const alt = getImageCaptionFromFilename(file.name);
-          const path = buildEditorImageStoragePath({
-            entityId: uploadEntityId,
-            imageId,
-            scope: uploadScope,
-          });
-          const src = toApiImageUrl(path);
-          const previewSrc = `data:image/webp;base64,${imageBase64}`;
-          registerImagePreview(src, previewSrc);
+          const key = buildAssetKey({ entityId: uploadEntityId, imageId, scope: uploadScope });
+          registerImagePreview(key, URL.createObjectURL(compressed.blob));
 
           staged.push({
-            alt,
-            fileName: file.name,
-            imageBase64,
+            ...compressed,
+            alt: getImageCaptionFromFilename(file.name),
             imageId,
-            markup: formatMdxImage(src, alt),
-            mimeType: 'image/webp',
-            path,
-            previewSrc,
+            key,
             scope: uploadScope,
-            src,
             uploadEntityId,
           });
         }
@@ -190,12 +174,12 @@ export default function TiptapEditor({
         return;
       }
       if (staged.length === 1) {
-        editor.chain().focus().setImage({ src: staged[0].src, alt: staged[0].alt }).run();
+        editor.chain().focus().setImage({ src: staged[0].key, alt: staged[0].alt }).run();
       } else {
         editor
           .chain()
           .focus()
-          .setImageGallery(staged.map(image => ({ src: image.src, alt: image.alt })))
+          .setImageGallery(staged.map(image => ({ src: image.key, alt: image.alt })))
           .run();
       }
     },
@@ -214,7 +198,7 @@ export default function TiptapEditor({
       editor
         .chain()
         .focus()
-        .setImageGallery(staged.map(image => ({ src: image.src, alt: image.alt })))
+        .setImageGallery(staged.map(image => ({ src: image.key, alt: image.alt })))
         .run();
     },
     [processFiles],
@@ -314,7 +298,7 @@ export default function TiptapEditor({
   useEffect(() => {
     if (editor) {
       registerGalleryStaging(editor, async files =>
-        (await processFiles(files)).map(image => ({ src: image.src, alt: image.alt })),
+        (await processFiles(files)).map(image => ({ src: image.key, alt: image.alt })),
       );
     }
   }, [editor, processFiles]);

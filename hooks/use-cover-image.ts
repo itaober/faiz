@@ -3,14 +3,10 @@
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
-import { uploadEditorImageAction } from '@/lib/actions/upload-editor-image';
-import { toApiImageUrl } from '@/lib/utils/editor-image';
-import {
-  compressImage,
-  fileToBase64,
-  isSupportedImageType,
-  MAX_SOURCE_IMAGE_SIZE,
-} from '@/lib/utils/image';
+import { uploadStagedEditorImage } from '@/components/editing/upload-staged-editor-images';
+import { resolveAssetSrc } from '@/lib/assets';
+import { buildAssetKey, generateEditorImageId } from '@/lib/utils/editor-image';
+import { compressImage, isSupportedImageType, MAX_SOURCE_IMAGE_SIZE } from '@/lib/utils/image';
 
 /**
  * Cover-image staging for the records side panel: holds a pending file plus its
@@ -20,8 +16,11 @@ import {
 export function useCoverImage(initialCoverUrl: string) {
   const [previewUrl, setPreviewUrl] = useState('');
   const [pendingFile, setPendingFile] = useState<File | null>(null);
+  // Assets are cached as immutable, so a replaced cover must never reuse a key: each picked file
+  // gets its own suffix after the readable name.
+  const [uploadId, setUploadId] = useState('');
 
-  const coverPreviewSrc = previewUrl || initialCoverUrl;
+  const coverPreviewSrc = previewUrl || (initialCoverUrl && resolveAssetSrc(initialCoverUrl));
   const hasCover = !!(coverPreviewSrc.trim() || pendingFile);
 
   // Revoke the previous object URL when it changes (and on unmount).
@@ -47,8 +46,16 @@ export function useCoverImage(initialCoverUrl: string) {
       return;
     }
     setPendingFile(file);
+    setUploadId(generateEditorImageId());
     setPreviewUrl(URL.createObjectURL(file));
   }, []);
+
+  /** Key the staged cover will be stored at, for showing before the upload. */
+  const coverKey = useCallback(
+    (entityId: string, name: string) =>
+      buildAssetKey({ entityId, imageId: `${name}_${uploadId}`, scope: 'records' }),
+    [uploadId],
+  );
 
   // Paste an image anywhere in the panel to set the cover.
   useEffect(() => {
@@ -65,29 +72,24 @@ export function useCoverImage(initialCoverUrl: string) {
     return () => document.removeEventListener('paste', handlePaste);
   }, [stageCoverFile]);
 
-  /** Upload the staged cover (if any), returning the stored URL to persist. */
+  /** Upload the staged cover (if any), returning the value to store in `coverUrl`. */
   const uploadCover = useCallback(
-    async (entityId: string, imageId: string, token: string): Promise<string> => {
+    async (entityId: string, name: string): Promise<string> => {
       if (!pendingFile) {
         return initialCoverUrl;
       }
-      const compressed = await compressImage(pendingFile);
-      const imageBase64 = await fileToBase64(compressed);
-      const result = await uploadEditorImageAction({
-        imageBase64,
-        mimeType: 'image/webp',
-        scope: 'records',
-        entityId,
+      const imageId = `${name}_${uploadId}`;
+      const key = buildAssetKey({ entityId, imageId, scope: 'records' });
+      await uploadStagedEditorImage({
+        ...(await compressImage(pendingFile)),
         imageId,
-        token,
-        revalidate: '/records',
+        key,
+        scope: 'records',
+        uploadEntityId: entityId,
       });
-      if (!result.success || !result.data) {
-        throw new Error(result.success ? 'Upload failed' : result.error);
-      }
-      return toApiImageUrl(result.data);
+      return key;
     },
-    [initialCoverUrl, pendingFile],
+    [initialCoverUrl, pendingFile, uploadId],
   );
 
   return {
@@ -96,6 +98,7 @@ export function useCoverImage(initialCoverUrl: string) {
     pendingFile,
     stageCoverFile,
     clearPendingCover,
+    coverKey,
     uploadCover,
   };
 }

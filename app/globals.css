@@ -653,7 +653,7 @@ button {
     color: var(--foreground);
   }
 
-  /* ── Connect sheet (GitHub token, on demand) ────────────────────────────── */
+  /* ── Sign-in sheet (edit key, on demand) ────────────────────────────────── */
   .fz-sheet {
     width: 100%;
     max-width: 420px;
@@ -674,7 +674,7 @@ button {
     line-height: 1.6;
     margin: 0 0 16px;
   }
-  .fz-token-field {
+  .fz-key-field {
     display: flex;
     align-items: center;
     gap: 8px;
@@ -684,7 +684,7 @@ button {
     border-radius: var(--fz-radius-md);
     background: var(--background);
   }
-  .fz-token-field input {
+  .fz-key-field input {
     flex: 1;
     min-width: 0;
     border: none;

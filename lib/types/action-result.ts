@@ -1,6 +1,6 @@
 // Relative + explicit extension so tests/ can import this under bare Node's TS
 // type-stripping, which does not resolve the `@/` alias.
-import { GitHubApiError, NotFoundError } from '../errors.ts';
+import { NotFoundError, StorageError } from '../errors.ts';
 
 export type ActionErrorCode =
   | 'AUTH_INVALID'
@@ -45,50 +45,31 @@ export function createActionError(
     return { success: false, error: error.message, code: 'NOT_FOUND', retryable: false };
   }
 
-  // Classify on the status, never the message: these messages carry the post
-  // slug and file path, so a slug like "top-404-pages" used to be reported as a
-  // missing resource.
-  if (error instanceof GitHubApiError) {
-    if (error.rateLimited) {
-      return {
-        success: false,
-        error: 'Rate limit exceeded. Try again in a moment.',
-        code: 'RATE_LIMIT',
-        retryable: true,
-      };
-    }
-
+  // Classify on the status, never the message: messages carry keys and slugs, so a slug like
+  // "top-404-pages" must not be reported as a missing resource.
+  if (error instanceof StorageError) {
     switch (error.status) {
-      case 401:
-        return {
-          success: false,
-          error: 'Invalid GitHub token',
-          code: 'AUTH_INVALID',
-          retryable: false,
-        };
-      case 403:
-        // Not a quota problem (that is handled above), so the token is valid but
-        // not allowed to do this — typically a read-only token trying to write.
-        return {
-          success: false,
-          error: 'This token is not allowed to write to the content repository',
-          code: 'AUTH_INVALID',
-          retryable: false,
-        };
       case 404:
         return { success: false, error: 'Resource not found', code: 'NOT_FOUND', retryable: false };
-      case 409:
+      case 412:
         return {
           success: false,
           error: 'Conflict - data was modified. Please refresh.',
           code: 'CONFLICT',
           retryable: true,
         };
+      case 429:
+      case 503:
+        return {
+          success: false,
+          error: 'Storage is busy. Try again in a moment.',
+          code: 'RATE_LIMIT',
+          retryable: true,
+        };
     }
   }
 
-  // Don't surface the raw message for unclassified errors — it can leak
-  // internal repo paths / branch names (e.g. from putGitHubFile). The full
-  // error is still logged server-side by the action's catch block.
+  // Don't surface the raw message for unclassified errors — it can leak storage keys and bucket
+  // names. The full error is still logged server-side by the action's catch block.
   return { success: false, error: fallbackMessage, code: 'UNKNOWN', retryable: true };
 }

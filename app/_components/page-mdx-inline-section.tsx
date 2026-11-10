@@ -32,7 +32,7 @@ export default function PageMdxInlineSection({
 
   useEffect(() => {
     if (!isEditMode) {
-      // Drop it so re-entering the editor re-reads the file (and its SHA).
+      // Drop it so re-entering the editor re-reads the file (and its revision).
       setDraft(null);
       return;
     }
@@ -66,7 +66,7 @@ export default function PageMdxInlineSection({
         page={page}
         title={title}
         initialContent={draft.content}
-        sha={draft.sha}
+        revision={draft.revision}
       />
     );
   }

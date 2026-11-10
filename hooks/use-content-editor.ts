@@ -4,8 +4,8 @@ import { useState } from 'react';
 import { toast } from 'sonner';
 
 export interface EditorTask<T> {
-  /** The async work to run; receives the guaranteed-present token. */
-  run: (token: string) => Promise<T>;
+  /** The async work to run; only called once signed in. */
+  run: () => Promise<T>;
   /** Toast text while the task runs. */
   loading: string;
   /** Toast text on success — static, or derived from the resolved value. */
@@ -19,26 +19,26 @@ export interface EditorTask<T> {
 /**
  * Shared editing-session lifecycle for the content surfaces (post / memo / page
  * / record). Owns the settings + confirm drawer state and the submitting /
- * deleting flags, gates every write behind a connected token (routing to the
- * token drawer otherwise), and wires `toast.promise`. Surfaces supply only their
+ * deleting flags, gates every write behind an edit session (routing to the
+ * edit-key drawer otherwise), and wires `toast.promise`. Surfaces supply only their
  * own async work and copy via `EditorTask` — keeping all the boilerplate in one
  * place instead of four near-identical copies.
  */
-export function useContentEditor(token: string | null) {
+export function useContentEditor(isSignedIn: boolean) {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
   const runTask = <T>(task: EditorTask<T>, setBusy: (busy: boolean) => void) => {
-    if (!token) {
-      // No token yet → send the user to connect one instead of writing.
+    if (!isSignedIn) {
+      // Signed out → ask for the edit key instead of writing.
       setConfirmOpen(false);
       setSettingsOpen(true);
       return;
     }
     setBusy(true);
-    toast.promise(task.run(token), {
+    toast.promise(task.run(), {
       loading: task.loading,
       success: (result: T) => {
         task.onSuccess?.(result);

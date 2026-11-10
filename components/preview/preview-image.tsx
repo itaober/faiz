@@ -3,6 +3,7 @@
 import Image from 'next/image';
 import { useEffect, useState } from 'react';
 
+import { isTransformableSrc } from '@/lib/assets';
 import { cn } from '@/lib/utils';
 
 import { usePreview } from './context.ts';
@@ -14,8 +15,6 @@ interface IPreviewImageProps {
   sizes?: string;
   unoptimized?: boolean;
 }
-
-const isExternalImage = (src: string) => /^(https?:)?\/\//.test(src);
 
 const ProgressivePreviewImage = ({
   src,
@@ -83,7 +82,7 @@ export const PreviewImage = ({
   alt,
   className = '',
   sizes = '(max-width: 640px) 92vw, (max-width: 768px) 90vw, 86vw',
-  unoptimized = isExternalImage(src),
+  unoptimized = !isTransformableSrc(src),
 }: IPreviewImageProps) => (
   <ProgressivePreviewImage
     key={src}

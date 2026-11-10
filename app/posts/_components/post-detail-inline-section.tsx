@@ -27,7 +27,7 @@ export default function PostDetailInlineSection({ post, children }: IPostDetailI
 
   useEffect(() => {
     if (!isEditMode) {
-      // Drop it so re-entering the editor re-reads the file (and its SHA).
+      // Drop it so re-entering the editor re-reads the file (and its revision).
       setDraft(null);
       return;
     }
@@ -60,7 +60,7 @@ export default function PostDetailInlineSection({ post, children }: IPostDetailI
       <PostEditorSurface
         post={post}
         initialContent={draft.content}
-        sha={draft.sha}
+        revision={draft.revision}
         onExit={() => setEditMode(false)}
       />
     );

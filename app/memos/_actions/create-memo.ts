@@ -5,20 +5,19 @@ import { revalidatePath } from 'next/cache';
 import { MAX_MEMO_CONTENT_LENGTH, normalizeImagePathList } from '@/lib/content-editing-validation';
 import type { Memo } from '@/lib/data/memos';
 import { prependMemo } from '@/lib/data/memos';
-import { requireAuth } from '@/lib/server/content-edit-token';
+import { requireEditSession } from '@/lib/server/edit-session';
 import { type ActionResult, createActionError, validationError } from '@/lib/types/action-result';
 
 interface ICreateMemoInput {
   id: string;
   content: string;
   images?: string[];
-  token: string;
 }
 
 export async function createMemoAction(input: ICreateMemoInput): Promise<ActionResult<Memo>> {
-  const token = await requireAuth(input.token);
-  if (typeof token !== 'string') {
-    return token;
+  const denied = await requireEditSession();
+  if (denied) {
+    return denied;
   }
 
   const content = typeof input.content === 'string' ? input.content : '';
@@ -41,7 +40,6 @@ export async function createMemoAction(input: ICreateMemoInput): Promise<ActionR
       id: input.id,
       content: content.trim(),
       images: normalizedImages.paths,
-      token,
     });
 
     revalidatePath('/memos');

@@ -4,9 +4,8 @@ import { PlusIcon } from 'lucide-react';
 import { useState } from 'react';
 
 import { useEditMode } from '@/components/edit-mode-context';
-
+import EditKeyDrawer from './edit-key-drawer';
 import { useDockedActionBar } from './edit-session';
-import GitHubTokenDrawer from './github-token-drawer';
 
 interface IPageEditBarProps {
   context: string;
@@ -20,17 +19,17 @@ interface IPageEditBarProps {
  * shared dock so the add affordance lives in the bar, not on the page.
  */
 export default function PageEditBar({ context, addLabel, onAdd }: IPageEditBarProps) {
-  const { setEditMode, token } = useEditMode();
+  const { setEditMode, isSignedIn } = useEditMode();
   const [settingsOpen, setSettingsOpen] = useState(false);
 
   useDockedActionBar({
     context,
     status: 'idle',
-    hasToken: !!token,
-    onConnect: () => setSettingsOpen(true),
+    isSignedIn,
+    onSignIn: () => setSettingsOpen(true),
     tools: [{ icon: PlusIcon, label: addLabel, onClick: onAdd }],
     onExit: () => setEditMode(false),
   });
 
-  return <GitHubTokenDrawer open={settingsOpen} onOpenChange={setSettingsOpen} />;
+  return <EditKeyDrawer open={settingsOpen} onOpenChange={setSettingsOpen} />;
 }

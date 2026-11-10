@@ -1,17 +1,17 @@
 export type EditorImageScope = 'memos' | 'posts' | 'pages' | 'records';
 
+/** An image compressed in the browser and held in memory until the surface saves. */
 export interface StagedEditorImage {
   alt: string;
-  fileName: string;
-  imageBase64: string;
+  /** Asset key the content references; the server derives the same key from the same ids. */
+  key: string;
   imageId: string;
-  markup: string;
-  mimeType: 'image/webp';
-  path: string;
-  previewSrc: string;
   scope: EditorImageScope;
-  src: string;
   uploadEntityId: string;
+  blob: Blob;
+  width: number;
+  height: number;
+  blur: string;
 }
 
 export interface MdxImageGalleryItem {
@@ -39,7 +39,8 @@ export const sanitizeImageSegment = (value: string) =>
 
 export const generateEditorImageId = () => Math.random().toString(36).slice(2, 8);
 
-export const buildEditorImageStoragePath = ({
+/** Key of an uploaded image inside this project's assets folder: `{scope}/{entity}_{image}.webp`. */
+export const buildAssetKey = ({
   entityId,
   extension = 'webp',
   imageId,
@@ -53,26 +54,24 @@ export const buildEditorImageStoragePath = ({
   const safeEntityId = sanitizeImageSegment(entityId) || 'content';
   const safeImageId = sanitizeImageSegment(imageId) || generateEditorImageId();
 
-  return `assets/${scope}/${safeEntityId}_${safeImageId}.${extension}`;
+  return `${scope}/${safeEntityId}_${safeImageId}.${extension}`;
 };
 
-export const toApiImageUrl = (storagePath: string) => `/api/image/${storagePath}`;
-
 /**
- * Merge freshly-staged images into an existing list, de-duplicated by `path`
- * (a re-upload of the same path replaces the prior entry). `toItem` maps each
+ * Merge freshly-staged images into an existing list, de-duplicated by `key`
+ * (a re-upload of the same key replaces the prior entry). `toItem` maps each
  * incoming image to the caller's item shape (identity, or e.g. a memo attachment).
  */
-export const mergeByPath = <T extends { path: string }, S extends { path: string }>(
+export const mergeByKey = <T extends { key: string }, S extends { key: string }>(
   existing: T[],
   incoming: S[],
   toItem: (image: S) => T,
 ): T[] => {
-  const byPath = new Map<string, T>(existing.map(item => [item.path, item]));
+  const byKey = new Map<string, T>(existing.map(item => [item.key, item]));
   for (const image of incoming) {
-    byPath.set(image.path, toItem(image));
+    byKey.set(image.key, toItem(image));
   }
-  return [...byPath.values()];
+  return [...byKey.values()];
 };
 
 export const unescapeMarkdownValue = (value: string) =>

@@ -3,10 +3,12 @@
 import { revalidatePath } from 'next/cache';
 
 import { isRecordType } from '@/lib/content-editing-validation';
-import { fetchGitHubJsonWithSha, writeGitHubJson } from '@/lib/data/common';
+import { CONTENT_KEYS } from '@/lib/content-keys';
 import { type RecordItem, type Records, RecordsSchema } from '@/lib/data/data';
+import { deleteImages } from '@/lib/data/images';
 import dayjs, { formatTime } from '@/lib/dayjs';
-import { requireAuth } from '@/lib/server/content-edit-token';
+import { requireEditSession } from '@/lib/server/edit-session';
+import { readContentJsonForUpdate, writeContentJson } from '@/lib/storage/r2';
 import {
   type ActionError,
   type ActionResult,
@@ -14,8 +16,6 @@ import {
   notFoundError,
   validationError,
 } from '@/lib/types/action-result';
-
-const RECORDS_PATH = 'data/records.json';
 
 interface IRecordKey {
   title: string;
@@ -25,7 +25,6 @@ interface IRecordKey {
 
 interface IRecordInput {
   record: RecordItem;
-  token: string;
 }
 
 interface IUpdateRecordInput extends IRecordInput {
@@ -34,7 +33,6 @@ interface IUpdateRecordInput extends IRecordInput {
 
 interface IDeleteRecordInput {
   original: IRecordKey;
-  token: string;
 }
 
 const createEmptyRecords = (): Records => ({
@@ -50,11 +48,11 @@ const createEmptyRecords = (): Records => ({
  * rather than being read as "no records", which combined with a blind overwrite
  * would have replaced the whole file.
  */
-const fetchRecordsWithSha = async (token: string): Promise<{ records: Records; sha?: string }> => {
-  const file = await fetchGitHubJsonWithSha<unknown>(RECORDS_PATH, token);
+const readRecords = async (): Promise<{ records: Records; revision: string | null }> => {
+  const file = await readContentJsonForUpdate<unknown>(CONTENT_KEYS.records);
   return {
     records: RecordsSchema.parse({ ...createEmptyRecords(), ...(file?.data ?? {}) }),
-    sha: file?.sha,
+    revision: file?.revision ?? null,
   };
 };
 
@@ -119,7 +117,7 @@ const normalizeRecord = (record: RecordItem): RecordItem | ActionError => {
 
 // No retry-on-conflict here, unlike the posts index: this rewrites the whole
 // records file, so replaying a stale in-memory copy would drop the other edit.
-const writeRecords = async (records: Records, token: string, sha?: string) => {
+const writeRecords = async (records: Records, revision: string | null) => {
   const sorted: Records = {
     book: sortRecordList(records.book),
     movie: sortRecordList(records.movie),
@@ -128,14 +126,14 @@ const writeRecords = async (records: Records, token: string, sha?: string) => {
     game: sortRecordList(records.game),
   };
 
-  await writeGitHubJson(RECORDS_PATH, sorted, `docs: update ${RECORDS_PATH}`, token, sha);
+  await writeContentJson(CONTENT_KEYS.records, sorted, revision);
   revalidatePath('/records');
 };
 
 export async function createRecordAction(input: IRecordInput): Promise<ActionResult<RecordItem>> {
-  const token = await requireAuth(input.token);
-  if (typeof token !== 'string') {
-    return token;
+  const denied = await requireEditSession();
+  if (denied) {
+    return denied;
   }
 
   try {
@@ -148,14 +146,13 @@ export async function createRecordAction(input: IRecordInput): Promise<ActionRes
       return validationError('Title, link, and cover are required');
     }
 
-    const { records, sha } = await fetchRecordsWithSha(token);
+    const { records, revision } = await readRecords();
     await writeRecords(
       {
         ...records,
         [record.type]: [record, ...records[record.type]],
       },
-      token,
-      sha,
+      revision,
     );
 
     return { success: true, data: record };
@@ -168,9 +165,9 @@ export async function createRecordAction(input: IRecordInput): Promise<ActionRes
 export async function updateRecordAction(
   input: IUpdateRecordInput,
 ): Promise<ActionResult<RecordItem>> {
-  const token = await requireAuth(input.token);
-  if (typeof token !== 'string') {
-    return token;
+  const denied = await requireEditSession();
+  if (denied) {
+    return denied;
   }
 
   try {
@@ -188,7 +185,7 @@ export async function updateRecordAction(
       return validationError('Title, link, and cover are required');
     }
 
-    const { records, sha } = await fetchRecordsWithSha(token);
+    const { records, revision } = await readRecords();
     const existing = findRecord(records, input.original);
 
     if (!existing) {
@@ -197,7 +194,11 @@ export async function updateRecordAction(
 
     const withoutOriginal = removeRecord(records, input.original);
     withoutOriginal[record.type] = [record, ...withoutOriginal[record.type]];
-    await writeRecords(withoutOriginal, token, sha);
+    await writeRecords(withoutOriginal, revision);
+    // A replaced cover was uploaded under a new key; the old file has nothing pointing at it.
+    if (existing.coverUrl !== record.coverUrl) {
+      await deleteImages([existing.coverUrl], 'records');
+    }
 
     return { success: true, data: record };
   } catch (error) {
@@ -207,9 +208,9 @@ export async function updateRecordAction(
 }
 
 export async function deleteRecordAction(input: IDeleteRecordInput): Promise<ActionResult> {
-  const token = await requireAuth(input.token);
-  if (typeof token !== 'string') {
-    return token;
+  const denied = await requireEditSession();
+  if (denied) {
+    return denied;
   }
 
   try {
@@ -218,14 +219,15 @@ export async function deleteRecordAction(input: IDeleteRecordInput): Promise<Act
       return invalid;
     }
 
-    const { records, sha } = await fetchRecordsWithSha(token);
+    const { records, revision } = await readRecords();
     const existing = findRecord(records, input.original);
 
     if (!existing) {
       return notFoundError('Record not found');
     }
 
-    await writeRecords(removeRecord(records, input.original), token, sha);
+    await writeRecords(removeRecord(records, input.original), revision);
+    await deleteImages([existing.coverUrl], 'records');
     return { success: true };
   } catch (error) {
     console.error('Failed to delete record:', error);

@@ -2,12 +2,8 @@
 
 import { useEffect, useRef } from 'react';
 
+import { resolveAssetSrc } from '@/lib/assets';
 import { cn } from '@/lib/utils';
-
-// The effect reads one pixel per `spacing` px of canvas, so a 384px rendition
-// from the image optimizer carries all it samples at a tenth of the original's bytes.
-const toSampleSrc = (src: string) =>
-  src.startsWith('/') ? `/_next/image?url=${encodeURIComponent(src)}&w=384&q=75` : src;
 
 interface Particle {
   baseX: number;
@@ -317,8 +313,10 @@ export default function ParticleImage({
     };
 
     const loadedImage = new view.Image();
+    // Reading pixels needs CORS, which the bucket answers for originals; resized
+    // renditions come back without the header, so the original is sampled.
     loadedImage.crossOrigin = 'anonymous';
-    loadedImage.src = toSampleSrc(src);
+    loadedImage.src = resolveAssetSrc(src);
     loadedImage
       .decode()
       .then(() => {

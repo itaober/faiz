@@ -29,18 +29,15 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: __dirname,
   },
-  // Vercel Hobby caps optimization at 5K transforms/month; past it every uncached
-  // /_next/image returns 402 and the image breaks. Uploads are already webp ≤1920px,
-  // so serve them as-is from /api/image (CDN-cached) instead.
+  // Assets are resized at the Cloudflare edge (lib/image-loader.ts); Vercel's optimizer is not
+  // used. Widths are the layouts' real slots — every extra width is another unique
+  // transformation against the monthly allowance.
   images: {
-    unoptimized: true,
-  },
-  experimental: {
-    serverActions: {
-      // Keep this at Vercel's Function payload limit (request/response body max: 4.5 MB):
-      // https://vercel.com/docs/functions/limitations
-      bodySizeLimit: '4.5mb',
-    },
+    loader: 'custom',
+    loaderFile: './lib/image-loader.ts',
+    deviceSizes: [640, 1200, 1920, 2560],
+    imageSizes: [64, 128, 256, 384],
+    qualities: [75, 85],
   },
 };
 

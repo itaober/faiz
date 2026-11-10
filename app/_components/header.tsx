@@ -1,8 +1,8 @@
 import { RssIcon } from 'lucide-react';
 import Link from 'next/link';
-
 import SearchEntry from '@/components/search/search-entry';
 import ThemeToggle from '@/components/theme-toggle';
+import { resolveAssetSrc } from '@/lib/assets';
 import { getMetaInfo } from '@/lib/data/data';
 
 import HeaderClient from './header-client';
@@ -72,9 +72,10 @@ const Header = async () => {
   const metaInfo = await getMetaInfo();
 
   const { avatar = '', name } = metaInfo ?? {};
+  const avatarSrc = avatar ? resolveAssetSrc(avatar) : '';
   const avatarAlt = name ? `${name} avatar` : 'Site avatar';
 
-  return <HeaderClient avatar={avatar} avatarAlt={avatarAlt} navNodes={navNodes} />;
+  return <HeaderClient avatar={avatarSrc} avatarAlt={avatarAlt} navNodes={navNodes} />;
 };
 
 export default Header;

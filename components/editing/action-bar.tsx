@@ -37,8 +37,8 @@ export interface ActionBarTool {
 export interface ActionBarSession {
   context: string;
   status?: ActionBarStatus;
-  hasToken: boolean;
-  onConnect: () => void;
+  isSignedIn: boolean;
+  onSignIn: () => void;
   mode?: EditViewMode;
   onModeChange?: (mode: EditViewMode) => void;
   tools?: ActionBarTool[];
@@ -97,14 +97,14 @@ export function IconButton({
 /**
  * The single docked control for an editing session, rendered once by the dock so
  * it never remounts — its content morphs (with motion) as the active editor
- * changes. All edit affordances live here, never on the page content. Without a
- * GitHub token it collapses to a single, context-free "Connect" action.
+ * changes. All edit affordances live here, never on the page content. Signed out,
+ * it collapses to a single, context-free "Sign in" action.
  */
 export default function ActionBar({
   context,
   status = 'dirty',
-  hasToken,
-  onConnect,
+  isSignedIn,
+  onSignIn,
   mode,
   onModeChange,
   tools = [],
@@ -116,12 +116,12 @@ export default function ActionBar({
 }: ActionBarSession) {
   const canSave = !!onSave && (mode !== 'preview' || !!dirty);
 
-  useSaveShortcut(hasToken && canSave && !saveDisabled, () => onSave?.());
+  useSaveShortcut(isSignedIn && canSave && !saveDisabled, () => onSave?.());
 
   // Escape exits — unless an editing overlay / slash menu / bubble / sheet has
   // focus and should consume it first.
   useEffect(() => {
-    if (!hasToken) {
+    if (!isSignedIn) {
       return;
     }
     const handleKey = (event: KeyboardEvent) => {
@@ -139,10 +139,10 @@ export default function ActionBar({
     };
     document.addEventListener('keydown', handleKey);
     return () => document.removeEventListener('keydown', handleKey);
-  }, [hasToken, onExit]);
+  }, [isSignedIn, onExit]);
 
-  // ── No token: a single, context-free Connect action ─────────────────────
-  if (!hasToken) {
+  // ── Signed out: a single, context-free Sign in action ───────────────────
+  if (!isSignedIn) {
     return (
       <motion.div
         layout
@@ -151,8 +151,8 @@ export default function ActionBar({
         role="toolbar"
         aria-label="Editing actions"
       >
-        <button type="button" className="fz-btn fz-btn-primary" onClick={onConnect}>
-          <KeyRoundIcon className="size-[15px]" /> Connect to save
+        <button type="button" className="fz-btn fz-btn-primary" onClick={onSignIn}>
+          <KeyRoundIcon className="size-[15px]" /> Sign in to save
         </button>
         <span className="fz-actionbar-sep" />
         <IconButton icon={XIcon} label="Exit" onClick={onExit} />

@@ -1,6 +1,6 @@
 import { buildSearchDocs } from '@/lib/search/build-search-index';
 
-// Cache the aggregated index; it rides the `github-content` fetch tags underneath,
+// Cache the aggregated index; it rides the `content` fetch tags underneath,
 // so saving content invalidates it and the next request rebuilds fresh.
 export const revalidate = 300;
 

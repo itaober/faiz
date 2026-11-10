@@ -1,4 +1,4 @@
-import { type Editor, Extension, mergeAttributes, type Range } from '@tiptap/core';
+import { type Editor, Extension, type Range } from '@tiptap/core';
 import Image from '@tiptap/extension-image';
 import { ReactNodeViewRenderer, ReactRenderer } from '@tiptap/react';
 import Suggestion from '@tiptap/suggestion';
@@ -15,7 +15,6 @@ import {
 
 import { markEditingOverlayClosed, markEditingOverlayOpen } from '../editing-overlays';
 import { ImageNodeView } from './image-node-view';
-import { getImagePreviewSrc } from './image-preview-store';
 import { type SlashItem, SlashList, type SlashListRef } from './slash-list';
 
 export { registerGalleryStaging } from './gallery-staging-store';
@@ -25,7 +24,9 @@ export { registerImagePreview } from './image-preview-store';
 
 export const StagedImage = Image.extend({
   // A React node view shows the image with its (editable) caption below — the
-  // serialised markdown stays `![alt](src)`, so the caption rides on `alt`.
+  // serialised markdown stays `![alt](src)`, so the caption rides on `alt`. The
+  // view resolves the key for display; renderHTML keeps the bare key, so a copied
+  // image pastes back as the same reference.
   addNodeView() {
     return ReactNodeViewRenderer(ImageNodeView, {
       // Let the caption <input> own its pointer/keyboard events so ProseMirror
@@ -34,14 +35,6 @@ export const StagedImage = Image.extend({
         event.target instanceof HTMLElement &&
         event.target.closest('.fz-editor-figcaption') != null,
     });
-  },
-  renderHTML({ HTMLAttributes }) {
-    const src = typeof HTMLAttributes.src === 'string' ? HTMLAttributes.src : '';
-    const preview = src ? getImagePreviewSrc(src) : undefined;
-    return [
-      'img',
-      mergeAttributes(this.options.HTMLAttributes, HTMLAttributes, preview ? { src: preview } : {}),
-    ];
   },
 });
 

@@ -11,7 +11,7 @@ interface IMemosProviderProps {
 }
 
 export function MemosProvider({ children }: IMemosProviderProps) {
-  const { isEditMode, toggleEditMode, token, saveToken } = useEditMode();
+  const { isEditMode, toggleEditMode } = useEditMode();
   const [editingId, setEditingId] = useState<string | null>(null);
 
   // Leaving edit mode closes any open memo editor.
@@ -25,12 +25,10 @@ export function MemosProvider({ children }: IMemosProviderProps) {
     () => ({
       isEdit: isEditMode,
       toggleEdit: toggleEditMode,
-      token,
-      saveToken,
       editingId,
       setEditingId,
     }),
-    [editingId, isEditMode, saveToken, toggleEditMode, token],
+    [editingId, isEditMode, toggleEditMode],
   );
 
   return <MemosContext.Provider value={value}>{children}</MemosContext.Provider>;

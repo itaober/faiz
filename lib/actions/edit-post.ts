@@ -2,13 +2,14 @@
 
 import { revalidatePath } from 'next/cache';
 
-import { deleteGitHubFile, fetchGitHubJsonWithSha, writeGitHubJson } from '@/lib/data/common';
+import { CONTENT_KEYS } from '@/lib/content-keys';
 import { type PostList, PostListSchema, type PostMeta } from '@/lib/data/data';
 import { removePost, replacePost, sortPosts, upsertPost } from '@/lib/data/posts-index';
 import { formatTime } from '@/lib/dayjs';
-import { GitHubApiError } from '@/lib/errors';
-import { requireAuth } from '@/lib/server/content-edit-token';
+import { StorageError } from '@/lib/errors';
+import { requireEditSession } from '@/lib/server/edit-session';
 import { normalizeOptionalString, writeMdx } from '@/lib/server/mdx-write';
+import { deleteContent, readContentJsonForUpdate, writeContentJson } from '@/lib/storage/r2';
 import {
   type ActionError,
   type ActionResult,
@@ -16,9 +17,6 @@ import {
   notFoundError,
   validationError,
 } from '@/lib/types/action-result';
-
-const POSTS_INDEX_PATH = 'data/posts.json';
-const POST_CONTENT_DIR = 'data/posts';
 
 interface IPostPayload {
   title: string;
@@ -29,30 +27,24 @@ interface IPostPayload {
   content: string;
 }
 
-interface ICreatePostInput extends IPostPayload {
-  token: string;
-}
+type ICreatePostInput = IPostPayload;
 
 interface IUpdatePostInput extends IPostPayload {
   originalSlug: string;
   createdTime: string;
-  token: string;
   /** Revision the editor loaded, so a concurrent edit is rejected instead of overwritten. */
-  sha?: string;
+  revision?: string;
 }
 
 /** A save also returns the revision it produced, so the open editor can save again. */
 export interface IPostSaveResult {
   post: PostMeta;
-  contentSha?: string;
+  revision: string;
 }
 
 interface IDeletePostInput {
   slug: string;
-  token: string;
 }
-
-const buildPostPath = (slug: string) => `${POST_CONTENT_DIR}/${slug}.mdx`;
 
 const normalizeTags = (tags: unknown) =>
   Array.from(
@@ -97,38 +89,32 @@ const validatePostPayload = (input: IPostPayload): ActionError | null => {
 /**
  * Reads the index with the revision it came from.
  *
- * A read failure now propagates instead of being swallowed into an empty list:
- * treating "GitHub is down" as "there are no posts" combined with a blind
- * overwrite would have replaced the whole index with a single entry.
+ * A read failure propagates instead of being swallowed into an empty list:
+ * treating "storage is down" as "there are no posts" combined with a blind
+ * overwrite would replace the whole index with a single entry.
  */
-const fetchPostListWithSha = async (token: string): Promise<{ posts: PostList; sha?: string }> => {
-  const file = await fetchGitHubJsonWithSha<unknown>(POSTS_INDEX_PATH, token);
-  return { posts: PostListSchema.parse(file?.data ?? []), sha: file?.sha };
+const readPostList = async (): Promise<{ posts: PostList; revision: string | null }> => {
+  const file = await readContentJsonForUpdate<unknown>(CONTENT_KEYS.postsIndex);
+  return { posts: PostListSchema.parse(file?.data ?? []), revision: file?.revision ?? null };
 };
 
 /**
  * Applies one change to the index under an if-unchanged write.
  *
- * On 409 the index moved between the read and the write, so re-read and replay
+ * On a conflict the index moved between the read and the write, so re-read and replay
  * the mutation against the new list. Each mutation is a single add, replace or
  * remove keyed by slug, so replaying is safe; a second conflict gives up and
  * surfaces CONFLICT.
  */
-const savePostsIndex = async (token: string, mutate: (posts: PostList) => PostList) => {
+const savePostsIndex = async (mutate: (posts: PostList) => PostList) => {
   for (let attempt = 0; ; attempt++) {
-    const { posts, sha } = await fetchPostListWithSha(token);
+    const { posts, revision } = await readPostList();
 
     try {
-      await writeGitHubJson(
-        POSTS_INDEX_PATH,
-        sortPosts(mutate(posts)),
-        `docs: update ${POSTS_INDEX_PATH}`,
-        token,
-        sha,
-      );
+      await writeContentJson(CONTENT_KEYS.postsIndex, sortPosts(mutate(posts)), revision);
       return;
     } catch (error) {
-      const isConflict = error instanceof GitHubApiError && error.status === 409;
+      const isConflict = error instanceof StorageError && error.status === 412;
       if (!isConflict || attempt > 0) {
         throw error;
       }
@@ -151,9 +137,9 @@ const revalidatePosts = (slug?: string, previousSlug?: string) => {
 export async function createPostAction(
   input: ICreatePostInput,
 ): Promise<ActionResult<IPostSaveResult>> {
-  const token = await requireAuth(input.token);
-  if (typeof token !== 'string') {
-    return token;
+  const denied = await requireEditSession();
+  if (denied) {
+    return denied;
   }
 
   const invalid = validatePostPayload(input);
@@ -163,7 +149,7 @@ export async function createPostAction(
 
   try {
     const slug = normalizeSlug(input.slug);
-    const { posts } = await fetchPostListWithSha(token);
+    const { posts } = await readPostList();
     if (posts.some(post => post.slug === slug)) {
       return validationError('Slug already exists');
     }
@@ -179,17 +165,11 @@ export async function createPostAction(
     };
 
     // New file, so no base revision to send.
-    const written = await writeMdx(
-      buildPostPath(slug),
-      post,
-      input.content,
-      `docs: add post ${slug}`,
-      token,
-    );
-    await savePostsIndex(token, current => upsertPost(current, post));
+    const written = await writeMdx(CONTENT_KEYS.post(slug), post, input.content, null);
+    await savePostsIndex(current => upsertPost(current, post));
 
     revalidatePosts(slug);
-    return { success: true, data: { post, contentSha: written.sha } };
+    return { success: true, data: { post, revision: written.revision } };
   } catch (error) {
     console.error('Failed to create post:', error);
     return createActionError(error, 'Failed to create post');
@@ -199,9 +179,9 @@ export async function createPostAction(
 export async function updatePostAction(
   input: IUpdatePostInput,
 ): Promise<ActionResult<IPostSaveResult>> {
-  const token = await requireAuth(input.token);
-  if (typeof token !== 'string') {
-    return token;
+  const denied = await requireEditSession();
+  if (denied) {
+    return denied;
   }
 
   const invalid = validatePostPayload(input);
@@ -212,7 +192,7 @@ export async function updatePostAction(
   try {
     const slug = normalizeSlug(input.slug);
     const originalSlug = normalizeSlug(input.originalSlug);
-    const { posts } = await fetchPostListWithSha(token);
+    const { posts } = await readPostList();
     const existingPost = posts.find(post => post.slug === originalSlug);
 
     if (!existingPost) {
@@ -235,26 +215,20 @@ export async function updatePostAction(
     // Renaming writes a new path, which is a create — the base revision only
     // applies when the slug is unchanged.
     const written = await writeMdx(
-      buildPostPath(slug),
+      CONTENT_KEYS.post(slug),
       post,
       input.content,
-      `docs: update post ${slug}`,
-      token,
-      slug === originalSlug ? input.sha : undefined,
+      slug === originalSlug ? (input.revision ?? null) : null,
     );
 
     if (slug !== originalSlug) {
-      await deleteGitHubFile(
-        buildPostPath(originalSlug),
-        `docs: delete post ${originalSlug}`,
-        token,
-      );
+      await deleteContent(CONTENT_KEYS.post(originalSlug));
     }
 
-    await savePostsIndex(token, current => replacePost(current, originalSlug, post));
+    await savePostsIndex(current => replacePost(current, originalSlug, post));
 
     revalidatePosts(slug, originalSlug);
-    return { success: true, data: { post, contentSha: written.sha } };
+    return { success: true, data: { post, revision: written.revision } };
   } catch (error) {
     console.error('Failed to update post:', error);
     return createActionError(error, 'Failed to update post');
@@ -262,9 +236,9 @@ export async function updatePostAction(
 }
 
 export async function deletePostAction(input: IDeletePostInput): Promise<ActionResult> {
-  const token = await requireAuth(input.token);
-  if (typeof token !== 'string') {
-    return token;
+  const denied = await requireEditSession();
+  if (denied) {
+    return denied;
   }
 
   try {
@@ -273,13 +247,13 @@ export async function deletePostAction(input: IDeletePostInput): Promise<ActionR
       return validationError('Slug is required');
     }
 
-    const { posts } = await fetchPostListWithSha(token);
+    const { posts } = await readPostList();
     if (!posts.some(post => post.slug === slug)) {
       return notFoundError('Post not found');
     }
 
-    await deleteGitHubFile(buildPostPath(slug), `docs: delete post ${slug}`, token);
-    await savePostsIndex(token, current => removePost(current, slug));
+    await deleteContent(CONTENT_KEYS.post(slug));
+    await savePostsIndex(current => removePost(current, slug));
 
     revalidatePosts(slug);
     return { success: true };

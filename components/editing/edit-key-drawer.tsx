@@ -7,40 +7,18 @@ import { toast } from 'sonner';
 import { useEditMode } from '@/components/edit-mode-context';
 import Overlay from '@/components/overlay';
 
-// Lucide 1.0 dropped all brand icons; this is the github glyph from 0.539 (ISC).
-function GithubIcon(props: React.SVGProps<SVGSVGElement>) {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-      {...props}
-    >
-      <path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.403 5.403 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4" />
-      <path d="M9 18c-4.51 2-5-2-7-2" />
-    </svg>
-  );
-}
-
-interface IGitHubTokenDrawerProps {
+interface IEditKeyDrawerProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
 /**
- * "Connect to save" sheet. Surfaced on demand when a save needs a GitHub token,
- * rather than hidden behind a gear. The token is stored once in an httpOnly
- * cookie (via {@link useEditMode}); the client only ever holds a sentinel.
+ * "Sign in to save" sheet. Surfaced on demand when a save needs an edit session, rather than
+ * hidden behind a gear. The key is sent once; the session lives in an httpOnly cookie (via
+ * {@link useEditMode}), so the client never holds a credential.
  */
-export default function GitHubTokenDrawer({ open, onOpenChange }: IGitHubTokenDrawerProps) {
-  const { token, saveToken } = useEditMode();
+export default function EditKeyDrawer({ open, onOpenChange }: IEditKeyDrawerProps) {
+  const { signIn } = useEditMode();
   const [inputValue, setInputValue] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -59,12 +37,12 @@ export default function GitHubTokenDrawer({ open, onOpenChange }: IGitHubTokenDr
     }
     setIsSaving(true);
     try {
-      await saveToken(inputValue.trim());
-      toast.success('Connected');
+      await signIn(inputValue.trim());
+      toast.success('Signed in');
       onOpenChange(false);
       setInputValue('');
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to save token');
+      toast.error(error instanceof Error ? error.message : 'Failed to sign in');
     } finally {
       setIsSaving(false);
     }
@@ -74,7 +52,7 @@ export default function GitHubTokenDrawer({ open, onOpenChange }: IGitHubTokenDr
     <Overlay
       open={open}
       onClose={() => onOpenChange(false)}
-      ariaLabel="Connect to save"
+      ariaLabel="Sign in to save"
       className="items-center justify-center bg-[color-mix(in_oklch,black_8%,transparent)] p-4"
     >
       <form
@@ -96,32 +74,30 @@ export default function GitHubTokenDrawer({ open, onOpenChange }: IGitHubTokenDr
         <span className="bg-muted text-foreground inline-flex size-11 items-center justify-center rounded-full">
           <KeyRoundIcon className="size-5" />
         </span>
-        <h3>Connect to save</h3>
-        <p>
-          Saving writes to your content repo. Paste a GitHub token once — it stays in this browser.
-        </p>
+        <h3>Enter your edit key</h3>
+        <p>You only need it once in this browser.</p>
 
+        {/* A fixed username lets password managers save and fill the key like a login. */}
         <input
           type="text"
-          name="github-token-username"
+          name="edit-key-username"
           autoComplete="username"
-          value="github"
+          value="editor"
           readOnly
           tabIndex={-1}
           aria-hidden="true"
           className="hidden"
         />
-        <div className="fz-token-field">
-          <GithubIcon className="text-muted-foreground size-[15px] shrink-0" />
+        <div className="fz-key-field">
           <input
             ref={inputRef}
-            name="github-token"
-            aria-label="GitHub token"
+            name="edit-key"
+            aria-label="Edit key"
             type="password"
             value={inputValue}
             onChange={event => setInputValue(event.target.value)}
-            placeholder="github_pat_••••••••••••"
-            autoComplete="new-password"
+            placeholder="Edit key"
+            autoComplete="current-password"
           />
           <button
             type="submit"
@@ -129,14 +105,9 @@ export default function GitHubTokenDrawer({ open, onOpenChange }: IGitHubTokenDr
             style={{ height: 32 }}
             disabled={isSaving || !inputValue.trim()}
           >
-            {isSaving ? 'Saving…' : 'Save'}
+            {isSaving ? 'Signing in…' : 'Sign in'}
           </button>
         </div>
-        <p className="text-muted-foreground/80 mt-3 mb-0 text-xs">
-          {token
-            ? 'Token saved. Paste a new token to replace it.'
-            : 'GitHub → Settings → Developer settings → Fine-grained tokens'}
-        </p>
       </form>
     </Overlay>
   );

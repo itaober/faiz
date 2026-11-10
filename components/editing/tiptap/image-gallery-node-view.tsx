@@ -11,9 +11,7 @@ import { SUPPORTED_IMAGE_TYPES } from '@/lib/utils/image';
 
 import { getGalleryStaging } from './gallery-staging-store';
 import { parseGalleryImages } from './image-gallery-extension';
-import { getImagePreviewSrc } from './image-preview-store';
-
-const displaySrc = (src: string) => getImagePreviewSrc(src) ?? src;
+import { resolveEditorImageSrc } from './image-preview-store';
 
 /**
  * Editor view for the `imageGallery` node — the same card-less "large image +
@@ -129,7 +127,7 @@ export function ImageGalleryNodeView({
       <div className="relative aspect-square w-full max-w-xl overflow-hidden rounded-md bg-[var(--fz-image-frame)] md:rounded-lg">
         {/* biome-ignore lint/performance/noImgElement: editor node view; src may be a local blob: URL */}
         <img
-          src={displaySrc(selected.src)}
+          src={resolveEditorImageSrc(selected.src)}
           alt={caption}
           draggable={false}
           className="absolute inset-0 h-full w-full object-contain"
@@ -196,7 +194,7 @@ export function ImageGalleryNodeView({
             >
               {/* biome-ignore lint/performance/noImgElement: editor thumbnail; src may be a local blob: URL */}
               <img
-                src={displaySrc(image.src)}
+                src={resolveEditorImageSrc(image.src)}
                 alt=""
                 draggable={false}
                 className="h-full w-full object-contain"

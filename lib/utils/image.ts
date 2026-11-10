@@ -1,5 +1,6 @@
 /**
- * Image utilities using @jsquash (WASM) for compression.
+ * Image utilities: the browser decodes, @jsquash (WASM) resizes and encodes WebP — browsers
+ * cannot all encode WebP themselves.
  *
  * The codec packages are imported dynamically inside the functions that use
  * them: statically importing them here used to drag the WASM glue into every
@@ -7,101 +8,83 @@
  * panel). Codecs now download on the first actual compression.
  */
 
+import { MAX_IMAGE_SIZE } from '@/lib/constants/image';
+
 export {
   isSupportedImageType,
   MAX_SOURCE_IMAGE_SIZE,
   SUPPORTED_IMAGE_TYPES,
 } from '@/lib/constants/image';
 
-const DEFAULT_MAX_SIZE_MB = 3.3;
-const DEFAULT_MAX_DIMENSION = 1920;
+// Near-original masters: large enough for any screen, small enough to decode on a phone.
+const MAX_DIMENSION = 4096;
+const QUALITY = 90;
+const BLUR_DIMENSION = 8;
 
-export interface CompressOptions {
-  maxSizeMB?: number;
-  maxWidthOrHeight?: number;
+export interface CompressedImage {
+  blob: Blob;
+  /** Pixel size of the encoded WebP, so pages can reserve its box before it loads. */
+  width: number;
+  height: number;
+  /** Tiny WebP data URL painted (blurred by next/image) while the full image loads. */
+  blur: string;
 }
 
 /**
- * Main Entry: Compress image to WebP (WASM) Guarantees file size < maxSizeMB by intelligent
- * resizing/quality reduction
+ * Re-encode an image as WebP with its long side capped at {@link MAX_DIMENSION}. Steps quality
+ * (then size) down only when the result would still exceed the stored limit.
  */
-export const compressImage = async (file: File, options: CompressOptions = {}): Promise<File> => {
-  const { maxSizeMB = DEFAULT_MAX_SIZE_MB, maxWidthOrHeight = DEFAULT_MAX_DIMENSION } = options;
-  const targetSizeBytes = maxSizeMB * 1024 * 1024;
-
-  // 1. Decode (Support JPEG/PNG WASM, fallback to Canvas for HEIC/Others)
-  const originalImageData = await decodeToImageData(file);
-
-  // 2. Transcode & Optimize
-  // Recursively find best quality/dimension combo to fit strict size limit
-  const buffer = await recursiveCompress({
-    imageData: originalImageData,
-    targetSizeBytes,
-    maxWidthOrHeight,
+export const compressImage = async (file: File): Promise<CompressedImage> => {
+  const original = await decodeToImageData(file, MAX_DIMENSION);
+  const { buffer, imageData } = await recursiveCompress({
+    imageData: original,
+    targetSizeBytes: MAX_IMAGE_SIZE,
+    maxWidthOrHeight: MAX_DIMENSION,
+    quality: QUALITY,
   });
 
-  // 3. Pack result
-  const newName = file.name.replace(/\.[^.]+$/, '.webp');
-  return new File([buffer], newName, { type: 'image/webp', lastModified: Date.now() });
+  return {
+    blob: new Blob([buffer], { type: 'image/webp' }),
+    width: imageData.width,
+    height: imageData.height,
+    blur: await encodeBlurPreview(imageData),
+  };
 };
-
-/** Read a File into a base64 string (without the `data:` prefix). */
-export const fileToBase64 = (file: File): Promise<string> =>
-  new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = typeof reader.result === 'string' ? reader.result.split(',')[1] : '';
-      if (result) {
-        resolve(result);
-      } else {
-        reject(new Error('Failed to read image data'));
-      }
-    };
-    reader.onerror = () => reject(new Error('Failed to read image file'));
-    reader.readAsDataURL(file);
-  });
 
 // =========================================================================================
 // Internal Helpers
 // =========================================================================================
 
-async function decodeToImageData(file: File): Promise<ImageData> {
-  const buffer = await file.arrayBuffer();
-
-  // WASM Decoders
-  if (file.type === 'image/jpeg' || file.type === 'image/jpg') {
-    const { decode } = await import('@jsquash/jpeg');
-    return await decode(buffer);
+/**
+ * Decode with the browser and draw straight at the capped size. The browser applies the EXIF
+ * orientation (a WASM decoder would leave portrait phone photos lying on their side), and the
+ * canvas never holds the full-resolution frame — iOS Safari refuses canvases above ~16.7MP,
+ * which a 48MP photo would exceed.
+ */
+async function decodeToImageData(file: File, maxDimension: number): Promise<ImageData> {
+  let bitmap: ImageBitmap;
+  try {
+    bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' });
+  } catch {
+    // HEIC decodes in Safari only; elsewhere the browser cannot read it at all.
+    throw new Error(`This browser cannot read ${file.name}`);
   }
-  if (file.type === 'image/png') {
-    const { decode } = await import('@jsquash/png');
-    return await decode(buffer);
+
+  try {
+    const { width, height } = calculateDimensions(bitmap.width, bitmap.height, maxDimension);
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const context = canvas.getContext('2d');
+    if (!context) {
+      throw new Error('Canvas is not available');
+    }
+    context.imageSmoothingQuality = 'high';
+    context.drawImage(bitmap, 0, 0, width, height);
+    return context.getImageData(0, 0, width, height);
+  } finally {
+    bitmap.close();
   }
-
-  // Browser Fallback (e.g. for HEIC on Safari)
-  return decodeWithCanvas(file);
-}
-
-function decodeWithCanvas(file: File): Promise<ImageData> {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    const url = URL.createObjectURL(file);
-    img.onload = () => {
-      const canvas = document.createElement('canvas');
-      canvas.width = img.width;
-      canvas.height = img.height;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) {
-        reject(new Error('Canvas context failed'));
-        return;
-      }
-      ctx.drawImage(img, 0, 0);
-      resolve(ctx.getImageData(0, 0, img.width, img.height));
-      URL.revokeObjectURL(url);
-    };
-    img.onerror = reject;
-    img.src = url;
-  });
 }
 
 /**
@@ -115,11 +98,11 @@ async function recursiveCompress(args: {
   imageData: ImageData;
   targetSizeBytes: number;
   maxWidthOrHeight: number;
-  quality?: number;
+  quality: number;
   attempt?: number;
-}): Promise<ArrayBuffer> {
-  const { imageData, targetSizeBytes, maxWidthOrHeight } = args;
-  const { quality = 75, attempt = 0 } = args;
+}): Promise<{ buffer: ArrayBuffer; imageData: ImageData }> {
+  const { imageData, targetSizeBytes, maxWidthOrHeight, quality } = args;
+  const { attempt = 0 } = args;
 
   // 1. Calc target dimensions for this attempt
   const { width: targetW, height: targetH } = calculateDimensions(
@@ -143,14 +126,15 @@ async function recursiveCompress(args: {
   const buffer = await encode(workingData, { quality });
 
   // 4. Check & Retry Logic
+  const result = { buffer, imageData: workingData };
   if (buffer.byteLength <= targetSizeBytes) {
-    return buffer;
+    return result;
   }
 
   if (attempt >= 10) {
     // Safety break: return best effort even if slightly over
     console.warn('Compression limit reached, returning best effort.');
-    return buffer;
+    return result;
   }
 
   // Next Step strategy
@@ -164,7 +148,7 @@ async function recursiveCompress(args: {
     nextQuality = 60; // Reset quality for new smaller size
     nextMaxDim = Math.max(320, Math.floor(maxWidthOrHeight * 0.8)); // Shrink 20%
     if (nextMaxDim === maxWidthOrHeight) {
-      return buffer; // Can't shrink further
+      return result; // Can't shrink further
     }
   }
 
@@ -181,9 +165,21 @@ function calculateDimensions(width: number, height: number, max: number) {
     return { width, height };
   }
 
+  // Clamp to 1px so an extreme panorama never rounds its short side to zero.
   const aspectRatio = width / height;
   if (width > height) {
-    return { width: max, height: Math.round(max / aspectRatio) };
+    return { width: max, height: Math.max(1, Math.round(max / aspectRatio)) };
   }
-  return { width: Math.round(max * aspectRatio), height: max };
+  return { width: Math.max(1, Math.round(max * aspectRatio)), height: max };
+}
+
+async function encodeBlurPreview(imageData: ImageData): Promise<string> {
+  const { default: resize } = await import('@jsquash/resize');
+  const { encode } = await import('@jsquash/webp');
+  const tiny = await resize(
+    imageData,
+    calculateDimensions(imageData.width, imageData.height, BLUR_DIMENSION),
+  );
+  const bytes = new Uint8Array(await encode(tiny));
+  return `data:image/webp;base64,${btoa(String.fromCharCode(...bytes))}`;
 }

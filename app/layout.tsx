@@ -6,13 +6,13 @@ import type { Metadata, Viewport } from 'next';
 import { Geist_Mono, Inter } from 'next/font/google';
 import { ThemeProvider } from 'next-themes';
 import { Toaster } from 'sonner';
-
 import { EditModeProvider } from '@/components/edit-mode-provider';
 import { EditDockProvider } from '@/components/editing/edit-dock';
 import { MotionProvider } from '@/components/motion-provider';
 import { ServiceWorkerRegistration } from '@/components/service-worker-registration';
 import { ThemeScript } from '@/components/theme-script';
 import { ThemeSync } from '@/components/theme-sync';
+import { resolveAssetSrc } from '@/lib/assets';
 import { getMetaInfo } from '@/lib/data/data';
 import { buildDescription, RSS_ALTERNATE_TYPES } from '@/lib/utils/seo';
 
@@ -80,10 +80,11 @@ export async function generateMetadata(): Promise<Metadata> {
   }
 
   const siteUrl = authorInfo?.site ? new URL(authorInfo.site) : undefined;
+  const avatar = authorInfo?.avatar ? resolveAssetSrc(authorInfo.avatar) : undefined;
   const avatarUrl =
-    authorInfo?.avatar?.startsWith('/') && authorInfo.site
-      ? new URL(authorInfo.avatar, authorInfo.site).toString()
-      : authorInfo?.avatar;
+    avatar?.startsWith('/') && authorInfo.site
+      ? new URL(avatar, authorInfo.site).toString()
+      : avatar;
 
   return {
     metadataBase: siteUrl,

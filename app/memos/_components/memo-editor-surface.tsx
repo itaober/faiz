@@ -8,18 +8,18 @@ import { toast } from 'sonner';
 import { createMemoAction } from '@/app/memos/_actions/create-memo';
 import { deleteMemoAction } from '@/app/memos/_actions/delete-memo';
 import { updateMemoAction } from '@/app/memos/_actions/update-memo';
+import { useEditMode } from '@/components/edit-mode-context';
 import type { ActionBarTool, EditViewMode } from '@/components/editing/action-bar';
 import ConfirmDrawer from '@/components/editing/confirm-drawer';
+import EditKeyDrawer from '@/components/editing/edit-key-drawer';
 import { useDockedActionBar } from '@/components/editing/edit-session';
-import GitHubTokenDrawer from '@/components/editing/github-token-drawer';
+import { resolveEditorImageSrc } from '@/components/editing/tiptap/image-preview-store';
 import TiptapEditor from '@/components/editing/tiptap-editor';
 import { uploadStagedEditorImages } from '@/components/editing/upload-staged-editor-images';
 import { useContentEditor } from '@/hooks/use-content-editor';
 import type { Memo } from '@/lib/data/memos';
 import type { StagedEditorImage } from '@/lib/utils/editor-image';
-import { mergeByPath, toApiImageUrl } from '@/lib/utils/editor-image';
-
-import { useMemosContext } from '../_context/use-memos-context';
+import { mergeByKey } from '@/lib/utils/editor-image';
 
 interface IMemoEditorSurfaceProps {
   memo?: Memo;
@@ -28,17 +28,14 @@ interface IMemoEditorSurfaceProps {
 
 interface MemoAttachment {
   alt: string;
-  id: string;
-  path: string;
+  /** Asset key stored in the memo's `images`. */
+  key: string;
   pending?: StagedEditorImage;
-  previewSrc: string;
 }
 
-const toExistingAttachment = (path: string): MemoAttachment => ({
+const toExistingAttachment = (key: string): MemoAttachment => ({
   alt: 'Memo attachment',
-  id: path,
-  path,
-  previewSrc: toApiImageUrl(path),
+  key,
 });
 
 const generateMemoDraftId = () =>
@@ -48,7 +45,7 @@ const generateMemoDraftId = () =>
 
 export default function MemoEditorSurface({ memo, onCancel }: IMemoEditorSurfaceProps) {
   const router = useRouter();
-  const { token } = useMemosContext();
+  const { isSignedIn } = useEditMode();
   const [mode, setMode] = useState<EditViewMode>('wysiwyg');
   const [content, setContent] = useState(memo?.content ?? '');
   const [attachments, setAttachments] = useState<MemoAttachment[]>(() =>
@@ -63,12 +60,11 @@ export default function MemoEditorSurface({ memo, onCancel }: IMemoEditorSurface
     isDeleting,
     submit,
     remove,
-  } = useContentEditor(token);
+  } = useContentEditor(isSignedIn);
   const [draftId, setDraftId] = useState(generateMemoDraftId);
   const [imageUploadRequestId, setImageUploadRequestId] = useState(0);
 
   const isEditMode = !!memo;
-  const hasToken = !!token;
   const entityId = memo?.id || draftId;
 
   useEffect(() => {
@@ -83,9 +79,9 @@ export default function MemoEditorSurface({ memo, onCancel }: IMemoEditorSurface
   }, [memo]);
 
   const handleSubmit = () => {
-    // Validate only once a token exists, so a token-less save still routes to the
-    // connect-token drawer first (matching the prior gate ordering).
-    if (hasToken && !content.trim() && attachments.length === 0) {
+    // Validate only once signed in, so a signed-out save still routes to the
+    // edit-key drawer first.
+    if (isSignedIn && !content.trim() && attachments.length === 0) {
       toast.error('Please enter content or upload images');
       return;
     }
@@ -103,30 +99,26 @@ export default function MemoEditorSurface({ memo, onCancel }: IMemoEditorSurface
         onCancel();
         router.refresh();
       },
-      run: async token => {
+      run: async () => {
         await uploadStagedEditorImages({
           images: attachments.flatMap(attachment =>
             attachment.pending ? [attachment.pending] : [],
           ),
-          token,
-          revalidatePath: '/memos',
         });
 
-        const imagePaths = attachments.map(attachment => attachment.path);
+        const imageKeys = attachments.map(attachment => attachment.key);
         const result =
           isEditMode && memo
             ? await updateMemoAction({
                 id: memo.id,
                 content: content.trim(),
-                images: imagePaths,
+                images: imageKeys,
                 createdTime: memo.createdTime,
-                token,
               })
             : await createMemoAction({
                 id: draftId,
                 content: content.trim(),
-                images: imagePaths,
-                token,
+                images: imageKeys,
               });
         if (!result.success) {
           throw new Error(result.error || 'Operation failed');
@@ -149,11 +141,10 @@ export default function MemoEditorSurface({ memo, onCancel }: IMemoEditorSurface
         onCancel();
         router.refresh();
       },
-      run: async token => {
+      run: async () => {
         const result = await deleteMemoAction({
           id: memo.id,
           createdTime: memo.createdTime,
-          token,
         });
         if (!result.success) {
           throw new Error(result.error || 'Delete failed');
@@ -181,12 +172,12 @@ export default function MemoEditorSurface({ memo, onCancel }: IMemoEditorSurface
     <div className="not-prose flex flex-wrap gap-2 pb-4">
       {attachments.map(attachment => (
         <div
-          key={attachment.id}
+          key={attachment.key}
           className="group bg-muted/30 relative size-24 overflow-hidden rounded-md"
         >
-          {/* biome-ignore lint/performance/noImgElement: editor preview of a local blob: URL, not optimizable by next/image */}
+          {/* biome-ignore lint/performance/noImgElement: editor preview; src may be a local blob: URL, which next/image cannot optimize */}
           <img
-            src={attachment.previewSrc}
+            src={resolveEditorImageSrc(attachment.key)}
             alt={attachment.alt}
             className="size-full object-cover"
           />
@@ -196,7 +187,7 @@ export default function MemoEditorSurface({ memo, onCancel }: IMemoEditorSurface
           <button
             type="button"
             onClick={() =>
-              setAttachments(images => images.filter(image => image.id !== attachment.id))
+              setAttachments(images => images.filter(image => image.key !== attachment.key))
             }
             className="focus-ring bg-background/90 text-danger absolute top-2 right-2 flex size-6 items-center justify-center rounded-full opacity-100 shadow-sm transition-opacity md:opacity-0 md:group-hover:opacity-100"
             aria-label="Remove image"
@@ -219,8 +210,8 @@ export default function MemoEditorSurface({ memo, onCancel }: IMemoEditorSurface
   useDockedActionBar({
     context: isEditMode ? 'Memo' : 'New memo',
     status: isSubmitting ? 'saving' : 'dirty',
-    hasToken,
-    onConnect: () => setIsSettingsOpen(true),
+    isSignedIn,
+    onSignIn: () => setIsSettingsOpen(true),
     mode,
     onModeChange: setMode,
     tools,
@@ -248,18 +239,16 @@ export default function MemoEditorSurface({ memo, onCancel }: IMemoEditorSurface
         autoFocus
         onImagesStaged={images =>
           setAttachments(previous =>
-            mergeByPath(previous, images, image => ({
+            mergeByKey(previous, images, image => ({
               alt: image.alt,
-              id: image.path,
-              path: image.path,
+              key: image.key,
               pending: image,
-              previewSrc: image.previewSrc,
             })),
           )
         }
       />
 
-      <GitHubTokenDrawer open={isSettingsOpen} onOpenChange={setIsSettingsOpen} />
+      <EditKeyDrawer open={isSettingsOpen} onOpenChange={setIsSettingsOpen} />
       <ConfirmDrawer
         open={isDeleteOpen}
         onOpenChange={setIsDeleteOpen}

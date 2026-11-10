@@ -61,7 +61,7 @@ export function useDockedActionBar(config: ActionBarSession) {
   const signature = JSON.stringify({
     context: config.context,
     status: config.status,
-    hasToken: config.hasToken,
+    isSignedIn: config.isSignedIn,
     mode: config.mode,
     saveLabel: config.saveLabel,
     saveDisabled: config.saveDisabled,
@@ -85,7 +85,7 @@ export function useDockedActionBar(config: ActionBarSession) {
     const next: ActionBarSession = {
       context: latest.current.context,
       status: latest.current.status,
-      hasToken: latest.current.hasToken,
+      isSignedIn: latest.current.isSignedIn,
       mode: latest.current.mode,
       saveLabel: latest.current.saveLabel,
       saveDisabled: latest.current.saveDisabled,
@@ -99,7 +99,7 @@ export function useDockedActionBar(config: ActionBarSession) {
         activeFill: tool.activeFill,
         onClick: () => latest.current.tools?.find(t => t.label === tool.label)?.onClick(),
       })),
-      onConnect: () => latest.current.onConnect(),
+      onSignIn: () => latest.current.onSignIn(),
       onModeChange: latest.current.onModeChange
         ? mode => latest.current.onModeChange?.(mode)
         : undefined,

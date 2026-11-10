@@ -1,6 +1,7 @@
 import dayjs from 'dayjs';
 import { Feed } from 'feed';
 import { marked } from 'marked';
+import { resolveAssetSrc } from '@/lib/assets';
 import { RSS_FEED_PATH } from '@/lib/constants/seo';
 import { getMetaInfo, getPostListInfo, type PostList } from '@/lib/data/data';
 import { getPostMDX } from '@/lib/data/mdx';
@@ -27,9 +28,16 @@ interface IFeedItem {
 
 type MemoList = NonNullable<Awaited<ReturnType<typeof getMemos>>>;
 
+/** Feed readers resolve relative URLs against the feed, so asset keys become absolute URLs. */
+const resolveMarkdownImages = (markdown: string) =>
+  markdown.replace(
+    /!\[([^\]\n]*)\]\(([^)\s]+)\)/g,
+    (_, alt: string, src: string) => `![${alt}](${resolveAssetSrc(src)})`,
+  );
+
 /** Stored content carries MDX components; marked would pass them through raw. */
 const toFeedHtml = (content: string) =>
-  marked(mdxImagesToMarkdown(mdxTodoListsToMarkdown(content)));
+  marked(resolveMarkdownImages(mdxImagesToMarkdown(mdxTodoListsToMarkdown(content))));
 
 const createPostFeedItems = async (
   postList: PostList,
@@ -131,9 +139,8 @@ export async function GET() {
 
   const feedDomain = metaInfo.site;
 
-  const avatarUrl = metaInfo?.avatar?.startsWith('/')
-    ? `${feedDomain}${metaInfo.avatar}`
-    : metaInfo?.avatar;
+  const avatar = metaInfo?.avatar ? resolveAssetSrc(metaInfo.avatar) : undefined;
+  const avatarUrl = avatar?.startsWith('/') ? `${feedDomain}${avatar}` : avatar;
 
   const feed = new Feed({
     title: metaInfo?.name,

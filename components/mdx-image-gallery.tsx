@@ -4,6 +4,7 @@ import Image from 'next/image';
 import { useEffect, useState } from 'react';
 
 import { Preview, PreviewImage, PreviewPortal, PreviewTrigger } from '@/components/preview';
+import { isTransformableSrc, resolveAssetSrc } from '@/lib/assets';
 import { cn } from '@/lib/utils';
 import { type MdxImageGalleryItem, unescapeMarkdownValue } from '@/lib/utils/editor-image';
 
@@ -18,14 +19,12 @@ interface NormalizedImage {
 
 const IMAGE_SIZES = '(max-width: 768px) calc(100vw - 2.5rem), 36rem';
 
-const isExternalImage = (src: string) => /^(https?:)?\/\//.test(src);
-
 const normalizeImage = (
   value: MdxImageGalleryItem | string | null | undefined,
 ): NormalizedImage | null => {
   if (typeof value === 'string') {
     const src = unescapeMarkdownValue(value).trim();
-    return src ? { alt: 'Content image', src } : null;
+    return src ? { alt: 'Content image', src: resolveAssetSrc(src) } : null;
   }
   if (!value?.src) {
     return null;
@@ -36,7 +35,7 @@ const normalizeImage = (
   }
   const alt = value.alt ? unescapeMarkdownValue(value.alt).trim() : '';
   const caption = value.caption ? unescapeMarkdownValue(value.caption).trim() : '';
-  return { alt: alt || caption, src };
+  return { alt: alt || caption, src: resolveAssetSrc(src) };
 };
 
 /**
@@ -88,7 +87,7 @@ export default function MDXImageGallery({ images }: MDXImageGalleryProps) {
                 fill
                 sizes={IMAGE_SIZES}
                 className="object-contain"
-                unoptimized={isExternalImage(selected.src)}
+                unoptimized={!isTransformableSrc(selected.src)}
               />
             </PreviewTrigger>
           ) : (
@@ -105,7 +104,7 @@ export default function MDXImageGallery({ images }: MDXImageGalleryProps) {
                 height={0}
                 sizes={IMAGE_SIZES}
                 className="h-auto w-full"
-                unoptimized={isExternalImage(selected.src)}
+                unoptimized={!isTransformableSrc(selected.src)}
               />
             </PreviewTrigger>
           )}
@@ -143,7 +142,7 @@ export default function MDXImageGallery({ images }: MDXImageGalleryProps) {
                     fill
                     sizes="4rem"
                     className="object-contain"
-                    unoptimized={isExternalImage(image.src)}
+                    unoptimized={!isTransformableSrc(image.src)}
                   />
                 </button>
               ))}
