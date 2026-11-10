@@ -7,15 +7,17 @@ import { useCallback, useEffect, useLayoutEffect, useRef } from 'react';
 import Overlay from '@/components/overlay';
 import { cn } from '@/lib/utils';
 
-import { type IPreviewRect, usePreview } from './context.ts';
+import { usePreview } from './context.ts';
 import {
   areRectsEqual,
-  getFlipTransform,
+  getCoverFlip,
   getFocusableElements,
+  getSourceRadius,
   isValidRect,
   PREVIEW_CLOSE_TIMEOUT_MS,
   PREVIEW_DURATION_MS,
   PREVIEW_EASING,
+  PREVIEW_FULL_FRAME,
   prefersReducedMotion,
   toPreviewRect,
   whenPaintable,
@@ -215,8 +217,10 @@ export const PreviewPortal = ({
       return;
     }
 
-    const currentTransform = getComputedStyle(frame).transform;
-    frame.style.transform = currentTransform === 'none' ? 'none' : currentTransform;
+    const { transform, clipPath } = getComputedStyle(frame);
+    frame.style.transform = transform;
+    // `none` can't interpolate to inset(); leaving it unset lets the close start from the full frame.
+    frame.style.clipPath = clipPath === 'none' ? '' : clipPath;
     cancelAnimation();
     setPhase('closing');
   }, [cancelAnimation, finishClose, getReturnRect, originRectRef, phaseRef, setPhase]);
@@ -236,11 +240,12 @@ export const PreviewPortal = ({
 
     const frame = mediaFrameRef.current;
     const source = sourceMediaRef.current;
-    const fromTransform = getFlipTransform(sourceRect, targetRect);
+    const from = getCoverFlip(sourceRect, targetRect, getSourceRadius(source));
     frame.style.visibility = 'visible';
     frame.style.transformOrigin = '0 0';
-    frame.style.transform = fromTransform;
-    frame.style.willChange = 'transform';
+    frame.style.transform = from.transform;
+    frame.style.clipPath = from.clipPath;
+    frame.style.willChange = 'transform, clip-path';
 
     const generation = ++animationGenerationRef.current;
     let cancelled = false;
@@ -262,12 +267,13 @@ export const PreviewPortal = ({
 
       if (prefersReducedMotion()) {
         frame.style.transform = 'none';
+        frame.style.clipPath = '';
         frame.style.willChange = '';
         setPhase('open');
         return;
       }
 
-      const animation = frame.animate([{ transform: fromTransform }, { transform: 'none' }], {
+      const animation = frame.animate([from, PREVIEW_FULL_FRAME], {
         duration: PREVIEW_DURATION_MS,
         easing: PREVIEW_EASING,
         fill: 'forwards',
@@ -280,6 +286,7 @@ export const PreviewPortal = ({
           }
           animationRef.current = null;
           frame.style.transform = 'none';
+          frame.style.clipPath = '';
           frame.style.willChange = '';
           animation.cancel();
           setPhase('open');
@@ -320,29 +327,22 @@ export const PreviewPortal = ({
       return;
     }
 
-    // Fly home by animating the frame's box, not a transform: a scale FLIP is
-    // non-uniform whenever the source box crops the media (a square cover in a
-    // 2:3 cell), so the media lands visibly squashed for its final frames.
-    // Box keyframes let object-fit re-crop every frame instead — together with
-    // the source-crop placeholder the landing frame matches the cell exactly.
-    const currentRect = toPreviewRect(frame.getBoundingClientRect());
-    const fromBox = isValidRect(currentRect) ? currentRect : targetRect;
-    frame.style.transform = 'none';
-
-    const toBoxKeyframe = (rect: IPreviewRect) => ({
-      left: `${rect.left - targetRect.left}px`,
-      top: `${rect.top - targetRect.top}px`,
-      width: `${rect.width}px`,
-      height: `${rect.height}px`,
-    });
-
     if (prefersReducedMotion()) {
       finishClose(frame, 'none');
       return;
     }
 
+    // Starts from wherever the media sits now (fully open, or frozen mid-opening by handleClose).
+    const from = {
+      transform: frame.style.transform || PREVIEW_FULL_FRAME.transform,
+      clipPath: frame.style.clipPath || PREVIEW_FULL_FRAME.clipPath,
+    };
+    const to = getCoverFlip(returnRect, targetRect, getSourceRadius(sourceMediaRef.current));
+    frame.style.transformOrigin = '0 0';
+    frame.style.willChange = 'transform, clip-path';
+
     const generation = ++animationGenerationRef.current;
-    const animation = frame.animate([toBoxKeyframe(fromBox), toBoxKeyframe(returnRect)], {
+    const animation = frame.animate([from, to], {
       duration: PREVIEW_DURATION_MS,
       easing: PREVIEW_EASING,
       fill: 'forwards',
@@ -355,7 +355,8 @@ export const PreviewPortal = ({
         }
         animationRef.current = null;
         animation.cancel();
-        finishClose(frame, 'none');
+        frame.style.clipPath = to.clipPath;
+        finishClose(frame, to.transform);
       })
       .catch(() => undefined);
 
@@ -364,7 +365,7 @@ export const PreviewPortal = ({
         cancelAnimation();
       }
     };
-  }, [cancelAnimation, finishClose, getReturnRect, phase, phaseRef]);
+  }, [cancelAnimation, finishClose, getReturnRect, phase, phaseRef, sourceMediaRef]);
 
   useLayoutEffect(() => {
     if (phase === 'open') {
@@ -403,7 +404,8 @@ export const PreviewPortal = ({
   }, []);
 
   useEffect(() => {
-    if (!interactive || !hasNavigation) {
+    // Paging only once open: the opening flight is computed for the current image's shape.
+    if (!controlsVisible || !hasNavigation) {
       return;
     }
     const handleKey = (event: KeyboardEvent) => {
@@ -417,7 +419,7 @@ export const PreviewPortal = ({
     };
     document.addEventListener('keydown', handleKey);
     return () => document.removeEventListener('keydown', handleKey);
-  }, [hasNavigation, interactive]);
+  }, [controlsVisible, hasNavigation]);
 
   useEffect(() => {
     return () => {
@@ -438,7 +440,7 @@ export const PreviewPortal = ({
       tabIndex={controlsVisible ? 0 : -1}
       onClick={onPrevious}
       className={cn(
-        'focus-ring-overlay icon-button bg-overlay-control text-overlay-control-foreground hover:bg-overlay-control-hover absolute top-1/2 left-1 z-10 size-10 -translate-y-1/2 md:-left-[3.25rem]',
+        'focus-ring-overlay icon-button bg-overlay-control text-overlay-control-foreground hover:bg-overlay-control-hover pointer-events-auto absolute top-0 left-1 size-10 -translate-y-1/2 md:-left-15',
         !controlsVisible && 'invisible pointer-events-none',
       )}
     >
@@ -453,7 +455,7 @@ export const PreviewPortal = ({
       tabIndex={controlsVisible ? 0 : -1}
       onClick={onNext}
       className={cn(
-        'focus-ring-overlay icon-button bg-overlay-control text-overlay-control-foreground hover:bg-overlay-control-hover absolute top-1/2 right-1 z-10 size-10 -translate-y-1/2 md:-right-[3.25rem]',
+        'focus-ring-overlay icon-button bg-overlay-control text-overlay-control-foreground hover:bg-overlay-control-hover pointer-events-auto absolute top-0 right-1 size-10 -translate-y-1/2 md:-right-15',
         !controlsVisible && 'invisible pointer-events-none',
       )}
     >
@@ -479,8 +481,8 @@ export const PreviewPortal = ({
         aria-label={ariaLabel}
         tabIndex={-1}
         onKeyDown={handleDialogKeyDown}
-        onTouchStart={interactive ? onTouchStart : undefined}
-        onTouchEnd={interactive ? onTouchEnd : undefined}
+        onTouchStart={controlsVisible ? onTouchStart : undefined}
+        onTouchEnd={controlsVisible ? onTouchEnd : undefined}
         className="relative flex max-h-full max-w-full items-center justify-center"
       >
         <div
@@ -517,8 +519,6 @@ export const PreviewPortal = ({
           >
             <XIcon className="size-4.5" />
           </button>
-          {previousButton}
-          {nextButton}
           {footer ? (
             <div
               aria-hidden={!controlsVisible}
@@ -545,6 +545,14 @@ export const PreviewPortal = ({
             </aside>
           ) : null}
         </div>
+        {hasNavigation ? (
+          // Sized to the frame a square image gets (the anchor's width formula at ratio 1), so the
+          // arrows stay put while paging between portrait and landscape images.
+          <div className="pointer-events-none absolute top-1/2 left-1/2 h-0 w-[min(90vw,80svh,64rem)] -translate-x-1/2 md:w-[min(90vw,calc(100vw-8rem),80svh,64rem)]">
+            {previousButton}
+            {nextButton}
+          </div>
+        ) : null}
       </div>
     </Overlay>
   );

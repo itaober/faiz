@@ -5,7 +5,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { cn } from '@/lib/utils';
 
-import { usePreview } from './context.ts';
+import { type IActiveSourceImage, usePreview } from './context.ts';
 import { isValidRect, toPreviewRect } from './geometry.ts';
 
 const isImageLoaded = (image: HTMLImageElement | null | undefined) =>
@@ -54,6 +54,7 @@ export const PreviewTrigger = ({
     setMediaAspectRatio,
     setSourceImage,
     setActiveSourceImage,
+    registerSource,
   } = usePreview();
   const [sourceAspectRatio, setSourceAspectRatio] = useState(1);
   const mediaRef = useRef<HTMLElement | null>(null);
@@ -88,6 +89,32 @@ export const PreviewTrigger = ({
     image?.addEventListener('load', syncSourceImage);
     return () => image?.removeEventListener('load', syncSourceImage);
   }, [children, previewSrc, setSourceImage, syncSourceAspectRatio]);
+
+  const describeSource = useCallback((): IActiveSourceImage | null => {
+    const image = mediaRef.current?.querySelector('img');
+    const currentSrc = getReusableImageSrc(image);
+    if (!previewSrc || !currentSrc) {
+      return null;
+    }
+    const imageStyle = image ? getComputedStyle(image) : undefined;
+    return {
+      src: previewSrc,
+      currentSrc,
+      objectFit: imageStyle?.objectFit as CSSProperties['objectFit'],
+      objectPosition: imageStyle?.objectPosition,
+    };
+  }, [previewSrc]);
+
+  useEffect(() => {
+    if (!previewSrc || !mediaRef.current || !buttonRef.current) {
+      return;
+    }
+    return registerSource(previewSrc, {
+      media: mediaRef.current,
+      button: buttonRef.current,
+      describe: describeSource,
+    });
+  }, [describeSource, previewSrc, registerSource]);
 
   const mediaStyle = contained
     ? sourceAspectRatio >= 1
@@ -133,21 +160,10 @@ export const PreviewTrigger = ({
           const aspectRatio = syncSourceAspectRatio() ?? sourceRect.width / sourceRect.height;
           setMediaAspectRatio(aspectRatio);
 
-          const image = mediaRef.current.querySelector('img');
-          const currentSrc = getReusableImageSrc(image);
-          if (previewSrc && currentSrc) {
-            const imageStyle = image ? getComputedStyle(image) : undefined;
-            setActiveSourceImage({
-              src: previewSrc,
-              currentSrc,
-              objectFit: imageStyle?.objectFit as CSSProperties['objectFit'],
-              objectPosition: imageStyle?.objectPosition,
-            });
-            if (isImageLoaded(image)) {
-              setSourceImage(previewSrc, currentSrc);
-            }
-          } else {
-            setActiveSourceImage(null);
+          const activeSource = describeSource();
+          setActiveSourceImage(activeSource);
+          if (activeSource && isImageLoaded(mediaRef.current.querySelector('img'))) {
+            setSourceImage(activeSource.src, activeSource.currentSrc);
           }
 
           onOpen?.();

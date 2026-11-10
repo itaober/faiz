@@ -17,13 +17,58 @@ export const toPreviewRect = (rect: DOMRect): IPreviewRect => ({
 export const isValidRect = (rect: IPreviewRect | null | undefined): rect is IPreviewRect =>
   Boolean(rect?.width && rect.height);
 
-export const getFlipTransform = (source: IPreviewRect, target: IPreviewRect) => {
-  const scaleX = source.width / target.width;
-  const scaleY = source.height / target.height;
-  const translateX = source.left - target.left;
-  const translateY = source.top - target.top;
+export type PreviewFlipFrame = {
+  transform: string;
+  clipPath: string;
+};
 
-  return `translate(${translateX}px, ${translateY}px) scale(${scaleX}, ${scaleY})`;
+export const PREVIEW_FULL_FRAME: PreviewFlipFrame = {
+  transform: 'none',
+  clipPath: 'inset(0px 0px 0px 0px round 0px)',
+};
+
+/**
+ * Places the frame (laid out at `target`, the media's own aspect ratio) so that what shows is
+ * exactly `source`, the way `object-fit: cover` crops it there: a uniform scale that covers the
+ * source box, plus a centered clip. Interpolating to {@link PREVIEW_FULL_FRAME} un-crops the media
+ * continuously, so a square grid cell grows into a portrait or landscape preview without ever
+ * squashing or snapping its shape at the end.
+ */
+export const getCoverFlip = (
+  source: IPreviewRect,
+  target: IPreviewRect,
+  sourceRadius = 0,
+): PreviewFlipFrame => {
+  const scale = Math.max(source.width / target.width, source.height / target.height);
+  const insetX = (target.width - source.width / scale) / 2;
+  const insetY = (target.height - source.height / scale) / 2;
+  const translateX = source.left - target.left - insetX * scale;
+  const translateY = source.top - target.top - insetY * scale;
+
+  return {
+    transform: `translate(${translateX}px, ${translateY}px) scale(${scale})`,
+    clipPath: `inset(${insetY}px ${insetX}px ${insetY}px ${insetX}px round ${sourceRadius / scale}px)`,
+  };
+};
+
+/**
+ * Corner radius the source media is drawn with, so the flight starts and lands on its shape. The
+ * rounding sits on the image, a clipping wrapper, or the trigger just outside `source`.
+ */
+export const getSourceRadius = (source: HTMLElement | null) => {
+  const boundary = source?.parentElement ?? source;
+  let element = source?.querySelector('img') ?? source;
+  while (element) {
+    const radius = Number.parseFloat(getComputedStyle(element).borderTopLeftRadius);
+    if (radius > 0) {
+      return radius;
+    }
+    if (element === boundary) {
+      return 0;
+    }
+    element = element.parentElement;
+  }
+  return 0;
 };
 
 export const areRectsEqual = (first: IPreviewRect, second: IPreviewRect) =>
