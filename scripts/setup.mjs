@@ -21,7 +21,7 @@ const USAGE = `Usage: pnpm setup:cloudflare [options]
   --assets-domain <host>   custom domain that serves it                        (assets.itaober.com)
   --folder <name>          this site's folder in it; local dev uses <name>-dev  (faiz)
   --content-bucket <name>  this site's private bucket; local dev uses <name>-dev (faiz-content)
-  --origin <url>           site origin allowed to upload images, repeatable    (https://blog.itaober.com)
+  --origin <url>           the site's own URL, for the starter site.json        (https://blog.itaober.com)
   --zone-id <id>           zone of the assets domain, to connect the domain
                            (dashboard → the domain → Overview → API → Zone ID)
   --account-id <id>        only when your login can see several accounts
@@ -40,7 +40,7 @@ try {
       'assets-domain': { type: 'string', default: 'assets.itaober.com' },
       folder: { type: 'string', default: 'faiz' },
       'content-bucket': { type: 'string', default: 'faiz-content' },
-      origin: { type: 'string', multiple: true, default: ['https://blog.itaober.com'] },
+      origin: { type: 'string', default: 'https://blog.itaober.com' },
       'zone-id': { type: 'string' },
       'account-id': { type: 'string' },
       seed: { type: 'boolean', default: false },
@@ -62,8 +62,6 @@ const contentBucket = options['content-bucket'];
 const devFolder = `${folder}-dev`;
 const devContentBucket = `${contentBucket}-dev`;
 const zoneId = options['zone-id'];
-const LOCAL_ORIGIN = 'http://localhost:1999';
-const origins = [...new Set([...options.origin, LOCAL_ORIGIN])];
 
 // R2's naming rule; the -dev twin has to pass it too.
 const BUCKET_NAME = /^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$/;
@@ -76,9 +74,9 @@ const invalid = [
     ? []
     : [`domain "${assetsDomain}"`]),
   ...(/^[a-z0-9][a-z0-9_-]*$/i.test(folder) ? [] : [`folder "${folder}"`]),
-  ...options.origin
-    .filter(origin => URL.parse(origin)?.origin !== origin)
-    .map(origin => `origin "${origin}" (scheme and host only, like https://blog.example.com)`),
+  ...(URL.parse(options.origin)?.origin === options.origin
+    ? []
+    : [`origin "${options.origin}" (scheme and host only, like https://blog.example.com)`]),
   ...[zoneId, options['account-id']]
     .filter(id => id !== undefined && !CLOUDFLARE_ID.test(id))
     .map(id => `id "${id}"`),
@@ -107,8 +105,11 @@ const todo = [];
 
 // What a presigned upload sends (lib/storage/r2.ts createAssetUploadUrl). GET is there because
 // the About page reads the portrait's pixels in a canvas, which needs CORS on a plain load too.
+// Any origin: the bucket is public and an upload is authorized by its signature, so a list of
+// origins guards nothing. It would also shut out preview deployments, and since R2 answers per
+// origin, the edge cache would hand one visitor's answer to the next.
 const CORS = {
-  origins,
+  origins: ['*'],
   methods: ['GET', 'HEAD', 'PUT'],
   headers: [
     'content-type',
@@ -196,7 +197,7 @@ try {
   // Written only when wrangler said there is nothing: output it cannot parse must never lead to
   // replacing another site's rules.
   if (parseCorsRules(corsOutput).some(coversUploads)) {
-    done(`CORS on ${assetsBucket} already allows uploads from ${origins.join(', ')}`);
+    done(`CORS on ${assetsBucket} already allows uploads`);
   } else if (hasNoCors) {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'faiz-setup-'));
     const file = path.join(dir, 'cors.json');
@@ -210,7 +211,7 @@ try {
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
     }
-    done(`CORS on ${assetsBucket} allows uploads from ${origins.join(', ')}`);
+    done(`CORS on ${assetsBucket} allows uploads`);
   } else {
     const dashboardRule = {
       AllowedOrigins: CORS.origins,
@@ -280,7 +281,7 @@ try {
     const starter = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'faiz-seed-')), 'site.json');
     fs.writeFileSync(
       starter,
-      `${JSON.stringify({ name: 'My Blog', bio: '', site: origins[0] }, null, 2)}\n`,
+      `${JSON.stringify({ name: 'My Blog', bio: '', site: options.origin }, null, 2)}\n`,
     );
     for (const bucket of [contentBucket, devContentBucket]) {
       try {

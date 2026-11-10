@@ -75,7 +75,7 @@ environment variable: it is `site` in `site.json`.
 
 Put the `.env.local` block from `pnpm setup:cloudflare` in `.env.local` (see `.env.example`). It points at
 `<content-bucket>-dev` and `<folder>-dev` in the same assets bucket, so nothing done locally reaches
-the live site. `pnpm dev` serves http://localhost:1999, which CORS allows to upload images.
+the live site. `pnpm dev` serves http://localhost:1999.
 
 ## Editing
 
