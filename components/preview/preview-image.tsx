@@ -1,7 +1,7 @@
 'use client';
 
 import Image from 'next/image';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import { cn } from '@/lib/utils';
 
@@ -24,10 +24,15 @@ const ProgressivePreviewImage = ({
   sizes,
   unoptimized,
 }: Required<IPreviewImageProps>) => {
-  const { phase, activeSourceImage, sourceImages } = usePreview();
+  const { phase, activeSourceImage, sourceImages, retargetSource } = usePreview();
   const isActiveSource = activeSourceImage?.src === src;
   const placeholderSrc = isActiveSource ? activeSourceImage.currentSrc : sourceImages.get(src);
   const [isLoaded, setIsLoaded] = useState(false);
+
+  // Keyed by src, so this runs once per image shown; only paging while open retargets.
+  useEffect(() => {
+    retargetSource(src);
+  }, [retargetSource, src]);
   // Opening and closing keep the source rendition, so the pixels at handover match the grid cell
   // exactly; its crop only matters when the frame's shape had to fall back to the cell's.
   const preserveSourceCrop = isActiveSource && (phase === 'opening' || phase === 'closing');

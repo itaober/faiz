@@ -5,6 +5,7 @@ import { useCallback, useRef, useState } from 'react';
 import {
   type IActiveSourceImage,
   type IPreviewRect,
+  type IPreviewSource,
   PreviewContext,
   type PreviewPhase,
 } from './context.ts';
@@ -36,6 +37,33 @@ export const Preview = ({ children }: IPreviewProps) => {
       return new Map(images).set(src, currentSrc);
     });
   }, []);
+  const sourcesRef = useRef(new Map<string, IPreviewSource>());
+  const registerSource = useCallback((src: string, source: IPreviewSource) => {
+    sourcesRef.current.set(src, source);
+    return () => {
+      if (sourcesRef.current.get(src) === source) {
+        sourcesRef.current.delete(src);
+      }
+    };
+  }, []);
+  // Paging while open moves "home" to the cell of the image now shown, so closing flies it back
+  // into its own cell instead of shrinking it into the one that was first opened.
+  const retargetSource = useCallback((src: string) => {
+    const source = sourcesRef.current.get(src);
+    if (!source || phaseRef.current !== 'open') {
+      return;
+    }
+    const previous = sourceMediaRef.current;
+    if (previous !== source.media) {
+      if (previous) {
+        previous.style.visibility = '';
+      }
+      source.media.style.visibility = 'hidden';
+      sourceMediaRef.current = source.media;
+      triggerRef.current = source.button;
+    }
+    setActiveSourceImage(source.describe());
+  }, []);
   const isPreview = phase === 'opening' || phase === 'open' || phase === 'closing';
 
   return (
@@ -56,6 +84,8 @@ export const Preview = ({ children }: IPreviewProps) => {
         setSourceImage,
         activeSourceImage,
         setActiveSourceImage,
+        registerSource,
+        retargetSource,
       }}
     >
       {children}

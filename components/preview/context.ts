@@ -19,6 +19,13 @@ export interface IActiveSourceImage {
   objectPosition?: CSSProperties['objectPosition'];
 }
 
+/** A trigger the preview can fly home to, keyed by the src it previews. */
+export interface IPreviewSource {
+  media: HTMLElement;
+  button: HTMLButtonElement;
+  describe: () => IActiveSourceImage | null;
+}
+
 export interface IPreviewContext {
   phase: PreviewPhase;
   phaseRef: RefObject<PreviewPhase>;
@@ -35,6 +42,8 @@ export interface IPreviewContext {
   setSourceImage: (src: string, currentSrc: string) => void;
   activeSourceImage: IActiveSourceImage | null;
   setActiveSourceImage: (image: IActiveSourceImage | null) => void;
+  registerSource: (src: string, source: IPreviewSource) => () => void;
+  retargetSource: (src: string) => void;
 }
 
 export const PreviewContext = createContext<IPreviewContext | null>(null);

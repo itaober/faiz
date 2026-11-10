@@ -440,7 +440,7 @@ export const PreviewPortal = ({
       tabIndex={controlsVisible ? 0 : -1}
       onClick={onPrevious}
       className={cn(
-        'focus-ring-overlay icon-button bg-overlay-control text-overlay-control-foreground hover:bg-overlay-control-hover absolute top-1/2 left-1 z-10 size-10 -translate-y-1/2 md:-left-[3.25rem]',
+        'focus-ring-overlay icon-button bg-overlay-control text-overlay-control-foreground hover:bg-overlay-control-hover pointer-events-auto absolute top-0 left-1 size-10 -translate-y-1/2 md:-left-[3.25rem]',
         !controlsVisible && 'invisible pointer-events-none',
       )}
     >
@@ -455,7 +455,7 @@ export const PreviewPortal = ({
       tabIndex={controlsVisible ? 0 : -1}
       onClick={onNext}
       className={cn(
-        'focus-ring-overlay icon-button bg-overlay-control text-overlay-control-foreground hover:bg-overlay-control-hover absolute top-1/2 right-1 z-10 size-10 -translate-y-1/2 md:-right-[3.25rem]',
+        'focus-ring-overlay icon-button bg-overlay-control text-overlay-control-foreground hover:bg-overlay-control-hover pointer-events-auto absolute top-0 right-1 size-10 -translate-y-1/2 md:-right-[3.25rem]',
         !controlsVisible && 'invisible pointer-events-none',
       )}
     >
@@ -519,8 +519,6 @@ export const PreviewPortal = ({
           >
             <XIcon className="size-4.5" />
           </button>
-          {previousButton}
-          {nextButton}
           {footer ? (
             <div
               aria-hidden={!controlsVisible}
@@ -547,6 +545,14 @@ export const PreviewPortal = ({
             </aside>
           ) : null}
         </div>
+        {hasNavigation ? (
+          // Sized to the widest frame the anchor can reach, so the arrows stay put while paging
+          // between portrait and landscape images instead of hugging each one's edges.
+          <div className="pointer-events-none absolute top-1/2 left-1/2 h-0 w-[min(90vw,64rem)] -translate-x-1/2 md:w-[min(90vw,calc(100vw-8rem),64rem)]">
+            {previousButton}
+            {nextButton}
+          </div>
+        ) : null}
       </div>
     </Overlay>
   );
