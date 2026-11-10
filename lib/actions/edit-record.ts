@@ -7,6 +7,7 @@ import { CONTENT_KEYS } from '@/lib/content-keys';
 import { type RecordItem, type Records, RecordsSchema } from '@/lib/data/data';
 import { deleteImages } from '@/lib/data/images';
 import dayjs, { formatTime } from '@/lib/dayjs';
+import { StorageError } from '@/lib/errors';
 import { requireEditSession } from '@/lib/server/edit-session';
 import { readContentJsonForUpdate, writeContentJson } from '@/lib/storage/r2';
 import {
@@ -21,6 +22,8 @@ interface IRecordKey {
   title: string;
   type: RecordItem['type'];
   createdTime: string;
+  /** The cover the editor loaded; a different stored cover means it changed elsewhere since. */
+  coverUrl: string;
 }
 
 interface IRecordInput {
@@ -72,6 +75,10 @@ const validateRecordKey = (key: IRecordKey): ActionError | null => {
     return validationError('Invalid record type');
   }
 
+  if (typeof key?.coverUrl !== 'string') {
+    return validationError('Record cover is required');
+  }
+
   return null;
 };
 
@@ -80,9 +87,14 @@ const findRecord = (records: Records, key: IRecordKey) => {
     return undefined;
   }
 
-  return records[key.type].find(
+  const record = records[key.type].find(
     record => record.title === key.title && record.createdTime === key.createdTime,
   );
+  // Saving over a cover replaced elsewhere would point at a deleted file and delete the new one.
+  if (record && record.coverUrl !== key.coverUrl) {
+    throw new StorageError(412, `Record changed since it was loaded: ${key.title}`);
+  }
+  return record;
 };
 
 const removeRecord = (records: Records, key: IRecordKey): Records => ({

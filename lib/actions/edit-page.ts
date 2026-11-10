@@ -58,12 +58,9 @@ export async function updatePageAction(
       updatedTime: now,
     };
 
-    const written = await writeMdx(
-      key,
-      data,
-      input.content,
-      input.revision ?? current?.revision ?? null,
-    );
+    // Only the revision the editor loaded counts; falling back to the one just read would turn a
+    // missing revision into a blind overwrite.
+    const written = await writeMdx(key, data, input.content, input.revision ?? null);
 
     revalidatePath(input.page === 'about' ? '/' : `/${input.page}`);
     if (input.page === 'about') {

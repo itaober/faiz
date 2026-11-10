@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { CONTENT_KEYS, memoMonthFromKey } from '@/lib/content-keys';
 import { deleteImages } from '@/lib/data/images';
 import dayjs, { formatTime, TIMEZONE } from '@/lib/dayjs';
-import { NotFoundError } from '@/lib/errors';
+import { NotFoundError, StorageError } from '@/lib/errors';
 import {
   listContent,
   readContentJson,
@@ -136,6 +136,8 @@ interface IUpdateMemoInput {
   id: string;
   content: string;
   images?: string[];
+  /** The images the editor loaded; removed images are deleted, so they must still be current. */
+  originalImages: string[];
   createdTime: string;
 }
 
@@ -160,6 +162,10 @@ export const updateMemo = async (input: IUpdateMemoInput): Promise<IUpdateMemoRe
   }
 
   const oldMemo = list[memoIndex];
+  // A stale editor would otherwise delete images added to this memo elsewhere since.
+  if (oldMemo.images.join('\n') !== input.originalImages.join('\n')) {
+    throw new StorageError(412, `Memo changed since it was loaded: ${input.id}`);
+  }
   const newImages = input.images ?? oldMemo.images;
 
   const removedImages = oldMemo.images.filter(img => !newImages.includes(img));

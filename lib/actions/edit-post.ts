@@ -9,7 +9,12 @@ import { formatTime } from '@/lib/dayjs';
 import { StorageError } from '@/lib/errors';
 import { requireEditSession } from '@/lib/server/edit-session';
 import { normalizeOptionalString, writeMdx } from '@/lib/server/mdx-write';
-import { deleteContent, readContentJsonForUpdate, writeContentJson } from '@/lib/storage/r2';
+import {
+  deleteContent,
+  readContentForUpdate,
+  readContentJsonForUpdate,
+  writeContentJson,
+} from '@/lib/storage/r2';
 import {
   type ActionError,
   type ActionResult,
@@ -212,20 +217,28 @@ export async function updatePostAction(
       pinned: input.pinned === true || undefined,
     };
 
-    // Renaming writes a new path, which is a create — the base revision only
-    // applies when the slug is unchanged.
+    const renamed = slug !== originalSlug;
+    const revision = input.revision ?? null;
+    // A rename creates the new path and drops the old one, so the loaded revision is checked
+    // against the old file before anything is written; the old file goes last, so a failure on
+    // the way leaves a spare copy rather than a post missing from the index.
+    if (renamed) {
+      const current = await readContentForUpdate(CONTENT_KEYS.post(originalSlug));
+      if (current?.revision !== revision) {
+        throw new StorageError(412, `Conflict renaming ${originalSlug}`);
+      }
+    }
+
     const written = await writeMdx(
       CONTENT_KEYS.post(slug),
       post,
       input.content,
-      slug === originalSlug ? (input.revision ?? null) : null,
+      renamed ? null : revision,
     );
-
-    if (slug !== originalSlug) {
-      await deleteContent(CONTENT_KEYS.post(originalSlug));
-    }
-
     await savePostsIndex(current => replacePost(current, originalSlug, post));
+    if (renamed) {
+      await deleteContent(CONTENT_KEYS.post(originalSlug), revision ?? undefined);
+    }
 
     revalidatePosts(slug, originalSlug);
     return { success: true, data: { post, revision: written.revision } };

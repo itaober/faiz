@@ -140,6 +140,7 @@ export default function RecordsSidePanel({
                   title: record.title,
                   type: record.type,
                   createdTime: record.createdTime,
+                  coverUrl: record.coverUrl,
                 },
                 record: nextRecord,
               })
@@ -167,7 +168,12 @@ export default function RecordsSidePanel({
       },
       run: async () => {
         const result = await deleteRecordAction({
-          original: { title: record.title, type: record.type, createdTime: record.createdTime },
+          original: {
+            title: record.title,
+            type: record.type,
+            createdTime: record.createdTime,
+            coverUrl: record.coverUrl,
+          },
         });
         if (!result.success) {
           throw new Error(result.error || 'Delete failed');
