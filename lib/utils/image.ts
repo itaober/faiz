@@ -7,7 +7,11 @@
  * panel). Codecs now download on the first actual compression.
  */
 
-export { isSupportedImageType, MAX_IMAGE_SIZE, SUPPORTED_IMAGE_TYPES } from '@/lib/constants/image';
+export {
+  isSupportedImageType,
+  MAX_SOURCE_IMAGE_SIZE,
+  SUPPORTED_IMAGE_TYPES,
+} from '@/lib/constants/image';
 
 const DEFAULT_MAX_SIZE_MB = 3.3;
 const DEFAULT_MAX_DIMENSION = 1920;

@@ -9,7 +9,7 @@ import {
   compressImage,
   fileToBase64,
   isSupportedImageType,
-  MAX_IMAGE_SIZE,
+  MAX_SOURCE_IMAGE_SIZE,
 } from '@/lib/utils/image';
 
 /**
@@ -42,8 +42,8 @@ export function useCoverImage(initialCoverUrl: string) {
       toast.error(`Unsupported format: ${file.name}`);
       return;
     }
-    if (file.size > MAX_IMAGE_SIZE) {
-      toast.error(`File too large: ${file.name}`);
+    if (file.size > MAX_SOURCE_IMAGE_SIZE) {
+      toast.error(`File too large (max ${MAX_SOURCE_IMAGE_SIZE / 1024 / 1024}MB): ${file.name}`);
       return;
     }
     setPendingFile(file);
