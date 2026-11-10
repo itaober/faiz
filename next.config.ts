@@ -39,6 +39,22 @@ const nextConfig: NextConfig = {
     imageSizes: [64, 128, 256, 384],
     qualities: [75, 85],
   },
+  // Image URLs from before the move to R2 live on in feed readers and shared links. Same layout
+  // as the migration: files at the top of the old folder (the avatars) went to `site/`.
+  async redirects() {
+    const assets = process.env.NEXT_PUBLIC_ASSETS_URL?.replace(/\/+$/, '');
+    if (!assets) {
+      return [];
+    }
+    return [
+      {
+        source: '/api/image/assets/:file([^/]+)',
+        destination: `${assets}/site/:file`,
+        permanent: true,
+      },
+      { source: '/api/image/assets/:path+', destination: `${assets}/:path+`, permanent: true },
+    ];
+  },
 };
 
 export default nextConfig;
