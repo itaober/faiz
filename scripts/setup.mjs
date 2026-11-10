@@ -106,8 +106,7 @@ const todo = [];
 // What a presigned upload sends (lib/storage/r2.ts createAssetUploadUrl). GET is there because
 // the About page reads the portrait's pixels in a canvas, which needs CORS on a plain load too.
 // Any origin: the bucket is public and an upload is authorized by its signature, so a list of
-// origins guards nothing. It would also shut out preview deployments, and since R2 answers per
-// origin, the edge cache would hand one visitor's answer to the next.
+// origins guards nothing and would shut out every preview deployment.
 const CORS = {
   origins: ['*'],
   methods: ['GET', 'HEAD', 'PUT'],
