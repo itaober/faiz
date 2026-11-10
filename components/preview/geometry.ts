@@ -17,12 +17,12 @@ export const toPreviewRect = (rect: DOMRect): IPreviewRect => ({
 export const isValidRect = (rect: IPreviewRect | null | undefined): rect is IPreviewRect =>
   Boolean(rect?.width && rect.height);
 
-export type IPreviewFlipFrame = {
+export type PreviewFlipFrame = {
   transform: string;
   clipPath: string;
 };
 
-export const PREVIEW_FULL_FRAME: IPreviewFlipFrame = {
+export const PREVIEW_FULL_FRAME: PreviewFlipFrame = {
   transform: 'none',
   clipPath: 'inset(0px 0px 0px 0px round 0px)',
 };
@@ -38,7 +38,7 @@ export const getCoverFlip = (
   source: IPreviewRect,
   target: IPreviewRect,
   sourceRadius = 0,
-): IPreviewFlipFrame => {
+): PreviewFlipFrame => {
   const scale = Math.max(source.width / target.width, source.height / target.height);
   const insetX = (target.width - source.width / scale) / 2;
   const insetY = (target.height - source.height / scale) / 2;

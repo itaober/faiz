@@ -54,14 +54,18 @@ export const Preview = ({ children }: IPreviewProps) => {
       return;
     }
     const previous = sourceMediaRef.current;
-    if (previous !== source.media) {
-      if (previous) {
-        previous.style.visibility = '';
-      }
-      source.media.style.visibility = 'hidden';
-      sourceMediaRef.current = source.media;
-      triggerRef.current = source.button;
+    if (previous === source.media) {
+      // One trigger cycling through images (a gallery): its <img> may still be showing the last
+      // one, so no snapshot — the preview image itself flies home.
+      setActiveSourceImage(null);
+      return;
     }
+    if (previous) {
+      previous.style.visibility = '';
+    }
+    source.media.style.visibility = 'hidden';
+    sourceMediaRef.current = source.media;
+    triggerRef.current = source.button;
     setActiveSourceImage(source.describe());
   }, []);
   const isPreview = phase === 'opening' || phase === 'open' || phase === 'closing';
