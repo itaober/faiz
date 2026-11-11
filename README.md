@@ -28,7 +28,7 @@ subdomain of it) and a Vercel account.
      Write** on the three buckets. Its Access Key ID and Secret Access Key go into the printed blocks.
    - Images → Transformations → your zone → **Enable for zone**, so images are resized at the edge.
 
-3. **Deploy.** [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fitaober%2Ffaiz&env=R2_ACCOUNT_ID,R2_ACCESS_KEY_ID,R2_SECRET_ACCESS_KEY,R2_ASSETS_BUCKET,R2_CONTENT_BUCKET,NEXT_PUBLIC_ASSETS_URL,EDIT_KEY&envDescription=Printed%20by%20pnpm%20setup%3Acloudflare&envLink=https%3A%2F%2Fgithub.com%2Fitaober%2Ffaiz%23environment-variables)
+3. **Deploy.** [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fitaober%2Ffaiz&env=R2_ACCOUNT_ID,R2_ACCESS_KEY_ID,R2_SECRET_ACCESS_KEY,R2_ASSETS_BUCKET,R2_CONTENT_BUCKET,NEXT_PUBLIC_ASSETS_URL,EDIT_KEY,LINK_PREVIEW_SIGNING_SECRET&envDescription=Printed%20by%20pnpm%20setup%3Acloudflare&envLink=https%3A%2F%2Fgithub.com%2Fitaober%2Ffaiz%23environment-variables)
    and paste the printed Vercel block.
 
 4. **Sign in.** Open the site, click a page title five times to enter edit mode, and give the
@@ -39,7 +39,7 @@ subdomain of it) and a Vercel account.
 | Variable                      | Required     | What it is                                                                                                                                                       |
 | ----------------------------- | ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `R2_ACCOUNT_ID`               | always       | Cloudflare account ID; the R2 endpoint is `https://<id>.r2.cloudflarestorage.com`.                                                                               |
-| `R2_ACCESS_KEY_ID`            | always       | Access Key ID of an R2 API token with Object Read & Write on both buckets.                                                                                       |
+| `R2_ACCESS_KEY_ID`            | always       | Access Key ID of an R2 API token with Object Read & Write on the three buckets (content, its -dev twin, assets).                                                 |
 | `R2_SECRET_ACCESS_KEY`        | always       | That token's Secret Access Key.                                                                                                                                  |
 | `R2_ASSETS_BUCKET`            | always       | Public bucket for images. Several sites can share it, each in its own folder.                                                                                    |
 | `R2_CONTENT_BUCKET`           | always       | Private bucket with this site's content.                                                                                                                         |
@@ -101,8 +101,9 @@ for the live site.
 - **R2** free tier, per month: 10 GB stored, 1M writes, 10M reads; egress is free. There is **no
   hard cap** — past the free tier it bills. Set a budget alert (Manage Account → Billing → Billable
   Usage → Create budget alert) and a Usage Based Billing notification for R2 (Notifications → Add).
-- **Image transformations**: 5,000 unique per month free. Past that, new sizes fall back to the
-  original file, so pages keep working, just heavier.
+- **Image transformations**: 5,000 unique (image × size) per month free. On the Free plan there is
+  no charge past that: new sizes fall back to the original file, so pages keep working, just
+  heavier, and sizes already made keep being served.
 
 ## Moving from GitHub content
 
