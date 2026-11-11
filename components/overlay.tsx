@@ -5,6 +5,7 @@ import { FocusScope } from '@radix-ui/react-focus-scope';
 import { AnimatePresence, motion } from 'motion/react';
 import { type ReactNode, useCallback, useEffect, useLayoutEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
+import { RemoveScroll } from 'react-remove-scroll';
 
 import { ANIMATION } from '@/lib/constants/animation';
 import { lockScroll, type ScrollLockMode, unlockScroll } from '@/lib/scroll-lock';
@@ -147,10 +148,10 @@ export default function Overlay({
     );
   }
 
-  // Joins the Radix layer and focus stacks the vaul drawers use, so it also works on top of one: it
-  // gets the clicks, focus and Escape, and as a branch its clicks never dismiss the layer below.
-  // Page pointer events stay on (the backdrop covers the page anyway), so password-manager menus
-  // keep working. Consumers place their own initial focus.
+  // Joins the Radix layer, focus and scroll-lock stacks the vaul drawers use, so it also works on
+  // top of one: it gets the clicks, focus, wheel and Escape, and as a branch its clicks never
+  // dismiss the layer below. Page pointer events stay on (the backdrop covers the page anyway), so
+  // password-manager menus keep working. Consumers place their own initial focus.
   return createPortal(
     <AnimatePresence onExitComplete={handleExitComplete}>
       {open ? (
@@ -179,39 +180,41 @@ export default function Overlay({
             }}
           >
             <DismissableLayerBranch asChild>
-              <motion.div
-                layoutRoot
-                className={cn('fz-overlay', className)}
-                role="dialog"
-                aria-modal="true"
-                aria-label={ariaLabel}
-                initial={backdropClassName ? false : { opacity: 0 }}
-                animate={backdropClassName ? undefined : { opacity: 1 }}
-                exit={backdropClassName ? undefined : { opacity: 0 }}
-                transition={{ duration: ANIMATION.duration.fast, ease: ANIMATION.ease.out }}
-                onMouseDown={
-                  dismissable && !backdropClassName
-                    ? event => {
-                        if (event.target === event.currentTarget) {
-                          onClose();
+              <RemoveScroll forwardProps allowPinchZoom removeScrollBar={false}>
+                <motion.div
+                  layoutRoot
+                  className={cn('fz-overlay', className)}
+                  role="dialog"
+                  aria-modal="true"
+                  aria-label={ariaLabel}
+                  initial={backdropClassName ? false : { opacity: 0 }}
+                  animate={backdropClassName ? undefined : { opacity: 1 }}
+                  exit={backdropClassName ? undefined : { opacity: 0 }}
+                  transition={{ duration: ANIMATION.duration.fast, ease: ANIMATION.ease.out }}
+                  onMouseDown={
+                    dismissable && !backdropClassName
+                      ? event => {
+                          if (event.target === event.currentTarget) {
+                            onClose();
+                          }
                         }
-                      }
-                    : undefined
-                }
-              >
-                {backdropClassName ? (
-                  <motion.div
-                    aria-hidden="true"
-                    className={cn('absolute inset-0', backdropClassName)}
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    transition={{ duration: ANIMATION.duration.fast, ease: ANIMATION.ease.out }}
-                    onMouseDown={dismissable ? onClose : undefined}
-                  />
-                ) : null}
-                {children}
-              </motion.div>
+                      : undefined
+                  }
+                >
+                  {backdropClassName ? (
+                    <motion.div
+                      aria-hidden="true"
+                      className={cn('absolute inset-0', backdropClassName)}
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: ANIMATION.duration.fast, ease: ANIMATION.ease.out }}
+                      onMouseDown={dismissable ? onClose : undefined}
+                    />
+                  ) : null}
+                  {children}
+                </motion.div>
+              </RemoveScroll>
             </DismissableLayerBranch>
           </DismissableLayer>
         </FocusScope>
