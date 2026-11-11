@@ -21,6 +21,10 @@
   --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
   --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
   --overlay-backdrop: color-mix(in oklch, white 92%, transparent);
+  /* Dim behind modal dialogs; bottom sheets take the stronger one. Always black: a light wash
+     over a dark page reads as a glow, not a layer. */
+  --scrim: color-mix(in oklch, black 14%, transparent);
+  --scrim-strong: color-mix(in oklch, black 40%, transparent);
   --overlay-control: color-mix(in oklch, black 8%, transparent);
   --overlay-control-hover: color-mix(in oklch, black 14%, transparent);
   --overlay-control-foreground: color-mix(in oklch, black 78%, transparent);
@@ -73,6 +77,9 @@
   --danger-soft: oklch(0.28 0.025 25);
   --success: oklch(0.72 0.12 150);
   --overlay-backdrop: color-mix(in oklch, black 82%, transparent);
+  /* 8-14% black is invisible over a near-black page; dark mode needs a real scrim. */
+  --scrim: color-mix(in oklch, black 50%, transparent);
+  --scrim-strong: color-mix(in oklch, black 60%, transparent);
   --overlay-control: color-mix(in oklch, black 30%, transparent);
   --overlay-control-hover: color-mix(in oklch, black 44%, transparent);
   --overlay-control-foreground: color-mix(in oklch, white 88%, transparent);
@@ -673,7 +680,7 @@ button {
     align-items: center;
     justify-content: center;
     padding: 1rem;
-    background: color-mix(in oklch, black 8%, transparent);
+    background: var(--scrim);
   }
   .fz-sheet {
     width: 100%;
@@ -706,7 +713,7 @@ button {
     .fz-confirm-overlay {
       align-items: flex-end;
       padding: 0;
-      background: color-mix(in oklab, var(--foreground) 40%, transparent);
+      background: var(--scrim-strong);
     }
     .fz-confirm {
       max-width: none;
@@ -790,12 +797,7 @@ button {
     align-items: flex-start;
     justify-content: center;
     padding: 12vh 16px 16px;
-    background: color-mix(in oklch, black 14%, transparent);
-  }
-  .dark .fz-search-overlay {
-    /* 8-14% black is invisible over a near-black page; dark mode needs a real
-       scrim for the palette to read as a layer. */
-    background: color-mix(in oklch, black 50%, transparent);
+    background: var(--scrim);
   }
   .fz-search {
     display: flex;
@@ -923,7 +925,7 @@ button {
     position: fixed;
     inset: 0;
     z-index: 50;
-    background: color-mix(in oklch, black 35%, transparent);
+    background: var(--scrim-strong);
   }
   .fz-search-drawer {
     position: fixed;
