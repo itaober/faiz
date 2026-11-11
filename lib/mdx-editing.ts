@@ -40,10 +40,11 @@ const markdownToText = (markdown: string) =>
   );
 
 // Text as JSX children: plain text as is, so stored labels keep their form; text JSX would
-// read as a tag, an expression or an entity as a string, so it stays literal. Its braces are
+// read as a tag, an expression or an entity as a string, so it stays literal, and so does text
+// with a quote, which the todo list reader would take for the start of a string. Its braces are
 // escaped too: the editor's parser matches `{…}` by braces (no acorn).
 const jsxText = (text: string) =>
-  /[{}<>&]/.test(text)
+  /[{}<>&'"`]/.test(text)
     ? `{${JSON.stringify(text).replace(/[{}]/g, brace => (brace === '{' ? '\\u007b' : '\\u007d'))}}`
     : text;
 
@@ -152,10 +153,16 @@ const parseTodoItem = (value: string) => {
   return { checked, label: jsxToMarkdown(jsxLabel?.[1] ?? '') };
 };
 
-const todoListToMarkdown = (_source: string, itemsSource: string) => {
+const todoListToMarkdown = (source: string, itemsSource: string) => {
   const items = splitTopLevelObjects(itemsSource)
     .map(parseTodoItem)
     .filter(item => item.label);
+
+  // A list read short (a quote in raw JSX text taken for a string, say) stays as written, so the
+  // editor keeps it as a component: as markdown, the items it missed would be gone on save.
+  if (items.length < (itemsSource.match(/\blabel\s*:/g) ?? []).length) {
+    return source;
+  }
 
   if (!items.length) {
     return '';
@@ -223,29 +230,52 @@ export const mdxTodoListsToMarkdown = (value: string) =>
 // A code span: a run of backticks up to the next run of the same length, within a paragraph.
 const inlineCodePattern = /(`+)(?:(?!\n[ \t]*\n)[\s\S])*?(?<!`)\1(?!`)/g;
 
+/** `text` with each `pattern` match passed to `found` and the text between to `between`. */
+const mapMatches = (
+  text: string,
+  pattern: RegExp,
+  found: (match: RegExpExecArray) => string,
+  between: (text: string) => string,
+) => {
+  let result = '';
+  let last = 0;
+  for (const match of text.matchAll(pattern)) {
+    result += between(text.slice(last, match.index)) + found(match);
+    last = match.index + match[0].length;
+  }
+  return result + between(text.slice(last));
+};
+
 const replaceOutsideInlineCode = (
   text: string,
   pattern: RegExp,
   replacer: (match: string, ...groups: string[]) => string,
-) => {
-  let result = '';
-  let last = 0;
-  for (const match of text.matchAll(inlineCodePattern)) {
-    result += text.slice(last, match.index).replace(pattern, replacer) + match[0];
-    last = match.index + match[0].length;
-  }
-  return result + text.slice(last).replace(pattern, replacer);
-};
+) =>
+  mapMatches(
+    text,
+    inlineCodePattern,
+    code => code[0],
+    plain => plain.replace(pattern, replacer),
+  );
 
-/** Stored MDX as the editor loads it: todo lists and links become markdown. */
+/**
+ * Stored MDX as the editor loads it: todo lists and links become markdown. A todo list writes
+ * its own links, so one kept as written keeps its <Link>s.
+ */
 export const mdxToEditorMarkdown = (value: string) =>
   transformOutsideMdxBlocks(
     value,
     segment =>
-      replaceOutsideInlineCode(
-        todoListsToMarkdown(segment),
-        inlineLinkPattern,
-        inlineLinkToMarkdown,
+      mapMatches(
+        segment,
+        todoListPattern,
+        ([source, items]) => todoListToMarkdown(source, items),
+        text =>
+          replaceOutsideInlineCode(
+            text.replace(checkboxRootPattern, checkboxRootToMarkdown),
+            inlineLinkPattern,
+            inlineLinkToMarkdown,
+          ),
       ),
     'inline',
   );

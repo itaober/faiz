@@ -222,6 +222,66 @@ test('a todo label shows its text literally and keeps its links, across three sa
   }
 });
 
+test('todo items with quotes or a backtick next to a link all survive three saves', async () => {
+  const cases = [
+    [
+      "- [ ] first\n- [ ] Read Paul Graham's [essay](/pg)\n- [x] third\n- [ ] fourth\n",
+      [
+        '{label: first}',
+        '{label: <div>Read Paul Graham\'s <Link href="/pg">essay</Link></div>}',
+        '{label: third, checked: true}',
+        '{label: fourth}',
+      ],
+    ],
+    [
+      '- [x] [it\'s here](/d) said "ok" with a \\` tick\n- [ ] last\n',
+      [
+        '{label: <div><Link href="/d">it\'s here</Link> said "ok" with a ` tick</div>, checked: true}',
+        '{label: last}',
+      ],
+    ],
+  ];
+  for (const [mdx, items] of cases) {
+    for (const saved of threeSaves(mdx)) {
+      assert.equal(
+        await shown(saved),
+        `<TodoList readonly=true items=[${items.join('')}]></TodoList>`,
+        saved,
+      );
+    }
+  }
+});
+
+test('a TodoList the reader would read short stays as written, every item kept', async () => {
+  // As main wrote a label with a link: an apostrophe in raw JSX text, which the item splitter
+  // takes for the start of a string.
+  const stored = [
+    '<TodoList',
+    '  readonly={true}',
+    '  items={[',
+    '    { label: "first" },',
+    '    {',
+    '      label: (',
+    '        <div>',
+    '          Read Paul Graham\'s <Link href="/pg">essay</Link>',
+    '        </div>',
+    '      ),',
+    '    },',
+    '    { label: "third", checked: true },',
+    '    { label: "fourth" }',
+    '  ]}',
+    '/>',
+    '',
+  ].join('\n');
+  assert.equal(blocks(load(stored))[0].attrs.name, 'TodoList');
+  const expected = await shown(stored);
+  assert.match(expected, /first.*Paul Graham's.*third, checked: true.*fourth/);
+  for (const saved of threeSaves(stored)) {
+    assert.equal(saved, stored);
+    assert.equal(await shown(saved), expected);
+  }
+});
+
 test('links in inline JSX attributes and expressions stay text; links around them convert', async () => {
   const mdx =
     'See [a](/a) <span title="[docs](https://example.com)">docs</span> and {"[b](/b)"} then [c](/c).\n';
