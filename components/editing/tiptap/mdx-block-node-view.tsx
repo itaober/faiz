@@ -2,14 +2,15 @@
 
 import { type NodeViewProps, NodeViewWrapper, useEditorState } from '@tiptap/react';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
-import { useEffect, useRef, useState } from 'react';
-import { toast } from 'sonner';
+import { useEffect, useId, useRef, useState } from 'react';
 
 import { ANIMATION } from '@/lib/constants/animation';
 
 import { mdxBlockLabel } from '@/lib/mdx-block';
 import { isReadableMdxBlock, readMdxBlock } from '@/lib/mdx-editing';
 import { cn } from '@/lib/utils';
+
+import { setInvalidDraft } from '../editing-overlays';
 
 const OPEN_MDX_BLOCK_EVENT = 'mdx-block-open';
 
@@ -22,9 +23,10 @@ export const openMdxBlock = (editorDom: HTMLElement, pos: number | undefined) =>
   editorDom.dispatchEvent(new CustomEvent(OPEN_MDX_BLOCK_EVENT, { detail: pos }));
 
 /**
- * A component chip that opens into its source while editing. ⌘Enter applies the source if it
- * is still exactly one component, else shows an inline error; clicking elsewhere in the page
- * applies it or keeps the original; Escape restores the chip.
+ * A component chip that opens into its source while editing. ⌘Enter, or clicking elsewhere in
+ * the page, applies the source if it is still exactly one component; else the box stays open on
+ * the draft with an inline error, and the page won't save until it is fixed or cancelled.
+ * Escape restores the chip.
  */
 export function MdxBlockNodeView({ node, editor, getPos, updateAttributes }: NodeViewProps) {
   const name = String(node.attrs.name);
@@ -32,6 +34,7 @@ export function MdxBlockNodeView({ node, editor, getPos, updateAttributes }: Nod
   const editable = useEditorState({ editor, selector: ({ editor: e }) => e?.isEditable ?? false });
   const [draft, setDraft] = useState<string | null>(null);
   const [invalid, setInvalid] = useState(false);
+  const id = useId();
   // Closing moves focus away, which fires blur; this keeps that blur from deciding again.
   const closedRef = useRef(false);
   const reducedMotion = useReducedMotion();
@@ -40,10 +43,14 @@ export function MdxBlockNodeView({ node, editor, getPos, updateAttributes }: Nod
   const contentRef = useRef<HTMLDivElement>(null);
   const [contentHeight, setContentHeight] = useState<number>();
 
+  const markInvalid = (value: boolean) => {
+    setInvalid(value);
+    setInvalidDraft(id, value);
+  };
   const close = (refocus: boolean) => {
     closedRef.current = true;
     setDraft(null);
-    setInvalid(false);
+    markInvalid(false);
     const pos = getPos();
     if (refocus && typeof pos === 'number') editor.chain().focus().setNodeSelection(pos).run();
   };
@@ -68,12 +75,14 @@ export function MdxBlockNodeView({ node, editor, getPos, updateAttributes }: Nod
     const handleOpen = (event: Event) => {
       if ((event as CustomEvent<number>).detail !== getPos()) return;
       closedRef.current = false;
-      setInvalid(false);
-      setDraft(source);
+      // Already open (Enter on the chip while its box waits on an error): keep the draft.
+      setDraft(current => current ?? source);
     };
     dom.addEventListener(OPEN_MDX_BLOCK_EVENT, handleOpen);
     return () => dom.removeEventListener(OPEN_MDX_BLOCK_EVENT, handleOpen);
   }, [editor, getPos, source]);
+
+  useEffect(() => () => setInvalidDraft(id, false), [id]);
 
   useEffect(() => {
     const content = contentRef.current;
@@ -120,14 +129,17 @@ export function MdxBlockNodeView({ node, editor, getPos, updateAttributes }: Nod
                   aria-invalid={invalid}
                   onChange={event => {
                     setDraft(event.target.value);
-                    setInvalid(false);
+                    markInvalid(false);
                   }}
                   onBlur={() => {
                     // Switching windows or tabs also blurs; keep the draft for when focus comes back.
                     if (closedRef.current || !document.hasFocus()) return;
                     const block = parseDraft();
-                    if (block) commit(block);
-                    else toast.error('Not a valid component — kept the original');
+                    if (!block) {
+                      markInvalid(true);
+                      return;
+                    }
+                    commit(block);
                     close(false);
                   }}
                   onKeyDown={event => {
@@ -144,7 +156,7 @@ export function MdxBlockNodeView({ node, editor, getPos, updateAttributes }: Nod
                     }
                     const block = parseDraft();
                     if (!block) {
-                      setInvalid(true);
+                      markInvalid(true);
                       return;
                     }
                     commit(block);

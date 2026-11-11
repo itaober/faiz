@@ -13,12 +13,13 @@ import {
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { useEffect } from 'react';
+import { toast } from 'sonner';
 
 import Tooltip from '@/components/tooltip';
 import { useSaveShortcut } from '@/hooks/use-save-shortcut';
 import { cn } from '@/lib/utils';
 
-import { hasOpenEditingOverlay } from './editing-overlays';
+import { hasInvalidDraft, hasOpenEditingOverlay } from './editing-overlays';
 
 export type ActionBarStatus = 'idle' | 'dirty' | 'saving';
 export type EditViewMode = 'preview' | 'wysiwyg' | 'markdown';
@@ -115,8 +116,15 @@ export default function ActionBar({
   dirty,
 }: ActionBarSession) {
   const canSave = !!onSave && (mode !== 'preview' || !!dirty);
+  const save = () => {
+    if (hasInvalidDraft()) {
+      toast.error('Finish or cancel the component edit first');
+      return;
+    }
+    onSave?.();
+  };
 
-  useSaveShortcut(isSignedIn && canSave && !saveDisabled, () => onSave?.());
+  useSaveShortcut(isSignedIn && canSave && !saveDisabled, save);
 
   // Escape exits — unless an editing overlay / slash menu / bubble / sheet has
   // focus and should consume it first.
@@ -230,7 +238,7 @@ export default function ActionBar({
               <button
                 type="button"
                 className="fz-iconbtn fz-iconbtn-accent"
-                onClick={onSave}
+                onClick={save}
                 disabled={saveDisabled}
                 aria-label={saveLabel}
               >

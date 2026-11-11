@@ -18,3 +18,16 @@ export const markEditingOverlayClosed = () => {
 };
 
 export const hasOpenEditingOverlay = () => openOverlayCount > 0;
+
+/**
+ * Component chips left open on a draft that isn't a valid component. Saving then would write
+ * the original, so saves wait until each draft is applied or cancelled.
+ */
+const invalidDrafts = new Set<string>();
+
+export const setInvalidDraft = (id: string, invalid: boolean) => {
+  if (invalid) invalidDrafts.add(id);
+  else invalidDrafts.delete(id);
+};
+
+export const hasInvalidDraft = () => invalidDrafts.size > 0;
