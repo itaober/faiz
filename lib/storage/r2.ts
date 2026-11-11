@@ -282,17 +282,3 @@ export const createAssetUploadUrl = async (
   const { 'content-length': _contentLength, ...uploadHeaders } = headers;
   return { url: signed.url, headers: uploadHeaders };
 };
-
-/** Best-effort cleanup of images no longer referenced; failures are logged, not thrown. */
-export const deleteAssets = async (keys: string[]) => {
-  for (const key of keys) {
-    try {
-      const res = await send(objectUrl(assetsBucket(), assetObjectKey(key)), { method: 'DELETE' });
-      if (!res.ok && res.status !== 404) {
-        console.warn(`Failed to delete asset ${key}: ${res.status}`);
-      }
-    } catch (error) {
-      console.warn(`Failed to delete asset ${key}:`, error);
-    }
-  }
-};

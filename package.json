@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "build": "next build",
+    "clean:images": "node --env-file=.env.local --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/clean-images.mjs",
     "dev": "next dev -p 1999",
     "format": "biome format --write .",
     "lint": "biome check .",

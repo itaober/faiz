@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 
-import { deleteMemoWithImages } from '@/lib/data/memos';
+import { deleteMemo } from '@/lib/data/memos';
 import { requireEditSession } from '@/lib/server/edit-session';
 import { type ActionResult, createActionError } from '@/lib/types/action-result';
 
@@ -36,7 +36,7 @@ export async function deleteMemoAction(input: IDeleteMemoInput): Promise<ActionR
   }
 
   try {
-    await deleteMemoWithImages({
+    await deleteMemo({
       id: input.id,
       createdTime: input.createdTime,
     });

@@ -1,12 +1,7 @@
 import { unstable_cache } from 'next/cache';
 
-import {
-  type ContentImageScope,
-  isAssetImageKey,
-  isSafeContentImagePath,
-  normalizeContentImagePath,
-} from '@/lib/content-editing-validation';
-import { type AssetImageMeta, deleteAssets, readAssetImageMeta } from '@/lib/storage/r2';
+import { isAssetImageKey } from '@/lib/content-editing-validation';
+import { type AssetImageMeta, readAssetImageMeta } from '@/lib/storage/r2';
 
 export type ImageMeta = AssetImageMeta;
 
@@ -32,17 +27,4 @@ export async function getImageMeta(key: string): Promise<ImageMeta | null> {
     console.warn(`Failed to read image meta for ${key}:`, error);
     return null;
   }
-}
-
-/** Delete images an edit dropped; only keys we generated for this scope are touched. */
-export async function deleteImages(keys: string[], scope: ContentImageScope): Promise<void> {
-  // Delete exactly what content held: a key that only matches once normalized names another file.
-  const safeKeys = keys.filter(key => {
-    const safe = normalizeContentImagePath(key) === key && isSafeContentImagePath(key, scope);
-    if (!safe) {
-      console.warn(`Skipping unsafe image delete key: ${key}`);
-    }
-    return safe;
-  });
-  await deleteAssets(safeKeys);
 }

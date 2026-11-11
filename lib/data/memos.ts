@@ -2,9 +2,8 @@ import { cache } from 'react';
 import { z } from 'zod';
 
 import { CONTENT_KEYS, memoMonthFromKey } from '@/lib/content-keys';
-import { deleteImages } from '@/lib/data/images';
 import dayjs, { formatTime, TIMEZONE } from '@/lib/dayjs';
-import { NotFoundError, StorageError } from '@/lib/errors';
+import { NotFoundError } from '@/lib/errors';
 import {
   listContent,
   readContentJson,
@@ -136,17 +135,10 @@ interface IUpdateMemoInput {
   id: string;
   content: string;
   images?: string[];
-  /** The images the editor loaded; removed images are deleted, so they must still be current. */
-  originalImages: string[];
   createdTime: string;
 }
 
-interface IUpdateMemoResult {
-  memo: Memo;
-  removedImages: string[];
-}
-
-export const updateMemo = async (input: IUpdateMemoInput): Promise<IUpdateMemoResult> => {
+export const updateMemo = async (input: IUpdateMemoInput): Promise<Memo> => {
   const memoMonth = getMemoMonthFromCreatedTime(input.createdTime);
   if (!memoMonth) {
     throw new Error('Invalid memo createdTime');
@@ -162,18 +154,10 @@ export const updateMemo = async (input: IUpdateMemoInput): Promise<IUpdateMemoRe
   }
 
   const oldMemo = list[memoIndex];
-  // A stale editor would otherwise delete images added to this memo elsewhere since.
-  if (oldMemo.images.join('\n') !== input.originalImages.join('\n')) {
-    throw new StorageError(412, `Memo changed since it was loaded: ${input.id}`);
-  }
-  const newImages = input.images ?? oldMemo.images;
-
-  const removedImages = oldMemo.images.filter(img => !newImages.includes(img));
-
   const updatedMemo: Memo = {
     ...oldMemo,
     content: input.content,
-    images: newImages,
+    images: input.images ?? oldMemo.images,
     updatedTime: formatTime(),
   };
 
@@ -182,7 +166,7 @@ export const updateMemo = async (input: IUpdateMemoInput): Promise<IUpdateMemoRe
 
   await writeContentJson(memosKey, updatedList, file?.revision ?? null);
 
-  return { memo: updatedMemo, removedImages };
+  return updatedMemo;
 };
 
 interface IDeleteMemoInput {
@@ -210,28 +194,4 @@ export const deleteMemo = async (input: IDeleteMemoInput): Promise<Memo> => {
   await writeContentJson(memosKey, filteredList, file?.revision ?? null);
 
   return memoToDelete;
-};
-
-/** Delete memo and cleanup associated images */
-export const deleteMemoWithImages = async (input: IDeleteMemoInput): Promise<Memo> => {
-  const deletedMemo = await deleteMemo(input);
-
-  if (deletedMemo.images.length > 0) {
-    await deleteImages(deletedMemo.images, 'memos');
-  }
-
-  return deletedMemo;
-};
-
-/** Update memo and cleanup removed images */
-export const updateMemoWithImages = async (
-  input: IUpdateMemoInput,
-): Promise<{ memo: Memo; removedImages: string[] }> => {
-  const result = await updateMemo(input);
-
-  if (result.removedImages.length > 0) {
-    await deleteImages(result.removedImages, 'memos');
-  }
-
-  return result;
 };

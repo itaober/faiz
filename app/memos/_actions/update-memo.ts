@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache';
 
 import { MAX_MEMO_CONTENT_LENGTH, normalizeImagePathList } from '@/lib/content-editing-validation';
 import type { Memo } from '@/lib/data/memos';
-import { updateMemoWithImages } from '@/lib/data/memos';
+import { updateMemo } from '@/lib/data/memos';
 import { requireEditSession } from '@/lib/server/edit-session';
 import { type ActionResult, createActionError, validationError } from '@/lib/types/action-result';
 
@@ -12,7 +12,6 @@ interface IUpdateMemoInput {
   id: string;
   content: string;
   images?: string[];
-  originalImages: string[];
   createdTime: string;
 }
 
@@ -34,13 +33,6 @@ export async function updateMemoAction(input: IUpdateMemoInput): Promise<ActionR
     return validationError('Memo ID is required');
   }
 
-  if (
-    !Array.isArray(input.originalImages) ||
-    !input.originalImages.every(image => typeof image === 'string')
-  ) {
-    return validationError('Invalid original memo images');
-  }
-
   if (!input.createdTime?.trim()) {
     return validationError('Memo createdTime is required');
   }
@@ -54,11 +46,10 @@ export async function updateMemoAction(input: IUpdateMemoInput): Promise<ActionR
   }
 
   try {
-    const { memo } = await updateMemoWithImages({
+    const memo = await updateMemo({
       id: input.id,
       content: content.trim(),
       images: normalizedImages?.paths,
-      originalImages: input.originalImages,
       createdTime: input.createdTime,
     });
 

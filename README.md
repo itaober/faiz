@@ -84,6 +84,17 @@ keeps a signed, httpOnly session cookie for 90 days. Images go from the browser 
 assets bucket through a short-lived signed URL. Every overwrite or delete first copies the previous
 version to `_history/`, where it stays for 90 days; get it back from the R2 dashboard.
 
+Edits never delete images, so a restored version still finds its pictures. To free the space of
+images nothing mentions any more, history included:
+
+```sh
+pnpm clean:images            # dry run: what would go
+pnpm clean:images --apply    # delete it
+```
+
+Like `migrate:github` below, it works on what `.env.local` points at; prefix the production values
+for the live site.
+
 ## Cost
 
 - **R2** free tier, per month: 10 GB stored, 1M writes, 10M reads; egress is free. There is **no

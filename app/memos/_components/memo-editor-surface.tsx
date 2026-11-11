@@ -113,7 +113,6 @@ export default function MemoEditorSurface({ memo, onCancel }: IMemoEditorSurface
                 id: memo.id,
                 content: content.trim(),
                 images: imageKeys,
-                originalImages: memo.images,
                 createdTime: memo.createdTime,
               })
             : await createMemoAction({
