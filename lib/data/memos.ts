@@ -24,8 +24,6 @@ export const MemoListSchema = z.array(MemoSchema);
 export type Memo = z.infer<typeof MemoSchema>;
 export type MemoList = z.infer<typeof MemoListSchema>;
 
-const MEMOS_REVALIDATE_SECONDS = 60;
-
 const getMemoMonthFromCreatedTime = (createdTime?: string) => {
   if (!createdTime) {
     return null;
@@ -42,7 +40,7 @@ const sortMemoList = (list: MemoList) =>
 
 export const getMemosIndex = cache(async (): Promise<string[]> => {
   try {
-    const keys = await listContent(CONTENT_KEYS.memosFolder, MEMOS_REVALIDATE_SECONDS);
+    const keys = await listContent(CONTENT_KEYS.memosFolder);
     const months = keys.map(memoMonthFromKey).filter((month): month is string => Boolean(month));
     return months.sort((a, b) => b.localeCompare(a));
   } catch (error) {
@@ -56,9 +54,7 @@ export const getMemosByMonth = async (month: string): Promise<MemoList> => {
     return [];
   }
 
-  const raw = await readContentJson(CONTENT_KEYS.memos(month), MEMOS_REVALIDATE_SECONDS).catch(
-    () => [],
-  );
+  const raw = await readContentJson(CONTENT_KEYS.memos(month)).catch(() => []);
   const list = MemoListSchema.parse(raw ?? []);
   return sortMemoList(list);
 };

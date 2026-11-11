@@ -49,7 +49,8 @@ subdomain of it) and a Vercel account.
 | `NEXT_DEV_ALLOWED_ORIGINS`    | no, dev only | Extra comma-separated origins allowed to reach the dev server, on top of localhost and the machine's LAN IPs.                                                    |
 
 On Vercel, set them for **both Production and Preview** — a preview build without them fails the
-same way production would. Mark `R2_SECRET_ACCESS_KEY`, `EDIT_KEY` and
+same way production would. Preview then edits the live buckets: a save there shows on the live
+site within a minute. Mark `R2_SECRET_ACCESS_KEY`, `EDIT_KEY` and
 `LINK_PREVIEW_SIGNING_SECRET` as **Sensitive**.
 
 The content bucket holds the content, not the app:

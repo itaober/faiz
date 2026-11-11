@@ -14,7 +14,9 @@ import { getServerEnv } from '@/lib/server/env';
  */
 
 const CONTENT_TAG = 'content';
-const CONTENT_REVALIDATE_SECONDS = 5 * 60;
+// Writes from this deployment refresh at once (updateTag); this bounds how long a write from
+// anywhere else (a preview, local dev, a restore in the dashboard) takes to show.
+const CONTENT_REVALIDATE_SECONDS = 60;
 const HISTORY_PREFIX = '_history';
 const UPLOAD_URL_TTL_SECONDS = 10 * 60;
 
@@ -60,12 +62,15 @@ const storageError = (res: Response, context: string) =>
 
 // Signed requests carry a fresh date header each time and fetch's cache keys on headers, so the
 // read is cached around the request rather than by fetch. A throw is not cached.
-const cachedRead = <T>(name: string, key: string, revalidate: number, read: () => Promise<T>) =>
-  unstable_cache(read, [name, key], { revalidate, tags: [CONTENT_TAG] })();
+const cachedRead = <T>(name: string, key: string, read: () => Promise<T>) =>
+  unstable_cache(read, [name, key], {
+    revalidate: CONTENT_REVALIDATE_SECONDS,
+    tags: [CONTENT_TAG],
+  })();
 
 /** Cached read for rendering; null when the object does not exist. */
-export const readContent = (key: string, revalidate = CONTENT_REVALIDATE_SECONDS) =>
-  cachedRead('r2-content-v1', key, revalidate, async (): Promise<string | null> => {
+export const readContent = (key: string) =>
+  cachedRead('r2-content-v1', key, async (): Promise<string | null> => {
     const res = await send(objectUrl(contentBucket(), key), { cache: 'no-store' });
     if (res.status === 404) {
       return null;
@@ -76,8 +81,8 @@ export const readContent = (key: string, revalidate = CONTENT_REVALIDATE_SECONDS
     return res.text();
   });
 
-export const readContentJson = async <T = unknown>(key: string, revalidate?: number) => {
-  const text = await readContent(key, revalidate);
+export const readContentJson = async <T = unknown>(key: string) => {
+  const text = await readContent(key);
   return text === null ? null : (JSON.parse(text) as T);
 };
 
@@ -112,8 +117,8 @@ export const readContentJsonForUpdate = async <T>(key: string) => {
 };
 
 /** Keys under a prefix, relative to the bucket root. */
-export const listContent = (prefix: string, revalidate = CONTENT_REVALIDATE_SECONDS) =>
-  cachedRead('r2-list-v1', prefix, revalidate, async () => {
+export const listContent = (prefix: string) =>
+  cachedRead('r2-list-v1', prefix, async () => {
     const keys: string[] = [];
     let continuationToken: string | undefined;
     do {
