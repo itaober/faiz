@@ -63,6 +63,49 @@ const cycle = (mdx, save) => save(manager.serialize(load(mdx)));
 const fixture = name => readFileSync(new URL(`./fixtures/${name}`, import.meta.url), 'utf8');
 const blocks = doc => doc.content.filter(node => node.type === 'mdxBlock');
 
+// Three saves in a row, each loading the last one's output.
+const threeSaves = mdx => {
+  const saved = [];
+  for (let i = 0; i < 3; i += 1) saved.push(cycle(saved.at(-1) ?? mdx, savePage));
+  return saved;
+};
+
+// What the page shows: the read view's compiler, run with stand-in components, printed as tags.
+// A markdown link prints as <Link>, since saving turns one into the other on purpose.
+const shown = async mdx => {
+  const { compiledSource } = await serialize(mdx, { blockJS: false, blockDangerousJS: true });
+  const element = (type, props) => ({ type, props });
+  const runtime = {
+    Fragment: 'Fragment',
+    jsx: element,
+    jsxs: element,
+    jsxDEV: element,
+    useMDXComponents: () => ({}),
+  };
+  const { default: Content } = new Function(compiledSource)(runtime);
+  const stub = name => Object.defineProperty(() => null, 'name', { value: name });
+  const components = Object.fromEntries(['Link', 'TodoList', 'Tweet'].map(n => [n, stub(n)]));
+  const print = node => {
+    if (node == null || typeof node === 'boolean') return '';
+    if (typeof node !== 'object') return String(node);
+    if (Array.isArray(node)) return node.map(print).join('');
+    if (!('props' in node)) {
+      return `{${Object.entries(node)
+        .map(([key, value]) => `${key}: ${typeof value === 'object' ? print(value) : value}`)
+        .join(', ')}}`;
+    }
+    const { children, ...props } = node.props;
+    if (node.type === 'Fragment') return print(children);
+    const name = typeof node.type === 'function' ? node.type.name : node.type;
+    const tag = name === 'a' ? 'Link' : name;
+    const attrs = Object.entries(props).map(([key, value]) =>
+      typeof value === 'object' ? ` ${key}=[${print(value)}]` : ` ${key}=${JSON.stringify(value)}`,
+    );
+    return `<${tag}${attrs.join('')}>${print(children)}</${tag}>`;
+  };
+  return print(Content({ components }));
+};
+
 test('the About page saves back byte for byte, its portrait and todo list included', () => {
   const about = fixture('about.mdx');
   assert.equal(blocks(load(about))[0].attrs.name, 'ParticleImage');
@@ -152,6 +195,43 @@ test('todo labels keep the characters the editor escapes, across saves', () => {
   const mdx =
     '<TodoList\n  readonly={true}\n  items={[\n    { label: "sum {1 + 1} *now*" },\n    { label: "a_b", checked: true }\n  ]}\n/>\n';
   assert.equal(cycle(mdx, savePage), mdx);
+});
+
+test('a todo label shows its text literally and keeps its links, across three saves', async () => {
+  const cases = [
+    ['- [ ] [\\{1 + 1\\}](/x)\n', '<div><Link href="/x">{1 + 1}</Link></div>'],
+    ['- [ ] see [docs](/x)\n', '<div>see <Link href="/x">docs</Link></div>'],
+    [
+      '- [x] say "hi" \\\\ [the "docs" \\\\ x](/x) after \\{1\\} \\*now\\*\n',
+      '<div>say "hi" \\ <Link href="/x">the "docs" \\ x</Link> after {1} *now*</div>',
+      true,
+    ],
+    [
+      '- [ ] a [b](/c) and [d](/e)\n',
+      '<div>a <Link href="/c">b</Link> and <Link href="/e">d</Link></div>',
+    ],
+    // A task holding inline JSX stays one item, its text as typed.
+    ['- [ ] a <sup>2</sup> [x](/y) b\n', '<div>a <sup>2</sup> <Link href="/y">x</Link> b</div>'],
+    ['- [ ] \\[not a link\\](x) & `code`\n', '[not a link](x) & `code`'],
+  ];
+  for (const [mdx, label, checked] of cases) {
+    const item = `{label: ${label}${checked ? ', checked: true' : ''}}`;
+    for (const saved of threeSaves(mdx)) {
+      assert.equal(await shown(saved), `<TodoList readonly=true items=[${item}]></TodoList>`, mdx);
+    }
+  }
+});
+
+test('links in inline JSX attributes and expressions stay text; links around them convert', async () => {
+  const mdx =
+    'See [a](/a) <span title="[docs](https://example.com)">docs</span> and {"[b](/b)"} then [c](/c).\n';
+  const expected = await shown(mdx);
+  assert.match(expected, /<span title="\[docs\]\(https:\/\/example.com\)">docs<\/span>/);
+  assert.match(expected, /\[b\]\(\/b\)/);
+  for (const saved of threeSaves(mdx)) {
+    assert.equal(await shown(saved), expected);
+    assert.match(saved, /<Link href="\/a">a<\/Link>.*<Link href="\/c">c<\/Link>/);
+  }
 });
 
 test('a tag the parser rejects is kept as written up to the blank line', () => {

@@ -14,13 +14,38 @@ const markdownChecklistPattern = /(?:^|\n)(?:- \[[ xX]\] .+(?:\n|$))+/g;
 // markdown link has no `a:` override and would degrade to a full-reload <a>.
 const inlineLinkPattern = /<Link\s+href=(["'])(.*?)\1\s*>([\s\S]*?)<\/Link>/g;
 // Skip image markdown (![]()): saved content still carries ![](…) until the server
-// normalises it to <Image>.
-const markdownLinkPattern = /(?<!!)\[([^\]]+)\]\(([^)\s]+)\)/g;
+// normalises it to <Image>. An escaped bracket is text, not a link.
+const markdownLinkPattern = /(?<![!\\])\[((?:\\.|[^\\\]])+)\]\(([^)\s]+)\)/g;
 
 /** Markdown backslash escapes (`\\*`, `\\{`, …) as the characters they stand for. */
 export const unescapeMarkdown = (value: string) => value.replace(/\\([!-/:-@[-`{-~])/g, '$1');
 
-const escapeJsonString = (value: string) => value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+/** A string literal's value; a literal JSON can't read (hand-written `'…'`) as written. */
+const readString = (literal: string) => {
+  try {
+    return String(JSON.parse(literal));
+  } catch {
+    return literal.slice(1, -1);
+  }
+};
+
+// Plain text as the editor's markdown, and back: the editor escapes these characters and writes
+// `<`, `>` and `&` as entities, so a label reads back as the text it is, not as markup.
+const textToMarkdown = (text: string) => text.replace(/[\\`*_[\]~{}<&]/g, '\\$&');
+const markdownToText = (markdown: string) =>
+  markdown.replace(
+    /\\([!-/:-@[-`{-~])|&(lt|gt|amp);/g,
+    (_, char: string | undefined, entity: 'lt' | 'gt' | 'amp') =>
+      char ?? { lt: '<', gt: '>', amp: '&' }[entity],
+  );
+
+// Text as JSX children: plain text as is, so stored labels keep their form; text JSX would
+// read as a tag, an expression or an entity as a string, so it stays literal. Its braces are
+// escaped too: the editor's parser matches `{…}` by braces (no acorn).
+const jsxText = (text: string) =>
+  /[{}<>&]/.test(text)
+    ? `{${JSON.stringify(text).replace(/[{}]/g, brace => (brace === '{' ? '\\u007b' : '\\u007d'))}}`
+    : text;
 
 const splitTopLevelObjects = (value: string) => {
   const objects: string[] = [];
@@ -68,28 +93,48 @@ const splitTopLevelObjects = (value: string) => {
   return objects;
 };
 
-const jsxToMarkdown = (value: string) =>
-  value
-    .replace(/<Link\s+href=(["'])(.*?)\1\s*>([\s\S]*?)<\/Link>/g, (_, _quote, href, label) => {
-      return `[${label.replace(/<[^>]+>/g, '').trim()}](${href})`;
-    })
-    .replace(/<\/?div>/g, '')
-    .replace(/<[^>]+>/g, '')
-    .replace(/\s+/g, ' ')
+/** A JSX label as the editor's markdown: its text, and its links as markdown links. */
+const jsxToMarkdown = (value: string) => {
+  let href = '';
+  return value
+    .replace(
+      /\{("(?:[^"\\]|\\.)*")\}|<Link\s+href=(["'])(.*?)\2\s*>|<\/Link\s*>|<[^>]+>|[^{<]+/g,
+      (token, literal: string | undefined, _quote, linkHref: string | undefined) => {
+        if (literal) return textToMarkdown(readString(literal));
+        if (linkHref !== undefined) {
+          href = linkHref;
+          return '[';
+        }
+        if (token.startsWith('</Link')) return `](${href})`;
+        return token.startsWith('<') ? '' : textToMarkdown(token.replace(/\s+/g, ' '));
+      },
+    )
     .trim();
+};
 
-const markdownLinkToMdx = (value: string) => {
-  const match = value.match(/^(.*?)\[([^\]]+)\]\(([^)]+)\)(.*?)$/);
-
-  if (!match) {
-    return `{ label: "${escapeJsonString(value)}" }`;
+/**
+ * A todo item from its markdown label: a string, or with links a JSX label whose text stays
+ * literal. The label is plain text, so the editor's escapes and entities are read as such.
+ */
+const todoItemToMdx = (markdown: string) => {
+  const parts: string[] = [];
+  let last = 0;
+  for (const link of markdown.matchAll(markdownLinkPattern)) {
+    parts.push(
+      jsxText(markdownToText(markdown.slice(last, link.index))),
+      `<Link href="${link[2]}">${jsxText(markdownToText(link[1]))}</Link>`,
+    );
+    last = link.index + link[0].length;
   }
 
-  const [, before, label, href, after] = match;
+  if (!parts.length) {
+    return `{ label: ${JSON.stringify(markdownToText(markdown))} }`;
+  }
+
   return `{
       label: (
         <div>
-          ${escapeJsonString(before)}<Link href="${escapeJsonString(href)}">${escapeJsonString(label)}</Link>${escapeJsonString(after)}
+          ${parts.join('')}${jsxText(markdownToText(markdown.slice(last)))}
         </div>
       ),
     }`;
@@ -97,13 +142,13 @@ const markdownLinkToMdx = (value: string) => {
 
 const parseTodoItem = (value: string) => {
   const checked = /checked\s*:\s*true/.test(value);
-  const quotedLabel = value.match(/label\s*:\s*(["'])([\s\S]*?)\1/);
+  const quotedLabel = value.match(/label\s*:\s*("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')/);
 
   if (quotedLabel) {
-    return { checked, label: quotedLabel[2].trim() };
+    return { checked, label: textToMarkdown(readString(quotedLabel[1]).trim()) };
   }
 
-  const jsxLabel = value.match(/label\s*:\s*\(([\s\S]*?)\)\s*,?\s*(?:checked|$)/);
+  const jsxLabel = value.match(/label\s*:\s*\(([\s\S]*?)\)\s*,?\s*(?:checked\b|\}$)/);
   return { checked, label: jsxToMarkdown(jsxLabel?.[1] ?? '') };
 };
 
@@ -132,9 +177,7 @@ const checklistToMdx = (source: string) => {
 
   const items = lines.map(match => {
     const checked = match?.[1]?.toLowerCase() === 'x';
-    // The editor escapes markdown in text; a label is a plain string, so it keeps the characters.
-    const label = unescapeMarkdown(match?.[2]?.trim() ?? '');
-    const item = markdownLinkToMdx(label);
+    const item = todoItemToMdx(match?.[2]?.trim() ?? '');
 
     if (!checked) {
       return `    ${item}`;
@@ -196,23 +239,38 @@ const replaceOutsideInlineCode = (
 
 /** Stored MDX as the editor loads it: todo lists and links become markdown. */
 export const mdxToEditorMarkdown = (value: string) =>
-  transformOutsideMdxBlocks(value, segment =>
-    replaceOutsideInlineCode(todoListsToMarkdown(segment), inlineLinkPattern, inlineLinkToMarkdown),
+  transformOutsideMdxBlocks(
+    value,
+    segment =>
+      replaceOutsideInlineCode(
+        todoListsToMarkdown(segment),
+        inlineLinkPattern,
+        inlineLinkToMarkdown,
+      ),
+    'inline',
   );
 
-// Links go AFTER the checklist conversion: task-list links are already rewritten to
-// <Link> by checklistToMdx, so only standalone markdown links remain to convert.
-/** The editor's markdown as it is saved: the inverse of {@link mdxToEditorMarkdown}. */
+/**
+ * The editor's markdown as it is saved: the inverse of {@link mdxToEditorMarkdown}. Links go
+ * after the todo lists, which write their own, and skip every component: a TodoList's labels
+ * and an inline element's attributes aren't markdown. Todo lists skip only blocks, so a task
+ * holding inline JSX stays one item.
+ */
 export const markdownTodoListsToMdx = (value: string) =>
-  transformOutsideMdxBlocks(value, segment =>
-    replaceOutsideInlineCode(
+  transformOutsideMdxBlocks(
+    transformOutsideMdxBlocks(value, segment =>
       segment.replace(markdownChecklistPattern, match => {
         const prefix = match.startsWith('\n') ? '\n' : '';
         return `${prefix}${checklistToMdx(match.trim())}\n`;
       }),
-      markdownLinkPattern,
-      (_, label, href) => `<Link href="${href}">${label}</Link>`,
     ),
+    segment =>
+      replaceOutsideInlineCode(
+        segment,
+        markdownLinkPattern,
+        (_, label, href) => `<Link href="${href}">${label}</Link>`,
+      ),
+    'all',
   );
 
 /**
@@ -371,46 +429,60 @@ export const isReadableMdxBlock = (source: string) => {
 const CONVERTED_COMPONENTS = new Set(['TodoList', 'CheckboxRoot', 'Image', 'ImageGallery', 'Link']);
 
 /**
- * Offsets of the component blocks, expressions and code in `tree`, at any depth. A component
- * the transforms convert is left to them whole, children included, except a TodoList inside a
- * list: as markdown only its first item would keep the item's indent, so it stays as written.
+ * What a rewrite leaves as written: `blocks`, component blocks, expressions and code; `inline`
+ * also inline JSX and expressions, whose attributes and strings aren't markdown; `all` also
+ * the components the rewrites convert, for a rewrite that runs after them.
+ */
+type Kept = 'blocks' | 'inline' | 'all';
+
+/**
+ * Offsets of what `kept` keeps in `tree`, at any depth. A component the transforms convert is
+ * left to them whole, children included, except a TodoList inside a list: as markdown only its
+ * first item would keep the item's indent, so it stays as written.
  */
 const keptRanges = (
   node: { type: string; children?: unknown[] },
   ranges: [number, number][],
+  kept: Kept,
   inList = false,
 ) => {
   for (const child of (node.children ?? []) as MdxNode[]) {
     const { start, end } = child.position ?? {};
     const name = nameOf(child);
-    const converted = CONVERTED_COMPONENTS.has(name) && !(inList && name === 'TodoList');
-    if (child.type === 'mdxJsxFlowElement' && converted) continue;
-    const kept =
+    const inline = kept !== 'blocks';
+    const jsx =
+      child.type === 'mdxJsxFlowElement' || (inline && child.type === 'mdxJsxTextElement');
+    const converted =
+      kept !== 'all' && CONVERTED_COMPONENTS.has(name) && !(inList && name === 'TodoList');
+    if (jsx && converted) continue;
+    const keep =
+      jsx ||
       child.type === 'code' ||
       child.type === 'mdxFlowExpression' ||
-      child.type === 'mdxJsxFlowElement';
-    if (kept && start?.offset !== undefined && end?.offset !== undefined) {
+      (inline && child.type === 'mdxTextExpression');
+    if (keep && start?.offset !== undefined && end?.offset !== undefined) {
       ranges.push([start.offset, end.offset]);
     } else if ('children' in child) {
-      keptRanges(child, ranges, inList || child.type === 'listItem');
+      keptRanges(child, ranges, kept, inList || child.type === 'listItem');
     }
   }
   return ranges;
 };
 
 /**
- * Applies `transform` outside component blocks, expressions and code, wherever they sit
- * (lists and quotes included): the editor keeps those as written, so page-level rewrites
- * (links, todo lists, images) must not reach into them. A document that isn't valid MDX is
- * transformed whole; saving it is refused anyway.
+ * Applies `transform` outside what `kept` keeps (component blocks, expressions and code by
+ * default), wherever they sit (lists and quotes included): the editor keeps those as written,
+ * so page-level rewrites (links, todo lists, images) must not reach into them. A document that
+ * isn't valid MDX is transformed whole; saving it is refused anyway.
  */
 export const transformOutsideMdxBlocks = (
   value: string,
   transform: (segment: string) => string,
+  kept: Kept = 'blocks',
 ) => {
   let ranges: [number, number][];
   try {
-    ranges = keptRanges(parseMdx(value), []);
+    ranges = keptRanges(parseMdx(value), [], kept);
   } catch {
     return transform(value);
   }
