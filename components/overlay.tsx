@@ -59,6 +59,7 @@ export default function Overlay({
   const scrollLockedRef = useRef(false);
   const lockedModeRef = useRef<ScrollLockMode | null>(null);
   const wasOpenRef = useRef(open);
+  const returnFocusRef = useRef<HTMLElement | null>(null);
   const resolvedBackdropOpen = backdropOpen ?? open;
   useLayoutEffect(() => {
     onCloseRef.current = onClose;
@@ -151,7 +152,21 @@ export default function Overlay({
   return createPortal(
     <AnimatePresence onExitComplete={handleExitComplete}>
       {open ? (
-        <FocusScope asChild trapped loop onMountAutoFocus={event => event.preventDefault()}>
+        <FocusScope
+          asChild
+          trapped
+          loop
+          onMountAutoFocus={event => {
+            event.preventDefault();
+            const active = document.activeElement;
+            returnFocusRef.current = active instanceof HTMLElement ? active : null;
+          }}
+          onUnmountAutoFocus={event => {
+            // Radix would also select() a text field it returns to; give focus back as it was.
+            event.preventDefault();
+            returnFocusRef.current?.focus({ preventScroll: true });
+          }}
+        >
           <DismissableLayer
             asChild
             disableOutsidePointerEvents
