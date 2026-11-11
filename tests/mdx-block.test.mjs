@@ -126,6 +126,20 @@ test('text holding inline JSX or an expression anywhere is kept as written, not 
   assert.equal(cycle(once, savePage), once);
 });
 
+test('a loose ordered list holding JSX or an expression past its first item is kept whole', () => {
+  for (const mdx of [
+    '1. one\n\n2. two {1 + 1}\n\nafter\n',
+    '1. one\n\n2. two <sup>2</sup>\n\nafter\n',
+  ]) {
+    assert.equal(cycle(mdx, savePage), mdx);
+  }
+});
+
+test('an ordered list kept as written in a bullet item leaves the item compact', () => {
+  const mdx = '- top\n  1. a {1 + 1}\n  2. b\n- next\n';
+  assert.equal(cycle(mdx, savePage), mdx);
+});
+
 test('a TodoList inside a list item stays as written, checkboxes included', () => {
   const todo =
     '<TodoList\n    readonly={true}\n    items={[{ label: "a", checked: true }, { label: "b" }]}\n  />';

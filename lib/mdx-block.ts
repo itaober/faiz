@@ -22,12 +22,16 @@ if (!textEscaper.escapeMarkdownSyntax.escapesBraces) {
 /**
  * A block's markdown, given a blank line before it when it follows other content inside a
  * list item: tiptap joins those with a single newline, and its list parser then reads the
- * block back as part of the item's paragraph.
+ * block back as part of the item's paragraph. An ordered list from 1 interrupts a paragraph
+ * by itself, and a blank line would make the item loose.
  */
 export const separateInListItem = (
   markdown: string,
   context?: { parentType?: string | null; index?: number },
-) => (context?.parentType === 'listItem' && (context.index ?? 0) > 0 ? `\n${markdown}` : markdown);
+) =>
+  context?.parentType === 'listItem' && (context.index ?? 0) > 0 && !/^1[.)][ \t]/.test(markdown)
+    ? `\n${markdown}`
+    : markdown;
 
 /**
  * What a chip shows: a component the parser reads as its tag; an expression, or anything kept

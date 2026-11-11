@@ -321,8 +321,13 @@ export const readMdxBlock = (source: string): MdxBlock | null => {
   if (opensWithMdx) {
     tree = parseLeading(source);
   } else {
-    // Text holding JSX or an expression: a paragraph or heading never spans a blank line.
-    const blankLine = source.search(/\n[ \t]*\n/);
+    // Text holding JSX or an expression. A paragraph or heading never spans a blank line; a
+    // loose ordered list does, while the line after it is indented or opens another item.
+    const blankLine = source.search(
+      /^ {0,3}\d{1,9}[.)](?:[ \t\n]|$)/.test(source)
+        ? /\n(?:[ \t]*\n)+(?![ \t\n]|\d{1,9}[.)])/
+        : /\n[ \t]*\n/,
+    );
     const text = blankLine < 0 ? source : source.slice(0, blankLine);
     if (!/<[A-Za-z]|\{/.test(text)) return null;
     try {
