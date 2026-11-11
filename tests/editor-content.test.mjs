@@ -1,11 +1,9 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { matchLinkCardMarkup } from '../lib/link-card.ts';
 import {
   markdownTodoListsToMdx,
   mdxTodoListsToMarkdown,
   mdxToEditorMarkdown,
-  scanMdxBlock,
   transformOutsideMdxBlocks,
 } from '../lib/mdx-editing.ts';
 import {
@@ -114,45 +112,6 @@ test('todo lists survive a round trip and re-converting is stable', () => {
   assert.match(mdx, /\{ label: "done thing", checked: true \}/);
   assert.equal(markdownTodoListsToMdx(mdx), mdx, 'second save must not change the file');
   assert.equal(mdxTodoListsToMarkdown(mdx).trim(), markdown);
-});
-
-// The scanner decides what the editor keeps as written; the round trips through the real
-// MarkdownManager live in mdx-block.test.mjs.
-
-test('a > inside quotes or braces does not end the tag', () => {
-  const element = '<Chart label="a > b" data={[{ x: 1, note: "}>" }]} render={() => <b>hi</b>} />';
-  assert.equal(scanMdxBlock(element)?.source, element);
-});
-
-test('a paired component ends at its own closing tag, not a nested or fenced one', () => {
-  const nested =
-    '<Columns>\n<Columns>\ninner\n</Columns>\n<Columns />\n<ColumnsItem>x</ColumnsItem>\n</Columns >';
-  assert.equal(scanMdxBlock(`${nested}\n\nafter`)?.source, nested);
-  const fenced = '<Columns>\n\n```html\n</Columns>\n```\n\ntext\n\n</Columns>';
-  assert.equal(scanMdxBlock(`${fenced}\n`)?.source, fenced);
-  assert.equal(scanMdxBlock('<Columns>\n<Columns>\n</Columns>'), null);
-});
-
-test('a LinkCard its own node rejects is still scanned, so it stays verbatim', () => {
-  const card = '<LinkCard type="music" href="https://music.163.com/song?id=1" title="T" />';
-  assert.ok(matchLinkCardMarkup(card));
-  for (const rejected of [
-    '<LinkCard href="https://music.163.com/song?id=1" title="a > b" />',
-    '<LinkCard href="https://music.163.com/song?id=1">label</LinkCard>',
-    '<LinkCard type="video" href="https://example.com" />',
-  ]) {
-    assert.equal(matchLinkCardMarkup(rejected), null, rejected);
-    assert.equal(scanMdxBlock(rejected)?.source, rejected, rejected);
-  }
-});
-
-test('leaves inline, lowercase, code-indented and unterminated tags alone', () => {
-  assert.equal(scanMdxBlock('<Badge>new</Badge> and more text'), null);
-  assert.equal(scanMdxBlock('<div>html</div>'), null);
-  assert.equal(scanMdxBlock('    <Tweet id="1" />'), null);
-  assert.equal(scanMdxBlock('text <Tweet id="1" />'), null);
-  assert.equal(scanMdxBlock('<Tweet id="1"'), null);
-  assert.equal(scanMdxBlock('<Tweetish-thing />'), null);
 });
 
 // Page-level rewrites run on load and on save; they must not reach into a component the

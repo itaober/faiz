@@ -1,4 +1,8 @@
-import { transformOutsideFencedCode } from './utils/editor-image.ts';
+import { fromMarkdown } from 'mdast-util-from-markdown';
+import { mdxExpressionFromMarkdown } from 'mdast-util-mdx-expression';
+import { mdxJsxFromMarkdown } from 'mdast-util-mdx-jsx';
+import { mdxExpression } from 'micromark-extension-mdx-expression';
+import { mdxJsx } from 'micromark-extension-mdx-jsx';
 
 const todoListPattern = /<TodoList\b[\s\S]*?items=\{\[([\s\S]*?)\]\}\s*\/>/g;
 // Standalone <CheckboxRoot>…<CheckboxLabel>…</CheckboxLabel>…</CheckboxRoot>, with
@@ -208,84 +212,59 @@ export const markdownTodoListsToMdx = (value: string) =>
   );
 
 /**
- * Index just past the `>` that ends the tag whose attributes start at `from`. A `>` inside a
- * quoted attribute or a `{…}` expression doesn't count.
+ * Parses MDX as the site's compiler reads it, minus evaluating expressions (no acorn, which
+ * would add about 40KB gzip to the editor): `{…}` is matched by braces. Throws on invalid MDX,
+ * with the failing line on the error.
  */
-const findTagEnd = (source: string, from: number) => {
-  let depth = 0;
-  let quote = '';
-  for (let index = from; index < source.length; index += 1) {
-    const char = source[index];
-    if (quote) {
-      // Backslash escapes only exist in JS strings; a JSX attribute string has none.
-      if (char === '\\' && depth > 0) index += 1;
-      else if (char === quote) quote = '';
-    } else if (char === '"' || char === "'" || (char === '`' && depth > 0)) quote = char;
-    else if (char === '{') depth += 1;
-    else if (char === '}') depth -= 1;
-    else if (char === '>' && depth === 0) return index + 1;
-  }
-  return -1;
+export const parseMdx = (source: string) =>
+  fromMarkdown(source, {
+    extensions: [mdxJsx(), mdxExpression()],
+    mdastExtensions: [mdxJsxFromMarkdown(), mdxExpressionFromMarkdown()],
+  });
+
+type MdxNode = ReturnType<typeof parseMdx>['children'][number];
+
+/**
+ * The 1-based line a parse error points at, if it says: micromark puts it on the error, the
+ * JSX tree builder only in its message, as `(line:column-line:column)`.
+ */
+export const mdxErrorLine = (error: unknown) => {
+  const { line, place, message } = (error ?? {}) as {
+    line?: unknown;
+    place?: { line?: unknown; start?: { line?: unknown } };
+    message?: unknown;
+  };
+  const found =
+    [line, place?.line, place?.start?.line].find(value => typeof value === 'number') ??
+    Number(String(message ?? '').match(/\((\d+):\d+(?:-\d+:\d+)?\)/)?.[1]);
+  return typeof found === 'number' && found > 0 ? found : undefined;
 };
 
-/** Index just past the fence closing the one whose opening line starts at `start`, or the end. */
-const skipFencedCode = (source: string, start: number, fence: string) => {
-  let lineStart = source.indexOf('\n', start) + 1;
-  while (lineStart > 0) {
-    const lineEnd = source.indexOf('\n', lineStart);
-    const line = source.slice(lineStart, lineEnd < 0 ? source.length : lineEnd).trim();
-    if (line.length >= fence.length && [...line].every(char => char === fence[0])) {
-      return lineEnd < 0 ? source.length : lineEnd;
-    }
-    lineStart = lineEnd + 1;
-  }
-  return source.length;
-};
-
-/** Index just past the `</name>` that closes the element whose opening tag ends at `from`. */
-const findClosingTag = (source: string, name: string, from: number) => {
-  // ponytail: same-name tags inside an inline code span in the children still count.
-  const tag = /^ {0,3}(`{3,}|~{3,})|<(\/?)([A-Z][\w.]*)/gm;
-  const closeEnd = /\s*>/y;
-  let depth = 1;
-  tag.lastIndex = from;
-  for (let match = tag.exec(source); match; match = tag.exec(source)) {
-    if (match[1]) {
-      tag.lastIndex = skipFencedCode(source, match.index, match[1]);
-      continue;
-    }
-    if (match[3] !== name) continue;
-    const after = match.index + match[0].length;
-    if (match[2]) {
-      closeEnd.lastIndex = after;
-      if (!closeEnd.test(source)) continue;
-      depth -= 1;
-      if (depth === 0) return closeEnd.lastIndex;
-    } else if (/[\s/>]/.test(source[after] ?? '')) {
-      const end = findTagEnd(source, after);
-      if (end < 0) return -1;
-      if (source[end - 2] !== '/') depth += 1;
-      tag.lastIndex = end;
+/**
+ * Parses as much of `source` as is valid MDX from the top: on an error, retries without the
+ * failing line and everything after it, so a mistake further down doesn't hide a valid block
+ * above it. Null when the first line itself is the problem.
+ */
+const parseLeading = (source: string) => {
+  let end = source.length;
+  for (;;) {
+    try {
+      return parseMdx(source.slice(0, end));
+    } catch (error) {
+      const line = mdxErrorLine(error);
+      if (!line || line <= 1) return null;
+      let next = 0;
+      for (let count = 1; count < line && next >= 0; count += 1)
+        next = source.indexOf('\n', next) + 1;
+      if (next <= 0 || next >= end) return null;
+      end = next;
     }
   }
-  return -1;
 };
 
 export type MdxBlock = { name: string; source: string; raw: string };
 
-/**
- * A block-level JSX element at the very start of `source`, indented at most three spaces: a
- * capitalized tag, self-closing or paired, with nothing after it on its last line. `source`
- * is the element itself; `raw` also covers the indent and the rest of that line, for the
- * markdown tokenizer to consume.
- */
-export const scanMdxBlock = (source: string): MdxBlock | null => {
-  const [, indent = '', name] = source.match(/^( {0,3})<([A-Z][\w.]*)(?=[\s/>])/) ?? [];
-  if (!name) return null;
-  const start = indent.length;
-  let end = findTagEnd(source, start + name.length + 1);
-  if (end > 0 && source[end - 2] !== '/') end = findClosingTag(source, name, end);
-  if (end < 0) return null;
+const blockFrom = (source: string, name: string, start: number, end: number): MdxBlock | null => {
   const lineEnd = /[ \t]*(?:\n|$)/y;
   lineEnd.lastIndex = end;
   if (!lineEnd.test(source)) return null;
@@ -293,40 +272,111 @@ export const scanMdxBlock = (source: string): MdxBlock | null => {
 };
 
 /**
- * A line opening a capitalized tag that {@link scanMdxBlock} can't read, up to the next blank
- * line (as CommonMark reads an HTML block), so it is kept as written rather than escaped.
+ * A line opening a tag or expression the parser rejects, up to the next blank line (as
+ * CommonMark reads an HTML block), so it is kept as written rather than escaped.
  */
-const scanUnreadableMdxBlock = (source: string): MdxBlock | null => {
-  const [, indent = '', name] = source.match(/^( {0,3})<([A-Z][\w.]*)/) ?? [];
-  if (!name) return null;
+const unreadableBlock = (source: string, start: number): MdxBlock | null => {
   const blankLine = /\n[ \t]*(?:\n|$)/.exec(source);
   const end = blankLine ? blankLine.index : source.length;
+  const name = source.slice(start).match(/^<([\w.:-]+)/)?.[1] ?? '';
   return {
     name,
-    source: source.slice(indent.length, end),
+    source: source.slice(start, end),
     raw: source.slice(0, blankLine ? end + 1 : end),
   };
 };
 
-/** Whether `source` is exactly one component the scanner reads. */
-export const isReadableMdxBlock = (source: string) => scanMdxBlock(source)?.source === source;
+const nameOf = (node: MdxNode) =>
+  'name' in node && typeof node.name === 'string' ? node.name : '';
 
-/** The component block at the start of `source`, read or kept as written. */
-export const readMdxBlock = (source: string) =>
-  scanMdxBlock(source) ?? scanUnreadableMdxBlock(source);
+/**
+ * The block at the start of `source`, indented at most three spaces: a JSX element or `{…}`
+ * expression on its own lines, a paragraph that opens with one (kept whole, so the inline
+ * element keeps its text), or, when the parser rejects it, the lines up to the next blank
+ * one. `source` is the block itself; `raw` also covers the indent and the rest of its last
+ * line, for the markdown tokenizer to consume.
+ */
+export const readMdxBlock = (source: string): MdxBlock | null => {
+  const start = source.match(/^ {0,3}(?=<[A-Za-z]|\{)/)?.[0].length;
+  if (start === undefined) return null;
+  const node = parseLeading(source)?.children[0];
+  if (node?.position?.start.offset !== start || node.position.end.offset === undefined) {
+    return unreadableBlock(source, start);
+  }
+  if (node.type === 'mdxJsxFlowElement' || node.type === 'mdxFlowExpression') {
+    return blockFrom(source, nameOf(node), start, node.position.end.offset);
+  }
+  const first = node.type === 'paragraph' ? node.children[0] : undefined;
+  if (
+    (first?.type === 'mdxJsxTextElement' || first?.type === 'mdxTextExpression') &&
+    first.position?.start.offset === start
+  ) {
+    return blockFrom(source, nameOf(first), start, node.position.end.offset);
+  }
+  return unreadableBlock(source, start);
+};
+
+/** Whether `source` is exactly one JSX element or expression the parser reads. */
+export const isReadableMdxBlock = (source: string) => {
+  try {
+    const { children } = parseMdx(source);
+    const [node] = children;
+    return (
+      children.length === 1 &&
+      (node.type === 'mdxJsxFlowElement' || node.type === 'mdxFlowExpression') &&
+      node.position?.start.offset === 0 &&
+      node.position.end.offset === source.length
+    );
+  } catch {
+    return false;
+  }
+};
 
 // Components the transforms above turn into markdown on load and back on save.
 const CONVERTED_COMPONENTS = new Set(['TodoList', 'CheckboxRoot', 'Image', 'ImageGallery', 'Link']);
 
-const componentBlockLines = (lines: string[], index: number) => {
-  if (!/^ {0,3}<[A-Z]/.test(lines[index])) return 0;
-  const block = readMdxBlock(lines.slice(index).join('\n'));
-  return block && !CONVERTED_COMPONENTS.has(block.name) ? block.source.split('\n').length : 0;
+/**
+ * Offsets of the component blocks, expressions and code in `tree`, at any depth. A component
+ * the transforms convert is left to them whole, children included.
+ */
+const keptRanges = (node: { type: string; children?: unknown[] }, ranges: [number, number][]) => {
+  for (const child of (node.children ?? []) as MdxNode[]) {
+    const { start, end } = child.position ?? {};
+    if (child.type === 'mdxJsxFlowElement' && CONVERTED_COMPONENTS.has(nameOf(child))) continue;
+    const kept =
+      child.type === 'code' ||
+      child.type === 'mdxFlowExpression' ||
+      child.type === 'mdxJsxFlowElement';
+    if (kept && start?.offset !== undefined && end?.offset !== undefined) {
+      ranges.push([start.offset, end.offset]);
+    } else if ('children' in child) {
+      keptRanges(child, ranges);
+    }
+  }
+  return ranges;
 };
 
 /**
- * Applies `transform` outside component blocks and fenced code: the editor keeps both as
- * written, so page-level rewrites (links, todo lists, images) must not reach into them.
+ * Applies `transform` outside component blocks, expressions and code, wherever they sit
+ * (lists and quotes included): the editor keeps those as written, so page-level rewrites
+ * (links, todo lists, images) must not reach into them. A document that isn't valid MDX is
+ * transformed whole; saving it is refused anyway.
  */
-export const transformOutsideMdxBlocks = (value: string, transform: (segment: string) => string) =>
-  transformOutsideFencedCode(value, transform, componentBlockLines);
+export const transformOutsideMdxBlocks = (
+  value: string,
+  transform: (segment: string) => string,
+) => {
+  let ranges: [number, number][];
+  try {
+    ranges = keptRanges(parseMdx(value), []);
+  } catch {
+    return transform(value);
+  }
+  let result = '';
+  let last = 0;
+  for (const [start, end] of ranges) {
+    result += transform(value.slice(last, start)) + value.slice(start, end);
+    last = end;
+  }
+  return result + transform(value.slice(last));
+};

@@ -95,13 +95,56 @@ test('an indented component after a paragraph is a block on the first save', () 
   assert.deepEqual(blocks(doc)[0].attrs, { name: 'Tweet', source: '<Tweet id="1" />' });
 });
 
-test('a capitalized tag the scanner cannot read is kept up to the blank line', () => {
+test('a paragraph that opens with inline JSX is kept whole, labelled by its first line', () => {
   const markdown = '<Badge>new</Badge> and more\ncontinued\n\nnext\n';
   const doc = manager.parse(markdown);
   const { name, source } = blocks(doc)[0].attrs;
   assert.equal(source, '<Badge>new</Badge> and more\ncontinued');
   assert.equal(mdxBlockLabel(name, source), '<Badge>new</Badge> and more');
   assert.equal(manager.serialize(doc), markdown.trimEnd());
+});
+
+test('a tag the parser rejects is kept as written up to the blank line', () => {
+  const doc = manager.parse('<Badge>\nunclosed\n\nnext\n');
+  assert.equal(blocks(doc)[0].attrs.source, '<Badge>\nunclosed');
+  for (const card of [
+    '<LinkCard href="https://music.163.com/song?id=1" title="a > b" />',
+    '<LinkCard type="video" href="https://example.com" />',
+  ]) {
+    assert.equal(blocks(manager.parse(card))[0].attrs.source, card, card);
+  }
+});
+
+test('components stay as written wherever they sit: quotes, deep lists, comments, fences', () => {
+  const columns =
+    '<Columns>\n\n```html\n</Columns>\n```\n\n<Columns>inner [z](w)</Columns>\n\n</Columns>';
+  const mdx = [
+    '> quote',
+    '>',
+    '> <Tweet id="1" caption="see [docs](https://d.com)" />',
+    '',
+    '- item',
+    '',
+    '    <Card note="[x](y)" />',
+    '',
+    '{/* a note with [a](b) */}',
+    '',
+    columns,
+    '',
+    'a [link](/l)',
+    '',
+  ].join('\n');
+  const once = cycle(mdx, savePage);
+  assert.equal(cycle(once, savePage), once);
+  for (const kept of [
+    '<Tweet id="1" caption="see [docs](https://d.com)" />',
+    '<Card note="[x](y)" />',
+    '{/* a note with [a](b) */}',
+    columns,
+  ]) {
+    assert.ok(once.includes(kept), kept);
+  }
+  assert.ok(once.includes('a <Link href="/l">link</Link>'));
 });
 
 test('a copied chip pastes back with its source; markup from elsewhere does not', () => {

@@ -8,7 +8,7 @@ import { toast } from 'sonner';
 import { ANIMATION } from '@/lib/constants/animation';
 
 import { mdxBlockLabel } from '@/lib/mdx-block';
-import { isReadableMdxBlock, readMdxBlock, scanMdxBlock } from '@/lib/mdx-editing';
+import { isReadableMdxBlock, readMdxBlock } from '@/lib/mdx-editing';
 import { cn } from '@/lib/utils';
 
 const OPEN_MDX_BLOCK_EVENT = 'mdx-block-open';
@@ -52,8 +52,11 @@ export function MdxBlockNodeView({ node, editor, getPos, updateAttributes }: Nod
   const parseDraft = () => {
     const next = (draft ?? '').trim();
     if (next === source.trim()) return { name, source };
-    const block = (isReadableMdxBlock(source) ? scanMdxBlock : readMdxBlock)(next);
-    return block?.source === next ? block : null;
+    const block = readMdxBlock(next);
+    // A component the parser read has to stay readable; one kept as written may stay so.
+    const valid =
+      block?.source === next && (!isReadableMdxBlock(source) || isReadableMdxBlock(next));
+    return valid ? block : null;
   };
   const commit = (block: { name: string; source: string }) => {
     if (block.source !== source) updateAttributes({ name: block.name, source: block.source });

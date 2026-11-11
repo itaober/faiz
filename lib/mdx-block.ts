@@ -14,11 +14,11 @@ export const separateInListItem = (
 ) => (context?.parentType === 'listItem' && (context.index ?? 0) > 0 ? `\n${markdown}` : markdown);
 
 /**
- * What a chip shows: a component the scanner reads as its tag, anything kept as written as its
- * first line, so the chip doesn't hide the text that follows the tag.
+ * What a chip shows: a component the parser reads as its tag; an expression, or anything kept
+ * as written, as its first line, so the chip doesn't hide the text that follows the tag.
  */
 export const mdxBlockLabel = (name: string, source: string) => {
-  if (isReadableMdxBlock(source)) {
+  if (name && isReadableMdxBlock(source)) {
     return source.endsWith('/>') ? `<${name} />` : `<${name}>…</${name}>`;
   }
   const line = Array.from(source.split('\n')[0]);
@@ -86,12 +86,12 @@ export const MdxBlockBase = Node.create({
   markdownTokenizer: {
     name: 'mdxBlock',
     level: 'block',
-    // Where a paragraph may stop: the first line opening a capitalized tag; tokenize decides
+    // Where a paragraph may stop: the first line opening a tag or `{`; tokenize decides
     // what it is. Marked passes the paragraph minus its first character, so only positions
     // after a newline count.
-    // ponytail: a multi-line code span with a line starting `<Tag` is cut there.
+    // ponytail: a multi-line code span with a line starting `<Tag` or `{` is cut there.
     start: source => {
-      const match = /\n {0,3}<[A-Z]/.exec(source);
+      const match = /\n {0,3}(?:<[A-Za-z]|\{)/.exec(source);
       return match ? match.index + 1 : -1;
     },
     tokenize(source) {

@@ -89,6 +89,21 @@ importers:
       marked:
         specifier: ^18.0.11
         version: 18.0.11
+      mdast-util-from-markdown:
+        specifier: ^2.0.3
+        version: 2.0.3
+      mdast-util-mdx-expression:
+        specifier: ^2.0.1
+        version: 2.0.1
+      mdast-util-mdx-jsx:
+        specifier: ^3.2.0
+        version: 3.2.0
+      micromark-extension-mdx-expression:
+        specifier: ^3.0.1
+        version: 3.0.1
+      micromark-extension-mdx-jsx:
+        specifier: ^3.0.2
+        version: 3.0.2
       minisearch:
         specifier: ^7.2.0
         version: 7.2.0

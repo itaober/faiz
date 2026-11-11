@@ -277,15 +277,7 @@ const markdownImagesToMdx = (value: string) =>
     formatMdxImage(src, alt),
   );
 
-/**
- * Applies `transform` to the text outside fenced code. `rawBlockLines`, when given, also
- * leaves alone the block starting at a line: it returns how many lines that block spans.
- */
-export const transformOutsideFencedCode = (
-  value: string,
-  transform: (segment: string) => string,
-  rawBlockLines?: (lines: string[], index: number) => number,
-) => {
+const transformOutsideFencedCode = (value: string, transform: (segment: string) => string) => {
   const lines = value.split('\n');
   const result: string[] = [];
   let plainLines: string[] = [];
@@ -300,8 +292,7 @@ export const transformOutsideFencedCode = (
     plainLines = [];
   };
 
-  for (let index = 0; index < lines.length; index += 1) {
-    const line = lines[index];
+  lines.forEach(line => {
     const fenceMatch = line.match(/^\s*(`{3,}|~{3,})/);
 
     if (fenceMarker) {
@@ -309,26 +300,18 @@ export const transformOutsideFencedCode = (
       if (fenceMatch?.[1].startsWith(fenceMarker[0])) {
         fenceMarker = '';
       }
-      continue;
+      return;
     }
 
     if (fenceMatch) {
       flushPlainLines();
       fenceMarker = fenceMatch[1];
       result.push(line);
-      continue;
-    }
-
-    const blockLines = rawBlockLines?.(lines, index) ?? 0;
-    if (blockLines > 0) {
-      flushPlainLines();
-      result.push(...lines.slice(index, index + blockLines));
-      index += blockLines - 1;
-      continue;
+      return;
     }
 
     plainLines.push(line);
-  }
+  });
 
   flushPlainLines();
 
