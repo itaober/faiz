@@ -92,19 +92,21 @@ export default function Overlay({
   useEffect(() => releaseScrollLock, [releaseScrollLock]);
 
   // A persistent overlay stays mounted while closed, so it can't sit in the layer stack below and
-  // listens for Escape itself. Install before paint so Escape can reverse even the first opening frame.
+  // listens for Escape itself. On body rather than document: a layer opened on top (the search
+  // palette) takes Escape at document first and stops or handles it there. Install before paint so
+  // Escape can reverse even the first opening frame.
   useLayoutEffect(() => {
     if (!persistent || !open || !dismissable) {
       return;
     }
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
+      if (event.key === 'Escape' && !event.defaultPrevented) {
         event.stopPropagation();
         onCloseRef.current();
       }
     };
-    document.addEventListener('keydown', onKey, true);
-    return () => document.removeEventListener('keydown', onKey, true);
+    document.body.addEventListener('keydown', onKey, true);
+    return () => document.body.removeEventListener('keydown', onKey, true);
   }, [persistent, open, dismissable]);
 
   const handleExitComplete = useCallback(() => {
