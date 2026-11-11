@@ -6,7 +6,7 @@ import { useCallback, useEffect, useState } from 'react';
 import PageEditBar from '@/components/editing/page-edit-bar';
 import { useConsecutiveClicks } from '@/hooks/use-consecutive-clicks';
 import { useMounted } from '@/hooks/use-mounted';
-import dayjs from '@/lib/dayjs';
+import { formatTime } from '@/lib/dayjs';
 
 import { useMemosContext } from '../_context/use-memos-context';
 import { loadMemoEditorSurface, memoEditorPreloader } from './memo-editor-loader';
@@ -23,7 +23,7 @@ export default function MemosTitle() {
     memoEditorPreloader.preload().catch(() => undefined);
   }, []);
   const openComposer = useCallback(() => {
-    setDraftCreatedTime(dayjs().format('YYYY-MM-DD HH:mm:ss'));
+    setDraftCreatedTime(formatTime());
     memoEditorPreloader.openAfterPreload(() => setEditingId(COMPOSE_ID)).catch(() => undefined);
   }, [setEditingId]);
 
