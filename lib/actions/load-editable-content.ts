@@ -1,9 +1,11 @@
 'use server';
 
 import matter from 'gray-matter';
+import { headers } from 'next/headers';
 
 import { type EditablePage, isEditablePage } from '@/lib/content-editing-validation';
 import { CONTENT_KEYS } from '@/lib/content-keys';
+import { createRateLimiter } from '@/lib/server/rate-limit';
 import { readContentForUpdate } from '@/lib/storage/r2';
 import {
   type ActionResult,
@@ -23,6 +25,9 @@ export interface EditableContent {
 }
 
 const POST_SLUG_PATTERN = /^[a-z0-9-]+$/;
+
+// Each call is an uncached storage read, and it needs no sign-in, so it is capped like sign-in is.
+const allowLoad = createRateLimiter({ windowMs: 60 * 1000, max: 30 });
 
 const resolveKey = (target: EditableContentTarget) => {
   if (target.kind === 'page') {
@@ -44,6 +49,15 @@ const resolveKey = (target: EditableContentTarget) => {
 export async function loadEditableContentAction(
   target: EditableContentTarget,
 ): Promise<ActionResult<EditableContent>> {
+  if (!allowLoad(await headers())) {
+    return {
+      success: false,
+      error: 'Too many requests. Try again in a minute.',
+      code: 'RATE_LIMIT',
+      retryable: true,
+    };
+  }
+
   const key = resolveKey(target);
   if (!key) {
     return validationError('Invalid content target');
