@@ -248,7 +248,8 @@ export function MdxBlockNodeView({ node, editor, getPos, updateAttributes }: Nod
                     if (editable && typeof pos === 'number') editor.commands.setNodeSelection(pos);
                   }}
                 >
-                  <PreviewBoundary fallback={label}>
+                  {/* Keyed by source, so an undo back to working props clears a failure. */}
+                  <PreviewBoundary key={source} fallback={label}>
                     <preview.component {...preview.props} />
                   </PreviewBoundary>
                 </motion.div>
