@@ -83,24 +83,24 @@ export function MdxBlockNodeView({ node, editor, getPos, updateAttributes }: Nod
             close(false);
           }}
           onKeyDown={event => {
-            // An IME uses these keys to confirm or cancel its own composition.
+            const isApply = event.key === 'Enter' && (event.metaKey || event.ctrlKey);
+            if (event.key !== 'Escape' && !isApply) return;
+            // Keep these from the page's shortcuts (⌘Enter saves, Escape exits editing), and
+            // leave them to an IME that is using them to confirm or cancel its composition.
+            event.stopPropagation();
             if (event.nativeEvent.isComposing) return;
-            // Keep ⌘Enter (save) and Escape (exit editing) from reaching the page's shortcuts.
-            if (event.key === 'Escape') {
-              event.preventDefault();
-              event.stopPropagation();
+            event.preventDefault();
+            if (!isApply) {
               close(true);
-            } else if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
-              event.preventDefault();
-              event.stopPropagation();
-              const block = parseDraft();
-              if (!block) {
-                setInvalid(true);
-                return;
-              }
-              commit(block);
-              close(true);
+              return;
             }
+            const block = parseDraft();
+            if (!block) {
+              setInvalid(true);
+              return;
+            }
+            commit(block);
+            close(true);
           }}
         />
         {invalid ? (

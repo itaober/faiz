@@ -48,7 +48,6 @@ export const MdxBlockBase = Node.create({
   name: 'mdxBlock',
   group: 'block',
   atom: true,
-  draggable: true,
   selectable: true,
   addAttributes() {
     return {
