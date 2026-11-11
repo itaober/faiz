@@ -210,7 +210,12 @@ export const writeContent = async (
     throw storageError(res, `Failed to write ${key}`);
   }
   updateTag(CONTENT_TAG);
-  return { revision: res.headers.get('etag') ?? '' };
+  // The write landed, but an editor holding an empty revision would conflict on every save.
+  const written = res.headers.get('etag');
+  if (!written) {
+    throw new StorageError(502, `No revision returned for ${key}`);
+  }
+  return { revision: written };
 };
 
 export const writeContentJson = (key: string, data: unknown, revision: string | null) =>

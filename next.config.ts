@@ -22,6 +22,13 @@ const getAllowedDevOrigins = () => {
 
 const allowedDevOrigins = getAllowedDevOrigins();
 
+// Inlined into the client bundle at build time, so a build without it ships broken image URLs for
+// good; fail here rather than at runtime like the server-only secrets (lib/server/env.ts).
+const assetsUrl = process.env.NEXT_PUBLIC_ASSETS_URL?.replace(/\/+$/, '');
+if (!assetsUrl) {
+  throw new Error('NEXT_PUBLIC_ASSETS_URL is not set (see .env.example)');
+}
+
 const nextConfig: NextConfig = {
   ...(allowedDevOrigins ? { allowedDevOrigins } : {}),
   // Pin the project root: the parent dir is itself a pnpm workspace, and letting
@@ -42,17 +49,13 @@ const nextConfig: NextConfig = {
   // Image URLs from before the move to R2 live on in feed readers and shared links. Same layout
   // as the migration: files at the top of the old folder (the avatars) went to `site/`.
   async redirects() {
-    const assets = process.env.NEXT_PUBLIC_ASSETS_URL?.replace(/\/+$/, '');
-    if (!assets) {
-      return [];
-    }
     return [
       {
         source: '/api/image/assets/:file([^/]+)',
-        destination: `${assets}/site/:file`,
+        destination: `${assetsUrl}/site/:file`,
         permanent: true,
       },
-      { source: '/api/image/assets/:path+', destination: `${assets}/:path+`, permanent: true },
+      { source: '/api/image/assets/:path+', destination: `${assetsUrl}/:path+`, permanent: true },
     ];
   },
 };
