@@ -4,7 +4,13 @@ import { revalidatePath } from 'next/cache';
 
 import { CONTENT_KEYS } from '@/lib/content-keys';
 import { type PostList, PostListSchema, type PostMeta } from '@/lib/data/data';
-import { removePost, replacePost, sortPosts, upsertPost } from '@/lib/data/posts-index';
+import {
+  removePost,
+  replacePost,
+  sortPosts,
+  upsertPost,
+  withCreatedDate,
+} from '@/lib/data/posts-index';
 import { formatTime } from '@/lib/dayjs';
 import { StorageError } from '@/lib/errors';
 import { requireEditSession } from '@/lib/server/edit-session';
@@ -28,7 +34,8 @@ interface IPostPayload {
   slug: string;
   tags: string[];
   pinned?: boolean;
-  createdTime?: string;
+  /** Day picked in the editor, `YYYY-MM-DD`. */
+  createdDate?: string;
   content: string;
 }
 
@@ -36,7 +43,6 @@ type ICreatePostInput = IPostPayload;
 
 interface IUpdatePostInput extends IPostPayload {
   originalSlug: string;
-  createdTime: string;
   /** Revision the editor loaded, so a concurrent edit is rejected instead of overwritten. */
   revision?: string;
 }
@@ -82,6 +88,13 @@ const validatePostPayload = (input: IPostPayload): ActionError | null => {
 
   if (!normalizeOptionalString(input.content)) {
     return validationError('Content is required');
+  }
+
+  if (
+    input.createdDate &&
+    (typeof input.createdDate !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(input.createdDate))
+  ) {
+    return validationError('Invalid date');
   }
 
   if (input.tags !== undefined && !Array.isArray(input.tags)) {
@@ -170,7 +183,7 @@ export async function createPostAction(
     const post: PostMeta = {
       slug,
       title: normalizeOptionalString(input.title),
-      createdTime: normalizeOptionalString(input.createdTime) || now,
+      createdTime: withCreatedDate(now, input.createdDate),
       updatedTime: now,
       tags: normalizeTags(input.tags),
       pinned: input.pinned === true || undefined,
@@ -222,7 +235,7 @@ export async function updatePostAction(
     const post: PostMeta = {
       slug,
       title: normalizeOptionalString(input.title),
-      createdTime: normalizeOptionalString(input.createdTime) || existingPost.createdTime,
+      createdTime: withCreatedDate(existingPost.createdTime, input.createdDate),
       updatedTime: formatTime(),
       tags: normalizeTags(input.tags),
       pinned: input.pinned === true || undefined,
