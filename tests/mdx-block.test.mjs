@@ -106,6 +106,34 @@ test('a paragraph that opens with inline JSX is kept whole, labelled by its firs
   assert.equal(manager.serialize(doc), markdown.trimEnd());
 });
 
+test('text holding inline JSX or an expression anywhere is kept as written, not escaped', () => {
+  const mdx = [
+    'Sum is {1 + 1} today, a <sup>2</sup> b<br />c *em <Tweet id="1" /> em*',
+    '',
+    '## Title {1}',
+    '',
+    '- item <Tweet id="1" /> tail',
+    '- plain',
+    '',
+    '1. one',
+    '2. two {1 + 1}',
+    '',
+    'use `{x}` and \\{y\\} here',
+    '',
+  ].join('\n');
+  const once = cycle(mdx, savePage);
+  assert.equal(once, mdx);
+  assert.equal(cycle(once, savePage), once);
+});
+
+test('a TodoList inside a list item stays as written, checkboxes included', () => {
+  const todo =
+    '<TodoList\n    readonly={true}\n    items={[{ label: "a", checked: true }, { label: "b" }]}\n  />';
+  const once = cycle(`- plan\n\n  ${todo}\n\nafter\n`, savePage);
+  assert.ok(once.includes(todo), once);
+  assert.equal(cycle(once, savePage), once);
+});
+
 test('a tag the parser rejects is kept as written up to the blank line', () => {
   const doc = manager.parse('<Badge>\nunclosed\n\nnext\n');
   assert.equal(blocks(doc)[0].attrs.source, '<Badge>\nunclosed');
