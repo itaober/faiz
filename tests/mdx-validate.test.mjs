@@ -15,6 +15,9 @@ test('a refused save names the failing line when the parser can', async () => {
   for (const [content, line] of [
     ['one\n\ntwo { here\n', 3],
     ['one\n\n<Badge>\n\ntext\n', 3],
+    // Unclosed: the parser stops at the end of the file, the line is where it opened.
+    ['one\n\ntwo { here\n\n<Card>\n\nin\n\n</Card>\n\nthree\n', 3],
+    ['one\n\n<Card>\n\n<Badge title="x\n\n</Card>\n\nfour', 5],
   ]) {
     await assert.rejects(assertCompilableMdx(content), error => {
       assert.ok(error instanceof InvalidMdxError);
