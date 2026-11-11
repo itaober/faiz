@@ -1,13 +1,15 @@
 import { mergeAttributes, Node } from '@tiptap/core';
 
+import { matchLinkCardMarkup } from '@/lib/link-card';
 import { scanMdxBlock } from '@/lib/mdx-editing';
 
-// LinkCard has its own node. Marked tries the last-registered tokenizer first, so it is
-// skipped by name rather than by extension order. Image, TodoList, CheckboxRoot and Link
-// become markdown before parsing; any still here couldn't, so they stay verbatim too.
+// A card LinkCard's own node can read is left to it; marked tries the last-registered
+// tokenizer first, so this is checked rather than left to extension order. Image, TodoList,
+// CheckboxRoot and Link become markdown before parsing; any still here couldn't, so they
+// stay verbatim too.
 const scan = (source: string) => {
   const block = scanMdxBlock(source);
-  return block && block.name !== 'LinkCard' ? block : null;
+  return block && !(block.name === 'LinkCard' && matchLinkCardMarkup(source)) ? block : null;
 };
 
 /**
@@ -20,49 +22,42 @@ export const MdxBlock = Node.create({
   atom: true,
   draggable: true,
   selectable: true,
+  // No parseHTML: the source is published as live JSX, so only the markdown tokenizer may
+  // set it, never pasted HTML. Dragging within the editor moves the node itself.
   addAttributes() {
     return {
-      source: {
-        default: '',
-        parseHTML: element => element.getAttribute('data-source') ?? '',
-        renderHTML: attrs => ({ 'data-source': attrs.source }),
-      },
+      name: { default: '', rendered: false },
+      source: { default: '', rendered: false },
     };
   },
-  parseHTML() {
-    return [{ tag: 'div[data-mdx-block]' }];
-  },
   renderHTML({ node, HTMLAttributes }) {
-    const source = String(node.attrs.source);
-    const name = source.match(/^<([\w.]+)/)?.[1] ?? 'MDX';
+    const { name, source } = node.attrs;
     return [
       'div',
-      mergeAttributes(HTMLAttributes, {
-        'data-mdx-block': '',
-        class: 'fz-mdx-block',
-        title: 'Edit in Markdown',
-      }),
-      source.endsWith('/>') ? `<${name} />` : `<${name}>…</${name}>`,
+      mergeAttributes(HTMLAttributes, { class: 'fz-mdx-block', title: 'Edit in Markdown' }),
+      String(source).endsWith('/>') ? `<${name} />` : `<${name}>…</${name}>`,
     ];
   },
   markdownTokenizer: {
     name: 'mdxBlock',
     level: 'block',
-    // Where a paragraph should stop: a line that opens a component. Marked passes the
-    // paragraph minus its first character, so only positions after a newline count.
+    // Where a paragraph may stop: the first line opening a capitalized tag; tokenize decides
+    // whether it is a block. Marked passes the paragraph minus its first character, so only
+    // positions after a newline count.
+    // ponytail: a multi-line code span with a line starting `<Tag` is cut there.
     start: source => {
-      for (const match of source.matchAll(/\n(?=<[A-Z])/g)) {
-        if (scan(source.slice(match.index + 1))) return match.index + 1;
-      }
-      return -1;
+      const match = /\n<[A-Z]/.exec(source);
+      return match ? match.index + 1 : -1;
     },
     tokenize(source) {
       const block = scan(source);
-      return block ? { type: 'mdxBlock', raw: block.raw, source: block.source } : undefined;
+      return block
+        ? { type: 'mdxBlock', raw: block.raw, name: block.name, source: block.source }
+        : undefined;
     },
   },
   parseMarkdown(token, helpers) {
-    return helpers.createNode('mdxBlock', { source: token.source });
+    return helpers.createNode('mdxBlock', { name: token.name, source: token.source });
   },
   renderMarkdown(node) {
     return String(node.attrs?.source ?? '');

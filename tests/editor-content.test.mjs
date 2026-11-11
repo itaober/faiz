@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-
+import { matchLinkCardMarkup } from '../lib/link-card.ts';
 import {
   markdownTodoListsToMdx,
   mdxTodoListsToMarkdown,
@@ -127,9 +127,46 @@ test('a > inside quotes or braces does not end the tag', () => {
 });
 
 test('scans a paired component up to its closing tag', () => {
-  const element = '<Columns widths={[2, 1]}>\n\nLeft *text*\n\nRight\n\n</Columns>';
+  const element = '<Columns widths={[2, 1]}>\n\nLeft *text*\n\nRight\n\n</Columns >';
   assert.equal(scanMdxBlock(`${element}\nafter`)?.source, element);
   assert.equal(scanMdxBlock('<Columns>\nno closing tag'), null);
+});
+
+test('a nested same-name element does not close its parent', () => {
+  const element =
+    '<Columns>\n<Columns>\ninner\n</Columns>\n<Columns />\n<ColumnsItem>x</ColumnsItem>\n</Columns>';
+  assert.equal(scanMdxBlock(`${element}\n\nafter`)?.source, element);
+  assert.equal(scanMdxBlock('<Columns>\n<Columns>\n</Columns>'), null);
+});
+
+test('CRLF line endings end the block', () => {
+  const element = '<Tweet\r\n  id="1"\r\n/>';
+  assert.deepEqual(scanMdxBlock(`${element}\r\n\r\nnext`), {
+    name: 'Tweet',
+    source: element,
+    raw: `${element}\r\n`,
+  });
+});
+
+test("an apostrophe in JSX text inside braces doesn't swallow the tag", () => {
+  const oneLine = `<Card render={() => <p>Don't</p>} />`;
+  assert.equal(scanMdxBlock(oneLine)?.source, oneLine);
+  assert.equal(scanMdxBlock(`${oneLine}\nnext`)?.source, oneLine);
+  const multiLine = `<Card\n  render={() => (\n    <p>It's {"a > b"}</p>\n  )}\n/>`;
+  assert.equal(scanMdxBlock(multiLine)?.source, multiLine);
+});
+
+test('a LinkCard its own node rejects is still scanned, so it stays verbatim', () => {
+  const card = '<LinkCard type="music" href="https://music.163.com/song?id=1" title="T" />';
+  assert.ok(matchLinkCardMarkup(card));
+  for (const rejected of [
+    '<LinkCard href="https://music.163.com/song?id=1" title="a > b" />',
+    '<LinkCard href="https://music.163.com/song?id=1">label</LinkCard>',
+    '<LinkCard type="video" href="https://example.com" />',
+  ]) {
+    assert.equal(matchLinkCardMarkup(rejected), null, rejected);
+    assert.equal(scanMdxBlock(rejected)?.source, rejected, rejected);
+  }
 });
 
 test('leaves inline, lowercase, indented and unterminated tags alone', () => {

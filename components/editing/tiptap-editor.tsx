@@ -3,9 +3,10 @@
 import { TaskItem, TaskList } from '@tiptap/extension-list';
 import { Table, TableCell, TableHeader, TableRow } from '@tiptap/extension-table';
 import { Placeholder } from '@tiptap/extensions';
-import { Markdown } from '@tiptap/markdown';
+import { Markdown, type MarkdownExtensionOptions } from '@tiptap/markdown';
 import { EditorContent, useEditor, useEditorState } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
+import { Marked } from 'marked';
 import { AnimatePresence } from 'motion/react';
 import { type ReactNode, useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
@@ -222,7 +223,10 @@ export default function TiptapEditor({
       TableRow,
       TableHeader,
       TableCell,
-      Markdown,
+      // Its own parser per editor: by default @tiptap/markdown registers every tokenizer on
+      // marked's global singleton again for each editor it creates. The option is typed as
+      // that singleton, but the manager only uses what a Marked instance has.
+      Markdown.configure({ marked: new Marked() as unknown as MarkdownExtensionOptions['marked'] }),
       SlashCommand.configure({
         onImage: () => openFilePicker(),
         // Galleries only apply where inline images are inserted (posts/pages),

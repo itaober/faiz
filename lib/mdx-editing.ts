@@ -174,20 +174,57 @@ export const markdownTodoListsToMdx = (value: string) =>
     })
     .replace(markdownLinkPattern, (_, label, href) => `<Link href="${href}">${label}</Link>`);
 
-/** Index just past the `>` that closes an opening tag; `>` inside quotes or `{…}` doesn't count. */
+/**
+ * Index just past the `>` that ends the tag whose attributes start at `from`. A `>` inside a
+ * quoted attribute or a `{…}` expression doesn't count.
+ */
 const findTagEnd = (source: string, from: number) => {
   let depth = 0;
   let quote = '';
-  for (let index = from; index < source.length; index += 1) {
-    const char = source[index];
+  let quoteStart = 0;
+  for (let index = from; index <= source.length; index += 1) {
+    const char = source[index] ?? '\n';
     if (quote) {
+      if (char === quote) quote = '';
       // Backslash escapes only exist in JS strings; a JSX attribute string has none.
-      if (char === '\\' && depth > 0) index += 1;
-      else if (char === quote) quote = '';
-    } else if (char === '"' || char === "'" || (char === '`' && depth > 0)) quote = char;
-    else if (char === '{') depth += 1;
+      else if (char === '\\' && depth > 0) index += 1;
+      // A JS '…' or "…" string can't span lines, so this quote was JSX text such as `Don't`:
+      // rescan from just after it.
+      else if (char === '\n' && depth > 0 && quote !== '`') {
+        quote = '';
+        index = quoteStart;
+      }
+    } else if (char === '"' || char === "'" || (char === '`' && depth > 0)) {
+      quote = char;
+      quoteStart = index;
+    } else if (char === '{') depth += 1;
     else if (char === '}') depth -= 1;
     else if (char === '>' && depth === 0) return index + 1;
+  }
+  return -1;
+};
+
+/** Index just past the `</name>` that closes the element whose opening tag ends at `from`. */
+const findClosingTag = (source: string, name: string, from: number) => {
+  // ponytail: same-name tags inside a code span in the children still count toward depth.
+  const tag = /<(\/?)([A-Z][\w.]*)/g;
+  const closeEnd = /\s*>/y;
+  let depth = 1;
+  tag.lastIndex = from;
+  for (let match = tag.exec(source); match; match = tag.exec(source)) {
+    if (match[2] !== name) continue;
+    const after = match.index + match[0].length;
+    if (match[1]) {
+      closeEnd.lastIndex = after;
+      if (!closeEnd.test(source)) continue;
+      depth -= 1;
+      if (depth === 0) return closeEnd.lastIndex;
+    } else if (/[\s/>]/.test(source[after] ?? '')) {
+      const end = findTagEnd(source, after);
+      if (end < 0) return -1;
+      if (source[end - 2] !== '/') depth += 1;
+      tag.lastIndex = end;
+    }
   }
   return -1;
 };
@@ -201,14 +238,10 @@ export const scanMdxBlock = (source: string) => {
   const name = source.match(/^<([A-Z][\w.]*)(?=[\s/>])/)?.[1];
   if (!name) return null;
   let end = findTagEnd(source, name.length + 1);
+  if (end > 0 && source[end - 2] !== '/') end = findClosingTag(source, name, end);
   if (end < 0) return null;
-  if (source[end - 2] !== '/') {
-    // ponytail: the first closing tag wins, so a same-name element nested inside closes it early.
-    const close = source.indexOf(`</${name}>`, end);
-    if (close < 0) return null;
-    end = close + name.length + 3;
-  }
-  const rest = source.slice(end).match(/^[ \t]*(?:\n|$)/);
-  if (!rest) return null;
-  return { name, source: source.slice(0, end), raw: source.slice(0, end + rest[0].length) };
+  const lineEnd = /[ \t]*(?:\r?\n|$)/y;
+  lineEnd.lastIndex = end;
+  if (!lineEnd.test(source)) return null;
+  return { name, source: source.slice(0, end), raw: source.slice(0, lineEnd.lastIndex) };
 };
