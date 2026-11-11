@@ -380,7 +380,14 @@ test('the code box reads a brace inside a string with acorn, and still refuses b
   for (const broken of ['<Tweet id="1"', '<Tweet id="1" />\n\n<Tweet id="2" />']) {
     assert.equal(readEditedBlock(broken, original), null, broken);
     assert.equal(readEditedBlock(broken, original, acorn), null, broken);
+    // An original only acorn reads is still a component, not one kept as written.
+    assert.equal(readEditedBlock(broken, draft), null, broken);
+    assert.equal(readEditedBlock(broken, draft, acorn), null, broken);
   }
+  // One kept as written may stay so, once acorn confirms the original isn't readable either.
+  const kept = '<Badge>\nunclosed';
+  assert.equal(readEditedBlock('<Badge>\nstill open', kept), null);
+  assert.equal(readEditedBlock('<Badge>\nstill open', kept, acorn)?.source, '<Badge>\nstill open');
   assert.match(await shown(`${draft}\n`), /caption="a \} b"/);
 });
 

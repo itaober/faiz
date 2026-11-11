@@ -533,13 +533,15 @@ export const isReadableMdxBlock = (source: string, acorn?: Acorn) => {
 
 /**
  * The block an edited source stands for, or null: still exactly one block, and one the parser
- * reads if the original was. Read by braces unless `acorn` is given; the editor retries with it
- * when that fails, since only acorn reads a brace inside a string (`caption={"a } b"}`).
+ * reads unless the original was kept as written. Read by braces unless `acorn` is given; the
+ * editor retries with it when that fails, since only acorn reads a brace inside a string
+ * (`caption={"a } b"}`), and only acorn can tell an original kept as written from one of those.
  */
 export const readEditedBlock = (draft: string, original: string, acorn?: Acorn) => {
   const block = readMdxBlock(draft, acorn);
-  const readable = !isReadableMdxBlock(original) || isReadableMdxBlock(draft, acorn);
-  return block?.source === draft && readable ? block : null;
+  if (block?.source !== draft) return null;
+  if (isReadableMdxBlock(draft, acorn)) return block;
+  return acorn && !isReadableMdxBlock(original, acorn) ? block : null;
 };
 
 // Components the transforms above turn into markdown on load and back on save.
