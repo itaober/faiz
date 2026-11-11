@@ -13,20 +13,72 @@ const markdownChecklistPattern = /(?:^|\n)(?:- \[[ xX]\] .+(?:\n|$))+/g;
 // trip through the markdown editor. The read view maps <Link> to next/link; a bare
 // markdown link has no `a:` override and would degrade to a full-reload <a>.
 const inlineLinkPattern = /<Link\s+href=(["'])(.*?)\1\s*>([\s\S]*?)<\/Link>/g;
-// Skip image markdown (![]()): saved content still carries ![](…) until the server
-// normalises it to <Image>. An escaped bracket is text, not a link.
-const markdownLinkPattern = /(?<![!\\])\[((?:\\.|[^\\\]])+)\]\(([^)\s]+)\)/g;
+// A markdown link, its `!` captured: a `[` after an odd run of backslashes is escaped text, and
+// so is a `!` after one. With the `!` it is an image, which the server turns into <Image>.
+const markdownLinkPattern = /(?<=(?:^|[^\\])(?:\\\\)*)(!?)\[((?:\\.|[^\\\]])+)\]\(([^)\s]+)\)/g;
 
 /** Markdown backslash escapes (`\\*`, `\\{`, …) as the characters they stand for. */
 export const unescapeMarkdown = (value: string) => value.replace(/\\([!-/:-@[-`{-~])/g, '$1');
 
-/** A string literal's value; a literal JSON can't read (hand-written `'…'`) as written. */
+const SINGLE_ESCAPES: Record<string, string> = {
+  b: '\b',
+  f: '\f',
+  n: '\n',
+  r: '\r',
+  t: '\t',
+  v: '\v',
+};
+
+/**
+ * A JS string literal's value (either quote), as the compiler reads it; null for one it
+ * rejects (a raw line break, a legacy octal escape), so the caller keeps the source instead.
+ */
 const readString = (literal: string) => {
-  try {
-    return String(JSON.parse(literal));
-  } catch {
-    return literal.slice(1, -1);
-  }
+  let valid = true;
+  const value = literal
+    .slice(1, -1)
+    .replace(
+      /\\(?:u\{([\da-fA-F]+)\}|u([\da-fA-F]{4})|x([\da-fA-F]{2})|(0)(?!\d)|(\r\n|[\s\S]))|[\n\r]/g,
+      (match, point?: string, unit?: string, byte?: string, zero?: string, char?: string) => {
+        const code = Number.parseInt(point ?? unit ?? byte ?? '', 16);
+        if (code <= 0x10ffff) return String.fromCodePoint(code);
+        if (zero) return '\0';
+        if (char !== undefined && !/^[\dux]$/.test(char)) {
+          return /^(?:\r\n|[\n\r\u2028\u2029])$/.test(char) ? '' : (SINGLE_ESCAPES[char] ?? char);
+        }
+        valid = false;
+        return match;
+      },
+    );
+  return valid ? value : null;
+};
+
+const JSX_ENTITIES: Record<string, string> = {
+  amp: '&',
+  apos: "'",
+  gt: '>',
+  lt: '<',
+  nbsp: '\u00a0',
+  quot: '"',
+};
+
+/**
+ * JSX text's character references read as acorn-jsx reads them; null for a name outside this
+ * short table, so the caller keeps the source rather than guess at the long one.
+ */
+const readJsxText = (text: string) => {
+  let valid = true;
+  const value = text.replace(
+    /&(?:#x([\da-fA-F]{1,7})|#(\d{1,8})|([\da-zA-Z]{1,9}));/g,
+    (match, hex?: string, decimal?: string, name?: string) => {
+      if (hex ?? decimal)
+        return String.fromCharCode(Number.parseInt(hex ?? decimal ?? '', hex ? 16 : 10));
+      if (name && name in JSX_ENTITIES) return JSX_ENTITIES[name];
+      valid = false;
+      return match;
+    },
+  );
+  return valid ? value : null;
 };
 
 // Plain text as the editor's markdown, and back: the editor escapes these characters and writes
@@ -39,14 +91,18 @@ const markdownToText = (markdown: string) =>
       char ?? { lt: '<', gt: '>', amp: '&' }[entity],
   );
 
+const escapeChar = (char: string) => `\\u${char.charCodeAt(0).toString(16).padStart(4, '0')}`;
+
+// A string literal; a `[` after `!` is escaped, or the read view would turn `![a](b)` in a
+// label into an <Image> tag inside the string.
+const jsString = (text: string) => JSON.stringify(text).replace(/(?<=!)\[/g, escapeChar);
+
 // Text as JSX children: plain text as is, so stored labels keep their form; text JSX would
 // read as a tag, an expression or an entity as a string, so it stays literal, and so does text
 // with a quote, which the todo list reader would take for the start of a string. Its braces are
 // escaped too: the editor's parser matches `{…}` by braces (no acorn).
 const jsxText = (text: string) =>
-  /[{}<>&'"`]/.test(text)
-    ? `{${JSON.stringify(text).replace(/[{}]/g, brace => (brace === '{' ? '\\u007b' : '\\u007d'))}}`
-    : text;
+  /[{}<>&'"`]|!\[/.test(text) ? `{${jsString(text).replace(/[{}]/g, escapeChar)}}` : text;
 
 const splitTopLevelObjects = (value: string) => {
   const objects: string[] = [];
@@ -94,23 +150,34 @@ const splitTopLevelObjects = (value: string) => {
   return objects;
 };
 
-/** A JSX label as the editor's markdown: its text, and its links as markdown links. */
+/**
+ * A JSX label as the editor's markdown: string children as written, text with its entities
+ * read, links as markdown links. Null for JSX this doesn't read (another expression, an
+ * unknown entity), so the list is kept as written.
+ */
 const jsxToMarkdown = (value: string) => {
   let href = '';
-  return value
-    .replace(
-      /\{("(?:[^"\\]|\\.)*")\}|<Link\s+href=(["'])(.*?)\2\s*>|<\/Link\s*>|<[^>]+>|[^{<]+/g,
-      (token, literal: string | undefined, _quote, linkHref: string | undefined) => {
-        if (literal) return textToMarkdown(readString(literal));
-        if (linkHref !== undefined) {
-          href = linkHref;
-          return '[';
-        }
-        if (token.startsWith('</Link')) return `](${href})`;
-        return token.startsWith('<') ? '' : textToMarkdown(token.replace(/\s+/g, ' '));
-      },
-    )
-    .trim();
+  let valid = true;
+  const markdown = value.replace(
+    /\{("(?:[^"\\]|\\[\s\S])*"|'(?:[^'\\]|\\[\s\S])*')\}|<Link\s+href=(["'])(.*?)\2\s*>|<\/Link\s*>|<[^>]+>|[^{<]+|[{<]/g,
+    (token, literal: string | undefined, _quote, linkHref: string | undefined) => {
+      if (linkHref !== undefined) {
+        href = linkHref;
+        return '[';
+      }
+      if (token.startsWith('</Link')) return `](${href})`;
+      if (!literal && token.startsWith('<') && token.length > 1) return '';
+      const text =
+        literal !== undefined
+          ? readString(literal)
+          : /^[{<]$/.test(token)
+            ? null
+            : readJsxText(token.replace(/\s+/g, ' '));
+      if (text === null) valid = false;
+      return textToMarkdown(text ?? '');
+    },
+  );
+  return valid ? markdown.trim() : null;
 };
 
 /**
@@ -120,16 +187,18 @@ const jsxToMarkdown = (value: string) => {
 const todoItemToMdx = (markdown: string) => {
   const parts: string[] = [];
   let last = 0;
+  // A label has no images: a `!` before a link is text, as on main.
   for (const link of markdown.matchAll(markdownLinkPattern)) {
+    const [match, bang, label, href] = link;
     parts.push(
-      jsxText(markdownToText(markdown.slice(last, link.index))),
-      `<Link href="${link[2]}">${jsxText(markdownToText(link[1]))}</Link>`,
+      jsxText(markdownToText(markdown.slice(last, link.index) + bang)),
+      `<Link href="${href}">${jsxText(markdownToText(label))}</Link>`,
     );
-    last = link.index + link[0].length;
+    last = link.index + match.length;
   }
 
   if (!parts.length) {
-    return `{ label: ${JSON.stringify(markdownToText(markdown))} }`;
+    return `{ label: ${jsString(markdownToText(markdown))} }`;
   }
 
   return `{
@@ -143,14 +212,15 @@ const todoItemToMdx = (markdown: string) => {
 
 const parseTodoItem = (value: string) => {
   const checked = /checked\s*:\s*true/.test(value);
-  const quotedLabel = value.match(/label\s*:\s*("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')/);
+  const quotedLabel = value.match(/label\s*:\s*("(?:[^"\\]|\\[\s\S])*"|'(?:[^'\\]|\\[\s\S])*')/);
 
+  // An unreadable label reads as empty, so the list is kept as written (todoListToMarkdown).
   if (quotedLabel) {
-    return { checked, label: textToMarkdown(readString(quotedLabel[1]).trim()) };
+    return { checked, label: textToMarkdown(readString(quotedLabel[1])?.trim() ?? '') };
   }
 
   const jsxLabel = value.match(/label\s*:\s*\(([\s\S]*?)\)\s*,?\s*(?:checked\b|\}$)/);
-  return { checked, label: jsxToMarkdown(jsxLabel?.[1] ?? '') };
+  return { checked, label: jsxToMarkdown(jsxLabel?.[1] ?? '') ?? '' };
 };
 
 const todoListToMarkdown = (source: string, itemsSource: string) => {
@@ -295,24 +365,30 @@ export const markdownTodoListsToMdx = (value: string) =>
       }),
     ),
     segment =>
-      replaceOutsideInlineCode(
-        segment,
-        markdownLinkPattern,
-        (_, label, href) => `<Link href="${href}">${label}</Link>`,
+      replaceOutsideInlineCode(segment, markdownLinkPattern, (match, bang, label, href) =>
+        bang ? match : `<Link href="${href}">${label}</Link>`,
       ),
     'all',
   );
 
 /**
  * Parses MDX as the site's compiler reads it, minus evaluating expressions (no acorn, which
- * would add about 40KB gzip to the editor): `{…}` is matched by braces. Throws on invalid MDX,
- * with the failing line on the error.
+ * would add about 40KB gzip to the editor): `{…}` is matched by braces, unless `acorn` (from
+ * {@link loadAcorn}) is given. Throws on invalid MDX, with the failing line on the error.
  */
-export const parseMdx = (source: string) =>
+export const parseMdx = (source: string, acorn?: Acorn) =>
   fromMarkdown(source, {
-    extensions: [mdxJsx(), mdxExpression()],
+    extensions: [mdxJsx({ acorn, addResult: false }), mdxExpression({ acorn, addResult: false })],
     mdastExtensions: [mdxJsxFromMarkdown(), mdxExpressionFromMarkdown()],
   });
+
+export type Acorn = NonNullable<Parameters<typeof mdxExpression>[0]>['acorn'];
+
+/** acorn with JSX, as the site's compiler reads expressions; loaded only when asked for. */
+export const loadAcorn = async (): Promise<Acorn> => {
+  const [{ Parser }, { default: jsx }] = await Promise.all([import('acorn'), import('acorn-jsx')]);
+  return Parser.extend(jsx());
+};
 
 type MdxNode = ReturnType<typeof parseMdx>['children'][number];
 
@@ -339,11 +415,11 @@ export const mdxErrorLine = (error: unknown) => {
  */
 // ponytail: parses the rest of the document for every block that opens with `<` or `{`, about
 // 300ms to load a 41KB page. Parse once per load and look blocks up by offset if that matters.
-const parseLeading = (source: string) => {
+const parseLeading = (source: string, acorn?: Acorn) => {
   let end = source.length;
   for (;;) {
     try {
-      return parseMdx(source.slice(0, end));
+      return parseMdx(source.slice(0, end), acorn);
     } catch (error) {
       const line = mdxErrorLine(error);
       if (!line || line <= 1) return null;
@@ -402,12 +478,12 @@ const inlineMdxIn = (node: MdxNode): MdxNode | undefined => {
  * itself; `raw` also covers the indent and the rest of its last line, for the markdown
  * tokenizer to consume.
  */
-export const readMdxBlock = (source: string): MdxBlock | null => {
+export const readMdxBlock = (source: string, acorn?: Acorn): MdxBlock | null => {
   const start = source.match(/^ {0,3}/)?.[0].length ?? 0;
   const opensWithMdx = /^(?:<[A-Za-z]|\{)/.test(source.slice(start));
   let tree: ReturnType<typeof parseMdx> | null;
   if (opensWithMdx) {
-    tree = parseLeading(source);
+    tree = parseLeading(source, acorn);
   } else {
     // Text holding JSX or an expression. A paragraph or heading never spans a blank line; a
     // loose ordered list does, while the line after it is indented or opens another item.
@@ -419,7 +495,7 @@ export const readMdxBlock = (source: string): MdxBlock | null => {
     const text = blankLine < 0 ? source : source.slice(0, blankLine);
     if (!/<[A-Za-z]|\{/.test(text)) return null;
     try {
-      tree = parseMdx(text);
+      tree = parseMdx(text, acorn);
     } catch {
       return null;
     }
@@ -440,9 +516,9 @@ export const readMdxBlock = (source: string): MdxBlock | null => {
 };
 
 /** Whether `source` is exactly one JSX element or expression the parser reads. */
-export const isReadableMdxBlock = (source: string) => {
+export const isReadableMdxBlock = (source: string, acorn?: Acorn) => {
   try {
-    const { children } = parseMdx(source);
+    const { children } = parseMdx(source, acorn);
     const [node] = children;
     return (
       children.length === 1 &&
@@ -453,6 +529,17 @@ export const isReadableMdxBlock = (source: string) => {
   } catch {
     return false;
   }
+};
+
+/**
+ * The block an edited source stands for, or null: still exactly one block, and one the parser
+ * reads if the original was. Read by braces unless `acorn` is given; the editor retries with it
+ * when that fails, since only acorn reads a brace inside a string (`caption={"a } b"}`).
+ */
+export const readEditedBlock = (draft: string, original: string, acorn?: Acorn) => {
+  const block = readMdxBlock(draft, acorn);
+  const readable = !isReadableMdxBlock(original) || isReadableMdxBlock(draft, acorn);
+  return block?.source === draft && readable ? block : null;
 };
 
 // Components the transforms above turn into markdown on load and back on save.

@@ -7,7 +7,7 @@ import { useEffect, useId, useRef, useState } from 'react';
 import { ANIMATION } from '@/lib/constants/animation';
 
 import { mdxBlockLabel } from '@/lib/mdx-block';
-import { isReadableMdxBlock, readMdxBlock } from '@/lib/mdx-editing';
+import { type Acorn, loadAcorn, type MdxBlock, readEditedBlock } from '@/lib/mdx-editing';
 import { cn } from '@/lib/utils';
 
 import { setInvalidDraft } from '../editing-overlays';
@@ -54,19 +54,31 @@ export function MdxBlockNodeView({ node, editor, getPos, updateAttributes }: Nod
     const pos = getPos();
     if (refocus && typeof pos === 'number') editor.chain().focus().setNodeSelection(pos).run();
   };
-  // The block to keep: the original when unchanged, else the draft if it is still one block
-  // (read the lenient way when the original was kept as written), else null.
-  const parseDraft = () => {
-    const next = (draft ?? '').trim();
-    if (next === source.trim()) return { name, source };
-    const block = readMdxBlock(next);
-    // A component the parser read has to stay readable; one kept as written may stay so.
-    const valid =
-      block?.source === next && (!isReadableMdxBlock(source) || isReadableMdxBlock(next));
-    return valid ? block : null;
-  };
-  const commit = (block: { name: string; source: string }) => {
+  // The block to keep: the original when unchanged, else the draft if it is still one block.
+  const readDraft = (next: string, acorn?: Acorn) =>
+    next === source.trim() ? { name, source } : readEditedBlock(next, source, acorn);
+  const commit = (block: Pick<MdxBlock, 'name' | 'source'>) => {
     if (block.source !== source) updateAttributes({ name: block.name, source: block.source });
+  };
+  // Applies the draft if it is one block, else shows the error. One the brace reader rejects is
+  // read again with acorn, loaded only then; saves wait meanwhile, and a draft edited since is
+  // left to its next blur or ⌘Enter.
+  const settle = (
+    field: HTMLTextAreaElement,
+    apply: (block: Pick<MdxBlock, 'name' | 'source'>) => void,
+  ) => {
+    const next = field.value.trim();
+    const block = readDraft(next);
+    if (block) return apply(block);
+    setInvalidDraft(id, true);
+    loadAcorn()
+      .then(acorn => readDraft(next, acorn))
+      .catch(() => null)
+      .then(full => {
+        if (closedRef.current || field.value.trim() !== next) return;
+        if (full) apply(full);
+        else markInvalid(true);
+      });
   };
 
   // Click and Enter (the extension's shortcut) both open the chip through this one event.
@@ -131,16 +143,13 @@ export function MdxBlockNodeView({ node, editor, getPos, updateAttributes }: Nod
                     setDraft(event.target.value);
                     markInvalid(false);
                   }}
-                  onBlur={() => {
+                  onBlur={event => {
                     // Switching windows or tabs also blurs; keep the draft for when focus comes back.
                     if (closedRef.current || !document.hasFocus()) return;
-                    const block = parseDraft();
-                    if (!block) {
-                      markInvalid(true);
-                      return;
-                    }
-                    commit(block);
-                    close(false);
+                    settle(event.currentTarget, block => {
+                      commit(block);
+                      close(false);
+                    });
                   }}
                   onKeyDown={event => {
                     const isApply = event.key === 'Enter' && (event.metaKey || event.ctrlKey);
@@ -154,13 +163,10 @@ export function MdxBlockNodeView({ node, editor, getPos, updateAttributes }: Nod
                       close(true);
                       return;
                     }
-                    const block = parseDraft();
-                    if (!block) {
-                      markInvalid(true);
-                      return;
-                    }
-                    commit(block);
-                    close(true);
+                    settle(event.currentTarget, block => {
+                      commit(block);
+                      close(true);
+                    });
                   }}
                 />
               ) : (

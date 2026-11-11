@@ -10,8 +10,10 @@ import { serialize } from 'next-mdx-remote/serialize';
 
 import { MdxBlockBase, mdxBlockLabel, separateInListItem } from '../lib/mdx-block.ts';
 import {
+  loadAcorn,
   markdownTodoListsToMdx,
   mdxToEditorMarkdown,
+  readEditedBlock,
   transformOutsideMdxBlocks,
 } from '../lib/mdx-editing.ts';
 import { assertCompilableMdx } from '../lib/server/mdx-validate.ts';
@@ -280,6 +282,106 @@ test('a TodoList the reader would read short stays as written, every item kept',
     assert.equal(saved, stored);
     assert.equal(await shown(saved), expected);
   }
+});
+
+test('a TodoList label shows the same text after three saves: entities, strings, escapes', async () => {
+  const todo = items => `<TodoList items={[${items}]} />\n`;
+  const shownList = items => `<TodoList readonly=true items=[${items.join('')}]></TodoList>`;
+  const cases = [
+    // JSX text reads its entities; a string child keeps them as written.
+    [
+      todo('{ label: (<div>A &amp; B <Link href="/x">C &lt; D</Link></div>), checked: true }'),
+      ['{label: <div>A & B <Link href="/x">C < D</Link></div>, checked: true}'],
+    ],
+    [
+      todo('{ label: (<div>{"&amp;"} <Link href="/x">y</Link></div>) }'),
+      ['{label: <div>&amp; <Link href="/x">y</Link></div>}'],
+    ],
+    // Either quote, with the escapes JS reads.
+    [
+      todo(
+        String.raw`{ label: 'C:\\tmp' }, { label: "it\'s" }, { label: 'tab\there \x41\u0042\u{43} \"q\"' }`,
+      ),
+      ['{label: C:\\tmp}', "{label: it's}", '{label: tab\there ABC "q"}'],
+    ],
+  ];
+  for (const [mdx, items] of cases) {
+    assert.equal(await shown(mdx), shownList(items).replace(' readonly=true', ''), mdx);
+    for (const saved of threeSaves(mdx)) assert.equal(await shown(saved), shownList(items), saved);
+  }
+});
+
+test('a TodoList label this reader cannot read keeps the list as written', async () => {
+  // An entity outside the short table, and a template literal.
+  for (const mdx of [
+    '<TodoList items={[{ label: (<div>A &copy; B <Link href="/x">C</Link></div>) }, { label: "two" }]} />\n',
+    '<TodoList items={[{ label: `tick` }, { label: "two" }]} />\n',
+  ]) {
+    const expected = await shown(mdx);
+    for (const saved of threeSaves(mdx)) {
+      assert.equal(saved, mdx);
+      assert.equal(await shown(saved), expected);
+    }
+  }
+});
+
+test('backslashes before a link: an even run leaves the link, an odd run escapes it', async () => {
+  const shownLabels = [
+    '<div><Link href="/x">a</Link></div>',
+    '[a](/x)',
+    '<div>\\<Link href="/x">a</Link></div>',
+    '\\[a](/x)',
+    '<div>\\\\<Link href="/x">a</Link></div>',
+  ];
+  for (let count = 0; count <= 4; count += 1) {
+    const slashes = '\\'.repeat(count);
+    const todo = `- [ ] ${slashes}[a](/x)\n`;
+    for (const saved of threeSaves(todo)) {
+      assert.equal(
+        await shown(saved),
+        `<TodoList readonly=true items=[{label: ${shownLabels[count]}}]></TodoList>`,
+        `${count}: ${saved}`,
+      );
+    }
+    const paragraph = `para ${slashes}[a](/x)\n`;
+    const expected = await shown(paragraph);
+    for (const saved of threeSaves(paragraph)) {
+      assert.equal(await shown(saved), expected, `${count}: ${saved}`);
+    }
+  }
+});
+
+test('a todo label never holds an image: `!` before a link is text, `![a](b)` stays text', async () => {
+  const cases = [
+    ['- [ ] wow\\![a](/x)\n', '<div>wow!<Link href="/x">a</Link></div>'],
+    ['- [ ] see \\!\\[a\\](/x) here\n', 'see ![a](/x) here'],
+  ];
+  for (const [mdx, label] of cases) {
+    for (const saved of threeSaves(mdx)) {
+      assert.equal(
+        await shown(saved),
+        `<TodoList readonly=true items=[{label: ${label}}]></TodoList>`,
+        saved,
+      );
+    }
+  }
+});
+
+test('the code box reads a brace inside a string with acorn, and still refuses broken drafts', async () => {
+  const original = '<Tweet id="1" />';
+  const acorn = await loadAcorn();
+  const draft = '<Tweet id="1" caption={"a } b"} />';
+  assert.equal(readEditedBlock(draft, original), null);
+  assert.deepEqual(readEditedBlock(draft, original, acorn), {
+    name: 'Tweet',
+    source: draft,
+    raw: draft,
+  });
+  for (const broken of ['<Tweet id="1"', '<Tweet id="1" />\n\n<Tweet id="2" />']) {
+    assert.equal(readEditedBlock(broken, original), null, broken);
+    assert.equal(readEditedBlock(broken, original, acorn), null, broken);
+  }
+  assert.match(await shown(`${draft}\n`), /caption="a \} b"/);
 });
 
 test('links in inline JSX attributes and expressions stay text; links around them convert', async () => {
