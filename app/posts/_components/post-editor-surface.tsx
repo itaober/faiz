@@ -7,7 +7,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import PostTitle from '@/app/_components/post-title';
 import { useEditMode } from '@/components/edit-mode-context';
 import type { ActionBarTool, EditViewMode } from '@/components/editing/action-bar';
-import ConfirmDrawer from '@/components/editing/confirm-drawer';
+import ConfirmDialog from '@/components/editing/confirm-dialog';
 import EditKeyDrawer from '@/components/editing/edit-key-drawer';
 import { useDockedActionBar } from '@/components/editing/edit-session';
 import TiptapEditor from '@/components/editing/tiptap-editor';
@@ -21,6 +21,7 @@ import {
   updatePostAction,
 } from '@/lib/actions/edit-post';
 import type { PostMeta } from '@/lib/data/data';
+import { formatTime } from '@/lib/dayjs';
 import {
   markdownTodoListsToMdx,
   mdxToEditorMarkdown,
@@ -58,16 +59,9 @@ const parseTags = (value: string) =>
 
 const formatPostDateInput = (value?: string) => {
   if (!value) {
-    return dayjs().format('YYYY-MM-DD');
+    return formatTime().slice(0, 10);
   }
   return value.slice(0, 10);
-};
-
-const buildPostCreatedTime = (dateValue: string, previousValue?: string) => {
-  const date = dateValue || formatPostDateInput(previousValue);
-  const previousTime = previousValue?.match(/\b(\d{2}:\d{2}:\d{2})\b/)?.[1];
-  const time = previousTime ?? dayjs().format('HH:mm:ss');
-  return `${date} ${time}`;
 };
 
 export default function PostEditorSurface({
@@ -95,7 +89,7 @@ export default function PostEditorSurface({
   const [title, setTitle] = useState(post?.title ?? '');
   const [tags, setTags] = useState(post?.tags.join(', ') ?? '');
   const [pinned, setPinned] = useState(Boolean(post?.pinned));
-  const [createdTime, setCreatedTime] = useState(formatPostDateInput(post?.createdTime));
+  const [createdDate, setCreatedDate] = useState(formatPostDateInput(post?.createdTime));
   // Checkboxes (<TodoList>/<CheckboxRoot>) edit as markdown task lists, like pages.
   const [content, setContent] = useState(() => mdxToEditorMarkdown(initialContent ?? ''));
   const [contentRevision, setContentRevision] = useState(revision);
@@ -114,7 +108,7 @@ export default function PostEditorSurface({
     setTitle(post?.title ?? '');
     setTags(post?.tags.join(', ') ?? '');
     setPinned(Boolean(post?.pinned));
-    setCreatedTime(formatPostDateInput(post?.createdTime));
+    setCreatedDate(formatPostDateInput(post?.createdTime));
     setContent(mdxToEditorMarkdown(initialContent ?? ''));
     setContentRevision(revision);
     setStagedImages([]);
@@ -163,7 +157,7 @@ export default function PostEditorSurface({
           slug,
           tags: parseTags(tags),
           pinned,
-          createdTime: buildPostCreatedTime(createdTime, post?.createdTime),
+          createdDate,
           content: mdxContent,
         };
 
@@ -220,15 +214,15 @@ export default function PostEditorSurface({
             className="focus-ring hover:text-foreground rounded-sm px-1 transition-colors"
             aria-label="Edit post date"
           >
-            {dayjs(createdTime).format('MMM DD, YYYY')}
+            {dayjs(createdDate).format('MMM DD, YYYY')}
           </button>
           <input
             ref={postDateInputRef}
             name="post-created-time"
             aria-label="Post date"
             type="date"
-            value={createdTime}
-            onChange={event => setCreatedTime(event.target.value)}
+            value={createdDate}
+            onChange={event => setCreatedDate(event.target.value)}
             tabIndex={-1}
             className="pointer-events-none absolute inset-0 h-full w-full opacity-0 [color-scheme:light] dark:[color-scheme:dark]"
           />
@@ -304,7 +298,7 @@ export default function PostEditorSurface({
             )}
           />
         }
-        createdTime={isPreview ? (post?.createdTime ?? createdTime) : undefined}
+        createdTime={isPreview ? (post?.createdTime ?? createdDate) : undefined}
         updatedTime={isPreview ? post?.updatedTime : undefined}
         tags={isPreview ? parsedTags : undefined}
         metaNode={isPreview ? undefined : editableMeta}
@@ -327,7 +321,7 @@ export default function PostEditorSurface({
       />
 
       <EditKeyDrawer open={settingsOpen} onOpenChange={setSettingsOpen} />
-      <ConfirmDrawer
+      <ConfirmDialog
         open={confirmOpen}
         onOpenChange={setConfirmOpen}
         title="Delete post?"

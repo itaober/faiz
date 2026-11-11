@@ -6,7 +6,7 @@ import { useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { Drawer } from 'vaul';
 import { useEditMode } from '@/components/edit-mode-context';
-import ConfirmDrawer from '@/components/editing/confirm-drawer';
+import ConfirmDialog from '@/components/editing/confirm-dialog';
 import EditKeyDrawer from '@/components/editing/edit-key-drawer';
 import Segmented from '@/components/segmented';
 import { useContentEditor } from '@/hooks/use-content-editor';
@@ -19,6 +19,7 @@ import {
 } from '@/lib/actions/edit-record';
 import { SUPPORTED_IMAGE_TYPES } from '@/lib/constants/image';
 import type { RecordItem } from '@/lib/data/data';
+import { formatTime } from '@/lib/dayjs';
 import { sanitizeImageSegment } from '@/lib/utils/editor-image';
 
 import { isSquareCoverType, tabList } from '../_constants';
@@ -40,7 +41,7 @@ interface IRecordsSidePanelProps {
 
 const formatDateInput = (value?: string) => {
   if (!value) {
-    return new Date().toISOString().slice(0, 10);
+    return formatTime().slice(0, 10);
   }
   return value.slice(0, 10);
 };
@@ -416,7 +417,7 @@ export default function RecordsSidePanel({
       </Drawer.Portal>
 
       <EditKeyDrawer open={settingsOpen} onOpenChange={setSettingsOpen} />
-      <ConfirmDrawer
+      <ConfirmDialog
         open={confirmOpen}
         onOpenChange={setConfirmOpen}
         title="Delete record?"

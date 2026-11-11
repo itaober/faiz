@@ -1,7 +1,13 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { removePost, replacePost, sortPosts, upsertPost } from '../lib/data/posts-index.ts';
+import {
+  removePost,
+  replacePost,
+  sortPosts,
+  upsertPost,
+  withCreatedDate,
+} from '../lib/data/posts-index.ts';
 
 const post = (slug, overrides = {}) => ({
   slug,
@@ -67,4 +73,15 @@ test('sort puts pinned first, then newest', () => {
   ]);
 
   assert.deepEqual(slugs(sorted), ['pinned-old', 'new', 'old']);
+});
+
+test('saving a post keeps its stored time of day', () => {
+  // Unchanged day: the stored value comes back byte for byte, whatever its precision.
+  assert.equal(withCreatedDate('2026-08-18 23:39', '2026-08-18'), '2026-08-18 23:39');
+  assert.equal(withCreatedDate('2026-07-27 23:08:15', '2026-07-27'), '2026-07-27 23:08:15');
+  // A new day moves the date only.
+  assert.equal(withCreatedDate('2026-08-18 23:39', '2026-08-20'), '2026-08-20 23:39');
+  // No day picked (or a cleared picker): nothing changes.
+  assert.equal(withCreatedDate('2026-08-18 23:39'), '2026-08-18 23:39');
+  assert.equal(withCreatedDate('2026-08-18 23:39', ''), '2026-08-18 23:39');
 });

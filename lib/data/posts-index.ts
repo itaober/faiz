@@ -14,6 +14,13 @@ export const sortPosts = (posts: PostList): PostList =>
     return dayjs(b.createdTime).diff(dayjs(a.createdTime));
   });
 
+/**
+ * The editor only picks a day: a save moves the post to that day and keeps the time of day exactly
+ * as stored, whatever its precision (`HH:mm` or `HH:mm:ss`).
+ */
+export const withCreatedDate = (createdTime: string, date?: string) =>
+  date ? `${date}${createdTime.slice(10)}` : createdTime;
+
 /*
  * These three describe one change to the index, and a write may be replayed on a
  * freshly read list after a 409. Each is therefore idempotent: applying it to a
