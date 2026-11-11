@@ -9,8 +9,6 @@ interface IConfirmDialogProps {
   onOpenChange: (open: boolean) => void;
   title: string;
   description?: string;
-  confirmLabel?: string;
-  loadingLabel?: string;
   isLoading?: boolean;
   onConfirm: () => void;
 }
@@ -21,8 +19,6 @@ export default function ConfirmDialog({
   onOpenChange,
   title,
   description,
-  confirmLabel = 'Delete',
-  loadingLabel = 'Deleting...',
   isLoading = false,
   onConfirm,
 }: IConfirmDialogProps) {
@@ -74,7 +70,7 @@ export default function ConfirmDialog({
             onClick={onConfirm}
             disabled={isLoading}
           >
-            {isLoading ? loadingLabel : confirmLabel}
+            {isLoading ? 'Deleting...' : 'Delete'}
           </button>
         </div>
       </div>

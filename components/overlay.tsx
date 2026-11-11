@@ -17,15 +17,13 @@ interface IOverlayProps {
   children: ReactNode;
   /** Dialog layout/alignment classes (e.g. centering and padding). */
   className?: string;
-  /** Optional backdrop layer kept separate so content can animate at full opacity. */
+  /** Persistent only: a backdrop layer kept separate so content can animate at full opacity. */
   backdropClassName?: string;
-  /** Controls the backdrop independently while the modal and scroll lock stay active. */
+  /** Persistent only: controls the backdrop while the modal and scroll lock stay active. */
   backdropOpen?: boolean;
   ariaLabel?: string;
   /** Id of the element that describes the dialog, announced after its label. */
   ariaDescribedBy?: string;
-  /** Esc + backdrop-click close. Defaults to true. */
-  dismissable?: boolean;
   /** Hand focus back to what had it before opening. Off for the public search, which never did. */
   returnFocus?: boolean;
   /** Use overflow locking when shared-layout children must keep viewport coordinates. */
@@ -52,7 +50,6 @@ export default function Overlay({
   backdropOpen,
   ariaLabel,
   ariaDescribedBy,
-  dismissable = true,
   returnFocus = false,
   scrollLockMode = 'fixed',
   onExitComplete,
@@ -102,7 +99,7 @@ export default function Overlay({
   // palette) takes Escape at document first and stops or handles it there. Install before paint so
   // Escape can reverse even the first opening frame.
   useLayoutEffect(() => {
-    if (!persistent || !open || !dismissable) {
+    if (!persistent || !open) {
       return;
     }
     const onKey = (event: KeyboardEvent) => {
@@ -113,7 +110,7 @@ export default function Overlay({
     };
     document.body.addEventListener('keydown', onKey, true);
     return () => document.body.removeEventListener('keydown', onKey, true);
-  }, [persistent, open, dismissable]);
+  }, [persistent, open]);
 
   const handleExitComplete = useCallback(() => {
     if (!wasOpenRef.current) {
@@ -147,7 +144,7 @@ export default function Overlay({
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: ANIMATION.duration.fast, ease: ANIMATION.ease.out }}
-              onMouseDown={dismissable ? onClose : undefined}
+              onMouseDown={onClose}
             />
           ) : null}
         </AnimatePresence>
@@ -183,10 +180,8 @@ export default function Overlay({
           <DismissableLayer
             asChild
             onEscapeKeyDown={event => {
-              if (dismissable) {
-                event.stopPropagation();
-                onClose();
-              }
+              event.stopPropagation();
+              onClose();
             }}
           >
             <DismissableLayerBranch asChild>
@@ -198,31 +193,16 @@ export default function Overlay({
                   aria-modal="true"
                   aria-label={ariaLabel}
                   aria-describedby={ariaDescribedBy}
-                  initial={backdropClassName ? false : { opacity: 0 }}
-                  animate={backdropClassName ? undefined : { opacity: 1 }}
-                  exit={backdropClassName ? undefined : { opacity: 0 }}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
                   transition={{ duration: ANIMATION.duration.fast, ease: ANIMATION.ease.out }}
-                  onMouseDown={
-                    dismissable && !backdropClassName
-                      ? event => {
-                          if (event.target === event.currentTarget) {
-                            onClose();
-                          }
-                        }
-                      : undefined
-                  }
+                  onMouseDown={event => {
+                    if (event.target === event.currentTarget) {
+                      onClose();
+                    }
+                  }}
                 >
-                  {backdropClassName ? (
-                    <motion.div
-                      aria-hidden="true"
-                      className={cn('absolute inset-0', backdropClassName)}
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      exit={{ opacity: 0 }}
-                      transition={{ duration: ANIMATION.duration.fast, ease: ANIMATION.ease.out }}
-                      onMouseDown={dismissable ? onClose : undefined}
-                    />
-                  ) : null}
                   {children}
                 </motion.div>
               </RemoveScroll>
