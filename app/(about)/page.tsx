@@ -31,7 +31,9 @@ export default async function AboutPage() {
   const { content, data } = aboutMDX;
 
   return (
-    <MotionWrapper className="overflow-y-hidden">
+    // flow-root keeps the last block's margin inside the page, as overflow-hidden did, without
+    // clipping focus and selection rings that sit outside the content edge.
+    <MotionWrapper className="flow-root">
       <PageMdxInlineSection page="about" title={data.title}>
         <article className="prose">
           <MDX source={content} />
