@@ -87,16 +87,16 @@ export const mergeByKey = <T extends { key: string }, S extends { key: string }>
 };
 
 export const unescapeMarkdownValue = (value: string) =>
-  value.replace(/\\([\\`*_{}[\]()#+\-.!_<>])/g, '$1');
+  value.replace(/\\([\\`*_{}[\]()#+\-.!_>])/g, '$1');
 
 /**
  * Markdown for an editor image. Alt and src come from the document, which a paste can fill
  * with anything: a newline or an unescaped `]`/`)` would stop the save from turning it into
- * `<Image>`, leaving its text, `<` included, to be read as JSX.
+ * `<Image>`, leaving its text to be read as markdown and JSX.
  */
 export const formatMarkdownImage = (src: string, alt: string) => {
-  const safeAlt = alt.replace(/\s*[\r\n]+\s*/g, ' ').replace(/[\\\]<]/g, '\\$&');
-  const safeSrc = src.replace(/[\s)<]/g, char => (char === ')' ? '%29' : encodeURIComponent(char)));
+  const safeAlt = alt.replace(/\s*[\r\n]+\s*/g, ' ').replace(/[\\\]]/g, '\\$&');
+  const safeSrc = src.replace(/[\s)]/g, char => (char === ')' ? '%29' : encodeURIComponent(char)));
   return `![${safeAlt}](${safeSrc})`;
 };
 
@@ -107,10 +107,8 @@ export const formatMarkdownGallery = (images: MdxImageGalleryItem[]) =>
 export const getImageCaptionFromFilename = (filename: string, fallback = 'image') =>
   unescapeMarkdownValue(filename.replace(/\.[^.]+$/, '').trim()) || fallback;
 
-// `<` and `>` too: the tag readers here end an `<Image … />` at the first `/>`, so a raw one
-// inside an attribute would cut it short. JSX decodes the entities back.
 export const escapeMdxAttribute = (value: string) =>
-  value.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  value.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
 
 /**
  * Inverse of {@link escapeMdxAttribute}. Without it the pair is asymmetric —
@@ -119,11 +117,7 @@ export const escapeMdxAttribute = (value: string) =>
  * `&amp;amp;`). `&amp;` must be decoded last, or `&amp;quot;` over-decodes to `"`.
  */
 export const unescapeMdxAttribute = (value: string) =>
-  value
-    .replace(/&quot;/g, '"')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&amp;/g, '&');
+  value.replace(/&quot;/g, '"').replace(/&amp;/g, '&');
 
 export const formatMdxImage = (src: string, alt: string, caption?: string) => {
   const captionAttr = caption?.trim()
@@ -176,9 +170,7 @@ const normalizeGalleryImages = (images: MdxImageGalleryItem[]) =>
 
 export const formatMdxImageGallery = (images: MdxImageGalleryItem[]) => {
   const normalizedImages = normalizeGalleryImages(images);
-  // Same reason as escapeMdxAttribute; the JS string escapes decode back to `<` and `>`.
-  const json = JSON.stringify(normalizedImages).replace(/</g, '\\u003c').replace(/>/g, '\\u003e');
-  return `<ImageGallery images={${json}} />`;
+  return `<ImageGallery images={${JSON.stringify(normalizedImages)}} />`;
 };
 
 const extractJsxExpression = (attributes: string, propName: string) => {

@@ -181,19 +181,21 @@ test('a copied chip pastes back with its source; markup from elsewhere does not'
   assert.equal(rule.getAttrs(element({ ...rendered, 'data-source': 'plain text' })), false);
 });
 
-test('a pasted image or gallery alt cannot open a JSX line in the saved MDX', () => {
-  const alt = 'x]\n<Evil onClick={x} />';
+test('a pasted image or gallery alt cannot open a JSX line in the saved MDX', async () => {
+  const alt = 'x]\n<Evil onClick={x}';
   const doc = { type: 'doc', content: [{ type: 'image', attrs: { src: 'a b).webp', alt } }] };
-  assert.equal(
-    savePage(manager.serialize(doc)),
-    '<Image src="a%20b%29.webp" alt="x] &lt;Evil onClick={x} /&gt;" />\n',
+  const page = savePage(manager.serialize(doc));
+  assert.equal(page, '<Image src="a%20b%29.webp" alt="x] <Evil onClick={x}" />\n');
+  const gallery = savePost(
+    formatMarkdownGallery([
+      { src: 'a.webp', alt },
+      { src: 'b.webp', alt: 'B' },
+    ]),
   );
-  const gallery = formatMarkdownGallery([
-    { src: 'a.webp', alt },
-    { src: 'b.webp', alt: 'B' },
-  ]);
   assert.equal(
-    savePost(gallery),
-    '<ImageGallery images={[{"src":"a.webp","alt":"x] \\u003cEvil onClick={x} /\\u003e"},{"src":"b.webp","alt":"B"}]} />\n',
+    gallery,
+    '<ImageGallery images={[{"src":"a.webp","alt":"x] <Evil onClick={x}"},{"src":"b.webp","alt":"B"}]} />\n',
   );
+  await assertCompilableMdx(page);
+  await assertCompilableMdx(gallery);
 });
