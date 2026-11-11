@@ -1,6 +1,6 @@
 // Relative + explicit extension so tests/ can import this under bare Node's TS
 // type-stripping, which does not resolve the `@/` alias.
-import { NotFoundError, StorageError } from '../errors.ts';
+import { InvalidMdxError, NotFoundError, StorageError } from '../errors.ts';
 
 export type ActionErrorCode =
   | 'AUTH_INVALID'
@@ -43,6 +43,10 @@ export function createActionError(
 ): ActionError {
   if (error instanceof NotFoundError) {
     return { success: false, error: error.message, code: 'NOT_FOUND', retryable: false };
+  }
+
+  if (error instanceof InvalidMdxError) {
+    return validationError(error.message);
   }
 
   // Classify on the status, never the message: messages carry keys and slugs, so a slug like

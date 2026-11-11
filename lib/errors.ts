@@ -23,3 +23,17 @@ export class NotFoundError extends Error {
     this.name = 'NotFoundError';
   }
 }
+
+/**
+ * Raised when content would not compile as MDX, which would break the page that shows it. The
+ * message is meant for the editor; `line` counts from the top of the content, when known.
+ */
+export class InvalidMdxError extends Error {
+  readonly line?: number;
+
+  constructor(line?: number) {
+    super(line ? `Can't save: line ${line} isn't valid MDX` : "Can't save: this isn't valid MDX");
+    this.name = 'InvalidMdxError';
+    this.line = line;
+  }
+}

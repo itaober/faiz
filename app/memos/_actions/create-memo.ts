@@ -6,6 +6,7 @@ import { MAX_MEMO_CONTENT_LENGTH, normalizeImagePathList } from '@/lib/content-e
 import type { Memo } from '@/lib/data/memos';
 import { prependMemo } from '@/lib/data/memos';
 import { requireEditSession } from '@/lib/server/edit-session';
+import { assertCompilableMdx } from '@/lib/server/mdx-validate';
 import { type ActionResult, createActionError, validationError } from '@/lib/types/action-result';
 
 interface ICreateMemoInput {
@@ -36,6 +37,8 @@ export async function createMemoAction(input: ICreateMemoInput): Promise<ActionR
   }
 
   try {
+    // Memos render through MDX too, so one that doesn't compile would break the list.
+    await assertCompilableMdx(content.trim());
     const memo = await prependMemo({
       id: input.id,
       content: content.trim(),
