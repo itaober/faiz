@@ -22,6 +22,8 @@ interface IOverlayProps {
   /** Controls the backdrop independently while the modal and scroll lock stay active. */
   backdropOpen?: boolean;
   ariaLabel?: string;
+  /** Id of the element that describes the dialog, announced after its label. */
+  ariaDescribedBy?: string;
   /** Esc + backdrop-click close. Defaults to true. */
   dismissable?: boolean;
   /** Hand focus back to what had it before opening. Off for the public search, which never did. */
@@ -49,6 +51,7 @@ export default function Overlay({
   backdropClassName,
   backdropOpen,
   ariaLabel,
+  ariaDescribedBy,
   dismissable = true,
   returnFocus = false,
   scrollLockMode = 'fixed',
@@ -132,6 +135,7 @@ export default function Overlay({
         aria-modal={open ? 'true' : undefined}
         aria-hidden={!open}
         aria-label={ariaLabel}
+        aria-describedby={ariaDescribedBy}
       >
         <AnimatePresence>
           {resolvedBackdropOpen ? (
@@ -193,6 +197,7 @@ export default function Overlay({
                   role="dialog"
                   aria-modal="true"
                   aria-label={ariaLabel}
+                  aria-describedby={ariaDescribedBy}
                   initial={backdropClassName ? false : { opacity: 0 }}
                   animate={backdropClassName ? undefined : { opacity: 1 }}
                   exit={backdropClassName ? undefined : { opacity: 0 }}

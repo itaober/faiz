@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useId, useRef } from 'react';
 
 import Overlay from '@/components/overlay';
 
@@ -27,6 +27,7 @@ export default function ConfirmDialog({
   onConfirm,
 }: IConfirmDialogProps) {
   const cancelRef = useRef<HTMLButtonElement>(null);
+  const descriptionId = useId();
 
   // Focus starts on Cancel, the safe default when Enter is pressed by habit. Deferred like the
   // other overlays' initial focus, so it lands once the overlay's focus scope has mounted.
@@ -50,12 +51,13 @@ export default function ConfirmDialog({
       open={open}
       onClose={cancel}
       ariaLabel={title}
+      ariaDescribedBy={description ? descriptionId : undefined}
       returnFocus
       className="fz-sheet-overlay fz-confirm-overlay"
     >
       <div className="fz-sheet fz-confirm">
         <h3>{title}</h3>
-        {description && <p>{description}</p>}
+        {description && <p id={descriptionId}>{description}</p>}
         <div className="fz-confirm-actions">
           <button
             ref={cancelRef}
