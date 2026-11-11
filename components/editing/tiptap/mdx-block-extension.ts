@@ -1,7 +1,11 @@
 import { mergeAttributes, Node } from '@tiptap/core';
+import { NodeSelection } from '@tiptap/pm/state';
+import { ReactNodeViewRenderer } from '@tiptap/react';
 
 import { matchLinkCardMarkup } from '@/lib/link-card';
 import { scanMdxBlock } from '@/lib/mdx-editing';
+
+import { MdxBlockNodeView, mdxBlockLabel, openMdxBlock } from './mdx-block-node-view';
 
 // A card LinkCard's own node can read is left to it; marked tries the last-registered
 // tokenizer first, so this is checked rather than left to extension order. Image, TodoList,
@@ -14,7 +18,7 @@ const scan = (source: string) => {
 
 /**
  * An MDX component the editor can't render (ParticleImage, Tweet…), kept as its source:
- * a placeholder in the editor, written back unchanged, edited in Markdown mode.
+ * a chip in the editor that opens into that source, written back unchanged.
  */
 export const MdxBlock = Node.create({
   name: 'mdxBlock',
@@ -31,12 +35,25 @@ export const MdxBlock = Node.create({
     };
   },
   renderHTML({ node, HTMLAttributes }) {
-    const { name, source } = node.attrs;
     return [
       'div',
-      mergeAttributes(HTMLAttributes, { class: 'fz-mdx-block', title: 'Edit in Markdown' }),
-      String(source).endsWith('/>') ? `<${name} />` : `<${name}>…</${name}>`,
+      mergeAttributes(HTMLAttributes, { class: 'fz-mdx-block' }),
+      mdxBlockLabel(String(node.attrs.name), String(node.attrs.source)),
     ];
+  },
+  addNodeView() {
+    return ReactNodeViewRenderer(MdxBlockNodeView);
+  },
+  addKeyboardShortcuts() {
+    return {
+      Enter: ({ editor }) => {
+        const { selection } = editor.state;
+        if (!(selection instanceof NodeSelection) || selection.node.type !== this.type)
+          return false;
+        openMdxBlock(editor.view.dom, selection.from);
+        return true;
+      },
+    };
   },
   markdownTokenizer: {
     name: 'mdxBlock',
