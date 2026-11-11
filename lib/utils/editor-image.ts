@@ -340,6 +340,10 @@ export const groupConsecutiveMdxImages = (value: string) =>
     }),
   );
 
+/** Stored MDX as the read view compiles it; saving checks that this same text compiles. */
+export const toRenderableMdx = (value: string) =>
+  groupConsecutiveMdxImages(normalizeEditorImageMarkup(value));
+
 /**
  * Converts MDX `<Image src="" alt="" />` tags back into plain markdown
  * `![alt](src)` so a markdown-based editor can load stored MDX content.

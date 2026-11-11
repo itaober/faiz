@@ -26,14 +26,15 @@ export class NotFoundError extends Error {
 
 /**
  * Raised when content would not compile as MDX, which would break the page that shows it. The
- * message is meant for the editor; `line` counts from the top of the content, when known.
+ * message is meant for the editor and quotes the line the error is on, when known: line numbers
+ * would count the stored text, not what the Markdown view shows.
  */
 export class InvalidMdxError extends Error {
-  readonly line?: number;
+  readonly near?: string;
 
-  constructor(line?: number) {
-    super(line ? `Can't save: line ${line} isn't valid MDX` : "Can't save: this isn't valid MDX");
+  constructor(near?: string) {
+    super(near ? `Can't save: invalid MDX near “${near}”` : "Can't save: this isn't valid MDX");
     this.name = 'InvalidMdxError';
-    this.line = line;
+    this.near = near;
   }
 }
