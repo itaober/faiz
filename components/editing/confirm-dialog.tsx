@@ -50,6 +50,7 @@ export default function ConfirmDialog({
       open={open}
       onClose={cancel}
       ariaLabel={title}
+      returnFocus
       className="fz-sheet-overlay fz-confirm-overlay"
     >
       <div className="fz-sheet fz-confirm">

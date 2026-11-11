@@ -24,6 +24,8 @@ interface IOverlayProps {
   ariaLabel?: string;
   /** Esc + backdrop-click close. Defaults to true. */
   dismissable?: boolean;
+  /** Hand focus back to what had it before opening. Off for the public search, which never did. */
+  returnFocus?: boolean;
   /** Use overflow locking when shared-layout children must keep viewport coordinates. */
   scrollLockMode?: ScrollLockMode;
   /** Fires after the fade-out finishes — lets consumers unmount post-exit. */
@@ -48,6 +50,7 @@ export default function Overlay({
   backdropOpen,
   ariaLabel,
   dismissable = true,
+  returnFocus = false,
   scrollLockMode = 'fixed',
   onExitComplete,
   persistent = false,
@@ -164,10 +167,11 @@ export default function Overlay({
           onMountAutoFocus={event => {
             event.preventDefault();
             const active = document.activeElement;
-            returnFocusRef.current = active instanceof HTMLElement ? active : null;
+            returnFocusRef.current = returnFocus && active instanceof HTMLElement ? active : null;
           }}
           onUnmountAutoFocus={event => {
-            // Radix would also select() a text field it returns to; give focus back as it was.
+            // Radix would always refocus the trigger and select() a text field; give focus back
+            // only when asked, and as it was.
             event.preventDefault();
             returnFocusRef.current?.focus({ preventScroll: true });
           }}

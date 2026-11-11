@@ -53,6 +53,7 @@ export default function EditKeyDrawer({ open, onOpenChange }: IEditKeyDrawerProp
       open={open}
       onClose={() => onOpenChange(false)}
       ariaLabel="Sign in to save"
+      returnFocus
       className="fz-sheet-overlay"
     >
       <form
