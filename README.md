@@ -1,106 +1,100 @@
 # Faiz
 
-Hey, I am Taober.
+Taober's blog ([blog.itaober.com](https://blog.itaober.com)). The app holds no content, so anyone
+can run their own copy on their own Cloudflare R2 buckets.
 
-Requires Node.js 22.18 or newer.
+Next.js 16, React 19, Tailwind CSS 4, MDX; hosted on Vercel. Needs Node.js 22.18+ and pnpm.
 
-## Deploy your own
+## Storage
 
-Faiz is a blog runtime, not one particular blog: everything it renders lives in your own
-Cloudflare R2 buckets. You need a Cloudflare account with a domain on it (images are served from a
-subdomain of it) and a Vercel account.
+| What                                      | Where                                                                                   |
+| ----------------------------------------- | --------------------------------------------------------------------------------------- |
+| Posts, pages, memos, records, `site.json` | Private content bucket                                                                  |
+| Images                                    | Public assets bucket on a custom domain, under the site's folder, resized by Cloudflare |
+| Old versions                              | `_history/<key>/<time>` in the content bucket, deleted after 90 days                    |
+| Local dev                                 | `<content-bucket>-dev` and `<folder>-dev`, so local edits never reach the live site     |
 
-1. **Buckets.** Log in once with `npx wrangler login`, then run with your own names:
+Content keys: `site.json`, `posts/_index.json` (post list), `posts/<slug>.mdx`, `pages/about.mdx`,
+`pages/lines.mdx`, `memos/YYYY-MM.json`, `records.json`. The site URL (canonical links, sitemap,
+feed) is `site` in `site.json`, not an env var.
 
-   ```sh
-   pnpm setup:cloudflare --assets-bucket example-assets --assets-domain assets.example.com \
-     --folder blog --content-bucket blog-content --origin https://blog.example.com --zone-id <zone id> \
-     --seed
-   ```
+## Set up
 
-   It creates the buckets, CORS and history cleanup, connects the domain, writes a starter
-   `site.json` plus About and Lines pages (`--seed`; edit them later), and prints the environment variables
-   with fresh edit keys. Re-running is safe. The zone ID is on the domain's
-   Overview page in the Cloudflare dashboard.
+```sh
+pnpm install
+npx wrangler login
+pnpm setup:cloudflare --assets-bucket example-assets --assets-domain assets.example.com \
+  --folder blog --content-bucket blog-content --origin https://blog.example.com \
+  --zone-id <zone-id> --seed
+```
 
-2. **Two dashboard clicks**, which the script also lists:
-   - R2 object storage → API Tokens → Manage → Create Account API token with **Object Read &
-     Write** on the three buckets. Its Access Key ID and Secret Access Key go into the printed blocks.
-   - Images → Transformations → your zone → **Enable for zone**, so images are resized at the edge.
+| Flag               | What                                                  | Default (this blog)        |
+| ------------------ | ----------------------------------------------------- | -------------------------- |
+| `--assets-bucket`  | Images bucket; several sites can share it             | `itaober-assets`           |
+| `--assets-domain`  | Its custom domain                                     | `assets.itaober.com`       |
+| `--folder`         | This site's folder in it                              | `faiz`                     |
+| `--content-bucket` | This site's content bucket                            | `faiz-content`             |
+| `--origin`         | Site URL for the starter `site.json`                  | `https://blog.itaober.com` |
+| `--zone-id`        | Zone of the assets domain, to connect it              | none                       |
+| `--account-id`     | Only if your login sees several accounts              | the only one               |
+| `--seed`           | Write starter `site.json`, About and Lines if missing | off                        |
 
-3. **Deploy.** [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fitaober%2Ffaiz&env=R2_ACCOUNT_ID,R2_ACCESS_KEY_ID,R2_SECRET_ACCESS_KEY,R2_ASSETS_BUCKET,R2_CONTENT_BUCKET,NEXT_PUBLIC_ASSETS_URL,EDIT_KEY,LINK_PREVIEW_SIGNING_SECRET&envDescription=Printed%20by%20pnpm%20setup%3Acloudflare&envLink=https%3A%2F%2Fgithub.com%2Fitaober%2Ffaiz%23environment-variables)
-   and paste the printed Vercel block.
+It creates the buckets (content, content `-dev`, assets), CORS, history expiry and domain, then
+prints a `.env.local` block and a Vercel block with fresh edit keys. Safe to re-run; keep the
+`EDIT_KEY`s you already use. Then, in the Cloudflare dashboard (the script prints these too):
 
-4. **Sign in.** Open the site, click a page title five times to enter edit mode, and give the
-   Vercel block's `EDIT_KEY` when the first save asks for it.
+1. R2 object storage → API Tokens → Manage → Create Account API token, **Object Read & Write** on
+   the three buckets. Put its Access Key ID and Secret Access Key into both blocks.
+2. Images → Transformations → the assets domain's zone → **Enable for zone**.
+
+Paste the `.env.local` block into `.env.local` and run `pnpm dev` (http://localhost:1999).
 
 ## Environment variables
 
-| Variable                      | Required     | What it is                                                                                                                                                       |
-| ----------------------------- | ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `R2_ACCOUNT_ID`               | always       | Cloudflare account ID; the R2 endpoint is `https://<id>.r2.cloudflarestorage.com`.                                                                               |
-| `R2_ACCESS_KEY_ID`            | always       | Access Key ID of an R2 API token with Object Read & Write on the three buckets (content, its -dev twin, assets).                                                 |
-| `R2_SECRET_ACCESS_KEY`        | always       | That token's Secret Access Key.                                                                                                                                  |
-| `R2_ASSETS_BUCKET`            | always       | Public bucket for images. Several sites can share it, each in its own folder.                                                                                    |
-| `R2_CONTENT_BUCKET`           | always       | Private bucket with this site's content.                                                                                                                         |
-| `NEXT_PUBLIC_ASSETS_URL`      | always       | Public URL of this site's folder in the assets bucket, e.g. `https://assets.example.com/blog`. Built into the client: redeploy after changing it.                 |
-| `EDIT_KEY`                    | always       | 32 random bytes, base64url. The only way to sign in for editing; changing it signs every browser out.                                                           |
-| `LINK_PREVIEW_SIGNING_SECRET` | production   | Any random string — `openssl rand -base64 32`. Signs favicon URLs so `/api/link-preview/icon` can't serve as an open image proxy. Unset, previews drop favicons. |
-| `NEXT_DEV_ALLOWED_ORIGINS`    | no, dev only | Extra comma-separated origins allowed to reach the dev server, on top of localhost and the machine's LAN IPs.                                                    |
+How to generate each value: [`.env.example`](.env.example).
 
-On Vercel, set them for **both Production and Preview** — a preview build without them fails the
-same way production would. Preview then edits the live buckets: a save there shows on the live
-site within a minute. Mark `R2_SECRET_ACCESS_KEY`, `EDIT_KEY` and
-`LINK_PREVIEW_SIGNING_SECRET` as **Sensitive**.
+| Variable                                   | Required      | What                                                                  |
+| ------------------------------------------ | ------------- | --------------------------------------------------------------------- |
+| `R2_ACCOUNT_ID`                            | yes           | Cloudflare account ID                                                 |
+| `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` | yes           | The R2 API token                                                      |
+| `R2_ASSETS_BUCKET`, `R2_CONTENT_BUCKET`    | yes           | Bucket names                                                          |
+| `NEXT_PUBLIC_ASSETS_URL`                   | yes, at build | `https://<assets-domain>/<folder>`; redeploy after changing it        |
+| `EDIT_KEY`                                 | yes           | Edit sign-in key; changing it signs every browser out                 |
+| `LINK_PREVIEW_SIGNING_SECRET`              | production    | Signs link-preview favicon URLs; without it previews have no favicons |
+| `NEXT_DEV_ALLOWED_ORIGINS`                 | no            | Dev only: extra origins allowed to reach the dev server               |
 
-The content bucket holds the content, not the app:
+## Deploy
 
-```
-site.json                name, bio, avatar, social, and `site`
-posts/_index.json        the post index, rebuilt on every save
-posts/<slug>.mdx
-pages/about.mdx          and pages/lines.mdx
-memos/YYYY-MM.json
-records.json
-_history/<key>/<time>    the version before each overwrite or delete, kept 90 days
-```
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fitaober%2Ffaiz&env=R2_ACCOUNT_ID,R2_ACCESS_KEY_ID,R2_SECRET_ACCESS_KEY,R2_ASSETS_BUCKET,R2_CONTENT_BUCKET,NEXT_PUBLIC_ASSETS_URL,EDIT_KEY,LINK_PREVIEW_SIGNING_SECRET&envDescription=Printed%20by%20pnpm%20setup%3Acloudflare&envLink=https%3A%2F%2Fgithub.com%2Fitaober%2Ffaiz%23environment-variables)
 
-Images live in the assets bucket under the folder (`blog/memos/…`, `blog/posts/…`, `blog/site/…`).
-Content stores them relative to it (`memos/x.webp`), so moving the domain or folder never touches
-content.
+- Paste the Vercel block for **both Production and Preview**; mark `R2_SECRET_ACCESS_KEY`,
+  `EDIT_KEY` and `LINK_PREVIEW_SIGNING_SECRET` as Sensitive.
+- Previews use the live buckets: a save on a preview shows on the live site within a minute.
 
-The site URL behind canonical links, Open Graph tags, `sitemap.xml` and `feed.xml` is **not** an
-environment variable: it is `site` in `site.json`.
+## Edit
 
-## Local development
+- Click a page title five times for edit mode. The first save asks for `EDIT_KEY`; the browser
+  then stays signed in for 90 days.
+- Every overwrite or delete first copies the old version to `_history/<key>/<time>`.
+- To restore, download that version in the R2 dashboard and upload it as `<key>`. For a post,
+  then open it in edit mode and save once, so the post list picks it up.
 
-Put the `.env.local` block from `pnpm setup:cloudflare` in `.env.local` (see `.env.example`). It points at
-`<content-bucket>-dev` and `<folder>-dev` in the same assets bucket, so nothing done locally reaches
-the live site. `pnpm dev` serves http://localhost:1999.
+## Clean up images
 
-## Editing
-
-Click a page title five times for edit mode. The first save asks for the edit key; the browser then
-keeps a signed, httpOnly session cookie for 90 days. Images go from the browser straight to the
-assets bucket through a short-lived signed URL. Every overwrite or delete first copies the previous
-version to `_history/`, where it stays for 90 days; get it back from the R2 dashboard.
-
-Edits never delete images, so a restored version still finds its pictures. To free the space of
-images nothing mentions any more, history included:
+Edits never delete images. This deletes those no content or `_history/` copy mentions any more:
 
 ```sh
-pnpm clean:images            # dry run: what would go
-pnpm clean:images --apply    # delete it
-```
+pnpm clean:images           # dry run, on .env.local (dev)
+pnpm clean:images --apply   # delete
 
-It works on what `.env.local` points at (the dev bucket and folder); prefix the production values
-for the live site.
+# Live site: real env vars override .env.local
+R2_CONTENT_BUCKET=faiz-content NEXT_PUBLIC_ASSETS_URL=https://assets.itaober.com/faiz pnpm clean:images
+```
 
 ## Cost
 
-- **R2** free tier, per month: 10 GB stored, 1M writes, 10M reads; egress is free. There is **no
-  hard cap** — past the free tier it bills. Set a budget alert (Manage Account → Billing → Billable
-  Usage → Create budget alert) and a Usage Based Billing notification for R2 (Notifications → Add).
-- **Image transformations**: 5,000 unique (image × size) per month free. On the Free plan there is
-  no charge past that: new sizes fall back to the original file, so pages keep working, just
-  heavier, and sizes already made keep being served.
+- **R2:** free up to 10 GB stored, 1M writes and 10M reads a month; egress is free. Past that it
+  bills, with no hard cap: set a budget alert (Manage Account → Billing → Billable Usage → Create
+  budget alert) and a Usage Based Billing notification for R2 (Notifications → Add).
+- **Image transformations:** 5,000 unique (image × width) a month free. Past that the Free plan
+  doesn't charge: new sizes fall back to the original file, sizes already made keep working.
