@@ -19,6 +19,7 @@ import { AwsClient } from 'aws4fetch';
 
 import { assetObjectKey, encodeKey } from '../lib/assets.ts';
 import { isContentImageScope } from '../lib/content-editing-validation.ts';
+import { CONTENT_KEYS } from '../lib/content-keys.ts';
 
 // An image uploaded for an edit that is still open is not in any content yet.
 const MIN_AGE_MS = 24 * 60 * 60 * 1000;
@@ -65,6 +66,12 @@ const main = async () => {
   const assetsBucket = process.env.R2_ASSETS_BUCKET;
   const contentBucket = process.env.R2_CONTENT_BUCKET;
   const assetsPrefix = assetObjectKey('');
+  // Content from one site checked against images of another would mark every newer image unused.
+  // setup.mjs names the dev pair <bucket>-dev and <folder>-dev, so both or neither end that way.
+  if (!assetsPrefix || contentBucket.endsWith('-dev') !== assetsPrefix.endsWith('-dev/')) {
+    console.error(`✗ ${contentBucket} and ${assetsBucket}/${assetsPrefix} are not one site's pair`);
+    process.exit(1);
+  }
 
   const client = new AwsClient({
     accessKeyId: process.env.R2_ACCESS_KEY_ID,
@@ -75,9 +82,10 @@ const main = async () => {
   });
   const objectUrl = (bucket, key = '') =>
     `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com/${bucket}/${encodeKey(key)}`;
+  // Any failure stops the run: a listing that comes back empty would mark every image unused.
   const request = async (url, init) => {
     const res = await client.fetch(url, init);
-    if (!res.ok && res.status !== 404) {
+    if (!res.ok) {
       // Only the status: an S3 error body can echo the access key id.
       throw new Error(`${init?.method ?? 'GET'} ${url} failed: ${res.status}`);
     }
@@ -114,6 +122,12 @@ const main = async () => {
     listObjects(assetsBucket, assetsPrefix),
     listObjects(contentBucket, ''),
   ]);
+  if (!contentObjects.some(({ key }) => key === CONTENT_KEYS.site)) {
+    console.error(
+      `✗ ${contentBucket} has no ${CONTENT_KEYS.site}; is it this site's content bucket?`,
+    );
+    process.exit(1);
+  }
   // Identical history copies are read once each; there are only a few hundred small files.
   const contents = [];
   for (const { key } of contentObjects) {
