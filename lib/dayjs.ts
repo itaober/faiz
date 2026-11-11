@@ -1,8 +1,7 @@
 /** Dayjs with timezone support (Asia/Shanghai) */
 import dayjs from 'dayjs';
-// Explicit `.js` so Node's ESM loader (node:test) resolves the plugins too.
-import timezone from 'dayjs/plugin/timezone.js';
-import utc from 'dayjs/plugin/utc.js';
+import timezone from 'dayjs/plugin/timezone';
+import utc from 'dayjs/plugin/utc';
 
 dayjs.extend(utc);
 dayjs.extend(timezone);

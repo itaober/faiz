@@ -11,7 +11,7 @@ import {
   upsertPost,
   withCreatedDate,
 } from '@/lib/data/posts-index';
-import { formatTime } from '@/lib/dayjs';
+import dayjs, { formatTime } from '@/lib/dayjs';
 import { StorageError } from '@/lib/errors';
 import { requireEditSession } from '@/lib/server/edit-session';
 import { normalizeOptionalString, writeMdx } from '@/lib/server/mdx-write';
@@ -92,7 +92,9 @@ const validatePostPayload = (input: IPostPayload): ActionError | null => {
 
   if (
     input.createdDate &&
-    (typeof input.createdDate !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(input.createdDate))
+    (typeof input.createdDate !== 'string' ||
+      !/^\d{4}-\d{2}-\d{2}$/.test(input.createdDate) ||
+      dayjs(input.createdDate).format('YYYY-MM-DD') !== input.createdDate)
   ) {
     return validationError('Invalid date');
   }
