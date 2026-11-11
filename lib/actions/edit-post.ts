@@ -127,6 +127,13 @@ const savePostsIndex = async (mutate: (posts: PostList) => PostList) => {
   }
 };
 
+/**
+ * Revision of a post file the index does not list, left by a save that failed before its index
+ * write. Writing over it (archived first) lets that save be retried instead of conflicting forever.
+ */
+const unlistedRevision = async (slug: string) =>
+  (await readContentForUpdate(CONTENT_KEYS.post(slug)))?.revision ?? null;
+
 const revalidatePosts = (slug?: string, previousSlug?: string) => {
   revalidatePath('/posts');
   if (slug) {
@@ -169,8 +176,12 @@ export async function createPostAction(
       pinned: input.pinned === true || undefined,
     };
 
-    // New file, so no base revision to send.
-    const written = await writeMdx(CONTENT_KEYS.post(slug), post, input.content, null);
+    const written = await writeMdx(
+      CONTENT_KEYS.post(slug),
+      post,
+      input.content,
+      await unlistedRevision(slug),
+    );
     await savePostsIndex(current => upsertPost(current, post));
 
     revalidatePosts(slug);
@@ -233,7 +244,7 @@ export async function updatePostAction(
       CONTENT_KEYS.post(slug),
       post,
       input.content,
-      renamed ? null : revision,
+      renamed ? await unlistedRevision(slug) : revision,
     );
     await savePostsIndex(current => replacePost(current, originalSlug, post));
     if (renamed) {
