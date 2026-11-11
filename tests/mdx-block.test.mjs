@@ -234,6 +234,20 @@ test('links in inline JSX attributes and expressions stay text; links around the
   }
 });
 
+test('a component or expression line inside backticks stays what the compiler reads', async () => {
+  // MDX flow JSX and expressions interrupt the paragraph, so these backticks never form a code
+  // span: the page shows the Tweet and 2, and every save must keep showing them.
+  const cases = [
+    ['before `hello\n<Tweet id="1" />\nworld` after\n', '<Tweet id="1"></Tweet>'],
+    ['before `hello\n{1 + 1}\nworld` after\n', '2'],
+  ];
+  for (const [mdx, middle] of cases) {
+    const expected = `<p>before \`hello</p>\n${middle}\n<p>world\` after</p>`;
+    assert.equal(await shown(mdx), expected);
+    for (const saved of threeSaves(mdx)) assert.equal(await shown(saved), expected, saved);
+  }
+});
+
 test('a tag the parser rejects is kept as written up to the blank line', () => {
   const doc = manager.parse('<Badge>\nunclosed\n\nnext\n');
   assert.equal(blocks(doc)[0].attrs.source, '<Badge>\nunclosed');
