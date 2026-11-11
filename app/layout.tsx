@@ -12,7 +12,7 @@ import { MotionProvider } from '@/components/motion-provider';
 import { ServiceWorkerRegistration } from '@/components/service-worker-registration';
 import { ThemeScript } from '@/components/theme-script';
 import { ThemeSync } from '@/components/theme-sync';
-import { resolveAssetSrc } from '@/lib/assets';
+import { ASSETS_ORIGIN, resolveAssetSrc } from '@/lib/assets';
 import { getMetaInfo } from '@/lib/data/data';
 import { buildDescription, RSS_ALTERNATE_TYPES } from '@/lib/utils/seo';
 
@@ -133,6 +133,8 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <head>
         <ThemeScript />
+        {/* Every image comes from the assets domain; connect while the HTML is still arriving. */}
+        {ASSETS_ORIGIN && <link rel="preconnect" href={ASSETS_ORIGIN} />}
       </head>
       <body className={`${inter.variable} ${geistMono.variable} antialiased`}>
         <MotionProvider>

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 
-import { resolveAssetSrc } from '@/lib/assets';
+import { resolveAssetSrc, transformAssetUrl } from '@/lib/assets';
 import { cn } from '@/lib/utils';
 
 interface Particle {
@@ -313,10 +313,11 @@ export default function ParticleImage({
     };
 
     const loadedImage = new view.Image();
-    // Reading pixels needs CORS, which the bucket answers for originals; resized
-    // renditions come back without the header, so the original is sampled.
+    // The sample grid is the canvas width / spacing, far below 384px, so a resized rendition
+    // samples the same as the original at a tenth of the bytes. Reading pixels needs CORS, which
+    // the bucket sends on every response (`*`, scripts/setup.mjs), renditions included.
     loadedImage.crossOrigin = 'anonymous';
-    loadedImage.src = resolveAssetSrc(src);
+    loadedImage.src = transformAssetUrl(resolveAssetSrc(src), 384, 75);
     loadedImage
       .decode()
       .then(() => {
