@@ -6,7 +6,7 @@ import { useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { Drawer } from 'vaul';
 import { useEditMode } from '@/components/edit-mode-context';
-import ConfirmDrawer from '@/components/editing/confirm-drawer';
+import ConfirmDialog from '@/components/editing/confirm-dialog';
 import EditKeyDrawer from '@/components/editing/edit-key-drawer';
 import Segmented from '@/components/segmented';
 import { useContentEditor } from '@/hooks/use-content-editor';
@@ -416,7 +416,7 @@ export default function RecordsSidePanel({
       </Drawer.Portal>
 
       <EditKeyDrawer open={settingsOpen} onOpenChange={setSettingsOpen} />
-      <ConfirmDrawer
+      <ConfirmDialog
         open={confirmOpen}
         onOpenChange={setConfirmOpen}
         title="Delete record?"

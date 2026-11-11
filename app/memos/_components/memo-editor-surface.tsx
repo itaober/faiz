@@ -10,7 +10,7 @@ import { deleteMemoAction } from '@/app/memos/_actions/delete-memo';
 import { updateMemoAction } from '@/app/memos/_actions/update-memo';
 import { useEditMode } from '@/components/edit-mode-context';
 import type { ActionBarTool, EditViewMode } from '@/components/editing/action-bar';
-import ConfirmDrawer from '@/components/editing/confirm-drawer';
+import ConfirmDialog from '@/components/editing/confirm-dialog';
 import EditKeyDrawer from '@/components/editing/edit-key-drawer';
 import { useDockedActionBar } from '@/components/editing/edit-session';
 import { resolveEditorImageSrc } from '@/components/editing/tiptap/image-preview-store';
@@ -249,7 +249,7 @@ export default function MemoEditorSurface({ memo, onCancel }: IMemoEditorSurface
       />
 
       <EditKeyDrawer open={isSettingsOpen} onOpenChange={setIsSettingsOpen} />
-      <ConfirmDrawer
+      <ConfirmDialog
         open={isDeleteOpen}
         onOpenChange={setIsDeleteOpen}
         title="Delete memo?"

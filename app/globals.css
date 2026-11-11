@@ -563,9 +563,12 @@ button {
     color: var(--muted-foreground);
     background: transparent;
   }
-  .fz-btn-ghost:hover {
+  .fz-btn-ghost:not(:disabled):hover {
     background: var(--muted);
     color: var(--foreground);
+  }
+  .fz-btn-ghost:disabled {
+    cursor: not-allowed;
   }
   .fz-btn-primary {
     color: var(--background);
@@ -577,6 +580,18 @@ button {
   .fz-btn-primary:disabled {
     background: var(--muted);
     color: var(--muted-foreground);
+    cursor: not-allowed;
+  }
+  .fz-btn-danger {
+    color: var(--danger);
+    background: var(--danger-soft);
+  }
+  .fz-btn-danger:not(:disabled):hover {
+    background: color-mix(in oklch, var(--danger) 14%, var(--danger-soft));
+  }
+  /* Stays red while it works, unlike primary's muted disabled look. */
+  .fz-btn-danger:disabled {
+    opacity: 0.6;
     cursor: not-allowed;
   }
 
@@ -653,7 +668,13 @@ button {
     color: var(--foreground);
   }
 
-  /* ── Sign-in sheet (edit key, on demand) ────────────────────────────────── */
+  /* ── Sheet — a centered card on an <Overlay> (sign-in, confirm) ──────────── */
+  .fz-sheet-overlay {
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    background: color-mix(in oklch, black 8%, transparent);
+  }
   .fz-sheet {
     width: 100%;
     max-width: 420px;
@@ -673,6 +694,67 @@ button {
     color: var(--muted-foreground);
     line-height: 1.6;
     margin: 6px 0 16px;
+  }
+  .fz-confirm-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 16px;
+  }
+  /* On a phone the confirm is a bottom sheet instead: full width, within thumb reach, sliding up. */
+  @media (width < 48rem) {
+    .fz-confirm-overlay {
+      align-items: flex-end;
+      padding: 0;
+      background: color-mix(in oklab, var(--foreground) 40%, transparent);
+    }
+    .fz-confirm {
+      max-width: none;
+      border: 0;
+      border-radius: var(--fz-radius-lg) var(--fz-radius-lg) 0 0;
+      box-shadow: none;
+      background: var(--background);
+      padding: 20px 16px calc(1.5rem + env(safe-area-inset-bottom));
+      text-align: center;
+      animation: fz-sheet-up 0.5s var(--ease-drawer);
+    }
+    .fz-confirm h3 {
+      font-size: 14px;
+      font-weight: 500;
+      line-height: 1.25rem;
+    }
+    .fz-confirm p {
+      line-height: 1.25rem;
+      margin: 12px 0 0;
+    }
+    .fz-confirm-actions {
+      gap: 16px;
+      margin-top: 12px;
+      padding-top: 4px;
+    }
+    .fz-confirm-actions .fz-btn {
+      flex: 1;
+      justify-content: center;
+      height: auto;
+      padding: 12px 16px;
+      border-radius: var(--fz-radius-md);
+      font-size: 1rem;
+      font-weight: 400;
+      line-height: 1.5rem;
+    }
+    .fz-confirm-actions .fz-btn-ghost {
+      border-color: var(--border);
+      background: var(--muted);
+      color: var(--foreground);
+    }
+    .fz-confirm-actions .fz-btn-danger {
+      border-color: var(--danger);
+    }
+  }
+  @keyframes fz-sheet-up {
+    from {
+      transform: translateY(100%);
+    }
   }
   /* A pill like the button under it, so the field and its action read as one shape. */
   .fz-key-field {
@@ -701,6 +783,8 @@ button {
     inset: 0;
     z-index: 50;
     display: flex;
+    /* Its focus scope can focus the container itself; that isn't a control to outline. */
+    outline: none;
   }
   .fz-search-overlay {
     align-items: flex-start;
