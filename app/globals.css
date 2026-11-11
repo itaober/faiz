@@ -1273,7 +1273,9 @@ button {
     font-size: 0.8125rem;
     user-select: none;
     outline: 2px solid transparent;
-    transition: outline-color 0s;
+    transition:
+      outline-color 0s,
+      border-color var(--fz-dur-normal) var(--ease-out);
   }
   /* Set from React state, not :has(textarea), so it changes as the box closes, not after the
      textarea's fade-out. */
@@ -1281,8 +1283,9 @@ button {
     width: 100%;
     color: var(--foreground);
   }
+  /* Like the site's other text fields: the open box only darkens its border, no ring. */
   .tiptap .fz-mdx-frame:focus-within {
-    border-color: var(--accent);
+    border-color: color-mix(in oklch, var(--foreground) 35%, var(--border));
   }
   .tiptap .fz-mdx-frame:has([aria-invalid='true']) {
     border-color: var(--danger);
@@ -1322,7 +1325,7 @@ button {
     outline-color: var(--accent);
     /* Closing selects the chip while its frame is still scaled by the morph; showing the ring
        after it keeps the ring from scaling too. Removing it stays immediate. */
-    transition-delay: 0.2s;
+    transition-delay: 0.2s, 0s;
   }
   .tiptap .fz-mdx-error {
     margin: 0.375rem 0 0;
