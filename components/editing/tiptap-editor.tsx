@@ -237,9 +237,13 @@ export default function TiptapEditor({
     [placeholder, openFilePicker, openGalleryPicker, insertUploadedImages],
   );
 
+  // The editor reads its content only when it is created; parsing it on every render would
+  // cost a full MDX parse per keystroke.
+  const [initialContent] = useState(() => transformOutsideMdxBlocks(value, mdxImagesToMarkdown));
+
   const editor = useEditor({
     extensions,
-    content: transformOutsideMdxBlocks(value, mdxImagesToMarkdown),
+    content: initialContent,
     contentType: 'markdown',
     editable: mode === 'wysiwyg',
     immediatelyRender: false,
