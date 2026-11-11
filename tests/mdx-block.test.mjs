@@ -6,6 +6,7 @@ import { TaskItem, TaskList } from '@tiptap/extension-list';
 import { Table, TableCell, TableHeader, TableRow } from '@tiptap/extension-table';
 import { MarkdownManager } from '@tiptap/markdown';
 import StarterKit from '@tiptap/starter-kit';
+import { serialize } from 'next-mdx-remote/serialize';
 
 import { MdxBlockBase, mdxBlockLabel, separateInListItem } from '../lib/mdx-block.ts';
 import {
@@ -13,6 +14,7 @@ import {
   mdxToEditorMarkdown,
   transformOutsideMdxBlocks,
 } from '../lib/mdx-editing.ts';
+import { assertCompilableMdx } from '../lib/server/mdx-validate.ts';
 import {
   formatMarkdownGallery,
   formatMarkdownImage,
@@ -145,6 +147,27 @@ test('components stay as written wherever they sit: quotes, deep lists, comments
     assert.ok(once.includes(kept), kept);
   }
   assert.ok(once.includes('a <Link href="/l">link</Link>'));
+});
+
+test('braces in text are escaped, so the page compiles and shows them; code keeps its own', async () => {
+  const doc = {
+    type: 'doc',
+    content: [
+      {
+        type: 'paragraph',
+        content: [
+          { type: 'text', text: 'a {b} c { ' },
+          { type: 'text', text: 'x{y}', marks: [{ type: 'code' }] },
+        ],
+      },
+    ],
+  };
+  const saved = savePage(manager.serialize(doc));
+  assert.equal(saved, 'a \\{b\\} c \\{ `x{y}`\n');
+  await assertCompilableMdx(saved);
+  const { compiledSource } = await serialize(saved, { blockJS: false, blockDangerousJS: true });
+  assert.ok(compiledSource.includes('"a {b} c { "'));
+  assert.equal(manager.serialize(manager.parse(saved.trim())), saved.trim());
 });
 
 test('a copied chip pastes back with its source; markup from elsewhere does not', () => {

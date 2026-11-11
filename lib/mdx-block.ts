@@ -1,7 +1,23 @@
 import { mergeAttributes, Node } from '@tiptap/core';
+import { MarkdownManager } from '@tiptap/markdown';
 
 import { matchLinkCardMarkup } from './link-card.ts';
 import { isReadableMdxBlock, readMdxBlock } from './mdx-editing.ts';
+
+// Text the editor writes is literal, but MDX reads a bare `{` or `}` as an expression and the
+// page then fails to compile, so text escapes them (`\{` renders `{`). tiptap has no hook for
+// text, so its escaper, which code skips, is extended once here.
+type TextEscaper = { escapeMarkdownSyntax: ((text: string) => string) & { escapesBraces?: true } };
+const textEscaper = MarkdownManager.prototype as unknown as TextEscaper;
+if (!textEscaper.escapeMarkdownSyntax.escapesBraces) {
+  const escapeMarkdownSyntax = textEscaper.escapeMarkdownSyntax;
+  textEscaper.escapeMarkdownSyntax = Object.assign(
+    function (this: unknown, text: string) {
+      return escapeMarkdownSyntax.call(this, text).replace(/[{}]/g, '\\$&');
+    },
+    { escapesBraces: true as const },
+  );
+}
 
 /**
  * A block's markdown, given a blank line before it when it follows other content inside a
