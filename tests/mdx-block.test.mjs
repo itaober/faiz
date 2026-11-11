@@ -134,6 +134,12 @@ test('a TodoList inside a list item stays as written, checkboxes included', () =
   assert.equal(cycle(once, savePage), once);
 });
 
+test('todo labels keep the characters the editor escapes, across saves', () => {
+  const mdx =
+    '<TodoList\n  readonly={true}\n  items={[\n    { label: "sum {1 + 1} *now*" },\n    { label: "a_b", checked: true }\n  ]}\n/>\n';
+  assert.equal(cycle(mdx, savePage), mdx);
+});
+
 test('a tag the parser rejects is kept as written up to the blank line', () => {
   const doc = manager.parse('<Badge>\nunclosed\n\nnext\n');
   assert.equal(blocks(doc)[0].attrs.source, '<Badge>\nunclosed');

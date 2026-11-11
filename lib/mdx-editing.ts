@@ -17,6 +17,9 @@ const inlineLinkPattern = /<Link\s+href=(["'])(.*?)\1\s*>([\s\S]*?)<\/Link>/g;
 // normalises it to <Image>.
 const markdownLinkPattern = /(?<!!)\[([^\]]+)\]\(([^)\s]+)\)/g;
 
+/** Markdown backslash escapes (`\\*`, `\\{`, …) as the characters they stand for. */
+export const unescapeMarkdown = (value: string) => value.replace(/\\([!-/:-@[-`{-~])/g, '$1');
+
 const escapeJsonString = (value: string) => value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
 
 const splitTopLevelObjects = (value: string) => {
@@ -129,7 +132,8 @@ const checklistToMdx = (source: string) => {
 
   const items = lines.map(match => {
     const checked = match?.[1]?.toLowerCase() === 'x';
-    const label = match?.[2]?.trim() ?? '';
+    // The editor escapes markdown in text; a label is a plain string, so it keeps the characters.
+    const label = unescapeMarkdown(match?.[2]?.trim() ?? '');
     const item = markdownLinkToMdx(label);
 
     if (!checked) {
