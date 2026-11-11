@@ -701,6 +701,8 @@ button {
     inset: 0;
     z-index: 50;
     display: flex;
+    /* Its focus scope can focus the container itself; that isn't a control to outline. */
+    outline: none;
   }
   .fz-search-overlay {
     align-items: flex-start;

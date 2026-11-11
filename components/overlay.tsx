@@ -1,5 +1,7 @@
 'use client';
 
+import { DismissableLayer } from '@radix-ui/react-dismissable-layer';
+import { FocusScope } from '@radix-ui/react-focus-scope';
 import { AnimatePresence, motion } from 'motion/react';
 import { type ReactNode, useCallback, useEffect, useLayoutEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
@@ -87,8 +89,10 @@ export default function Overlay({
 
   useEffect(() => releaseScrollLock, [releaseScrollLock]);
 
+  // A persistent overlay stays mounted while closed, so it can't sit in the layer stack below and
+  // listens for Escape itself. Install before paint so Escape can reverse even the first opening frame.
   useLayoutEffect(() => {
-    if (!open || !dismissable) {
+    if (!persistent || !open || !dismissable) {
       return;
     }
     const onKey = (event: KeyboardEvent) => {
@@ -97,10 +101,9 @@ export default function Overlay({
         onCloseRef.current();
       }
     };
-    // Install before paint so Escape can reverse even the first opening frame.
     document.addEventListener('keydown', onKey, true);
     return () => document.removeEventListener('keydown', onKey, true);
-  }, [open, dismissable]);
+  }, [persistent, open, dismissable]);
 
   const handleExitComplete = useCallback(() => {
     if (!wasOpenRef.current) {
@@ -143,42 +146,57 @@ export default function Overlay({
     );
   }
 
+  // Joins the Radix layer stack the vaul drawers use, so it also works on top of one: it takes the
+  // pointer events and focus, and only it hears Escape. Consumers place their own initial focus.
   return createPortal(
     <AnimatePresence onExitComplete={handleExitComplete}>
       {open ? (
-        <motion.div
-          layoutRoot
-          className={cn('fz-overlay', className)}
-          role="dialog"
-          aria-modal="true"
-          aria-label={ariaLabel}
-          initial={backdropClassName ? false : { opacity: 0 }}
-          animate={backdropClassName ? undefined : { opacity: 1 }}
-          exit={backdropClassName ? undefined : { opacity: 0 }}
-          transition={{ duration: ANIMATION.duration.fast, ease: ANIMATION.ease.out }}
-          onMouseDown={
-            dismissable && !backdropClassName
-              ? event => {
-                  if (event.target === event.currentTarget) {
-                    onClose();
-                  }
-                }
-              : undefined
-          }
-        >
-          {backdropClassName ? (
+        <FocusScope asChild trapped loop onMountAutoFocus={event => event.preventDefault()}>
+          <DismissableLayer
+            asChild
+            disableOutsidePointerEvents
+            onEscapeKeyDown={event => {
+              if (dismissable) {
+                event.stopPropagation();
+                onClose();
+              }
+            }}
+          >
             <motion.div
-              aria-hidden="true"
-              className={cn('absolute inset-0', backdropClassName)}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
+              layoutRoot
+              className={cn('fz-overlay', className)}
+              role="dialog"
+              aria-modal="true"
+              aria-label={ariaLabel}
+              initial={backdropClassName ? false : { opacity: 0 }}
+              animate={backdropClassName ? undefined : { opacity: 1 }}
+              exit={backdropClassName ? undefined : { opacity: 0 }}
               transition={{ duration: ANIMATION.duration.fast, ease: ANIMATION.ease.out }}
-              onMouseDown={dismissable ? onClose : undefined}
-            />
-          ) : null}
-          {children}
-        </motion.div>
+              onMouseDown={
+                dismissable && !backdropClassName
+                  ? event => {
+                      if (event.target === event.currentTarget) {
+                        onClose();
+                      }
+                    }
+                  : undefined
+              }
+            >
+              {backdropClassName ? (
+                <motion.div
+                  aria-hidden="true"
+                  className={cn('absolute inset-0', backdropClassName)}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: ANIMATION.duration.fast, ease: ANIMATION.ease.out }}
+                  onMouseDown={dismissable ? onClose : undefined}
+                />
+              ) : null}
+              {children}
+            </motion.div>
+          </DismissableLayer>
+        </FocusScope>
       ) : null}
     </AnimatePresence>,
     document.body,
