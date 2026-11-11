@@ -278,7 +278,8 @@ try {
   // creates them (the pages' editors live on the pages). Opt-in: a site being migrated gets its own
   // from the migration instead.
   if (options.seed) {
-    const now = new Date().toISOString().slice(0, 16).replace('T', ' ');
+    // The app's own timestamp format and zone (formatTime in lib/dayjs.ts).
+    const now = new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Shanghai' });
     const page = (slug, title, body) =>
       `---\nslug: ${slug}\ntitle: ${title}\ncreatedTime: '${now}'\nupdatedTime: '${now}'\n---\n\n${body}\n`;
     const starters = [
@@ -291,13 +292,13 @@ try {
       {
         key: 'pages/about.mdx',
         body: page('about', 'About', 'Click the title five times to edit this page.'),
-        type: 'text/plain; charset=utf-8',
+        type: 'text/markdown; charset=utf-8',
         hint: 'the home page',
       },
       {
         key: 'pages/lines.mdx',
         body: page('lines', 'Lines', 'Click the title five times to edit this page.'),
-        type: 'text/plain; charset=utf-8',
+        type: 'text/markdown; charset=utf-8',
         hint: 'the /lines page',
       },
     ];
@@ -335,7 +336,7 @@ try {
     }
   }
 
-  const envBlock = (bucket, assetsFolder) =>
+  const envBlock = (bucket, assetsFolder, live = false) =>
     [
       `R2_ACCOUNT_ID=${accountId}`,
       'R2_ACCESS_KEY_ID=',
@@ -345,6 +346,8 @@ try {
       `NEXT_PUBLIC_ASSETS_URL=https://${assetsDomain}/${assetsFolder}`,
       // A separate key per block: a leaked .env.local must not open the live site.
       `EDIT_KEY=${randomBytes(32).toString('base64url')}`,
+      // Link previews only sign favicon URLs on the live site; locally they go without.
+      ...(live ? [`LINK_PREVIEW_SIGNING_SECRET=${randomBytes(32).toString('base64url')}`] : []),
     ].join('\n');
 
   const steps = [
@@ -362,7 +365,7 @@ try {
   console.log(`\n── .env.local (local dev: ${devContentBucket}, folder ${devFolder}) ──`);
   console.log(envBlock(devContentBucket, devFolder));
   console.log(`\n── Vercel → Settings → Environment Variables, Production and Preview ──`);
-  console.log(envBlock(contentBucket, folder));
+  console.log(envBlock(contentBucket, folder, true));
   console.log(
     '\nThe EDIT_KEYs were generated just now. Re-running? Keep the ones you already use: a new key signs every browser out.',
   );
