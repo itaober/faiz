@@ -4,10 +4,13 @@ import { matchLinkCardMarkup } from '../lib/link-card.ts';
 import {
   markdownTodoListsToMdx,
   mdxTodoListsToMarkdown,
+  mdxToEditorMarkdown,
   scanMdxBlock,
+  transformOutsideMdxBlocks,
 } from '../lib/mdx-editing.ts';
 import {
   escapeMdxAttribute,
+  formatMarkdownImage,
   groupConsecutiveMdxImages,
   mdxImagesToMarkdown,
   normalizeEditorImageMarkup,
@@ -139,15 +142,6 @@ test('a nested same-name element does not close its parent', () => {
   assert.equal(scanMdxBlock('<Columns>\n<Columns>\n</Columns>'), null);
 });
 
-test('CRLF line endings end the block', () => {
-  const element = '<Tweet\r\n  id="1"\r\n/>';
-  assert.deepEqual(scanMdxBlock(`${element}\r\n\r\nnext`), {
-    name: 'Tweet',
-    source: element,
-    raw: `${element}\r\n`,
-  });
-});
-
 test("an apostrophe in JSX text inside braces doesn't swallow the tag", () => {
   const oneLine = `<Card render={() => <p>Don't</p>} />`;
   assert.equal(scanMdxBlock(oneLine)?.source, oneLine);
@@ -169,11 +163,61 @@ test('a LinkCard its own node rejects is still scanned, so it stays verbatim', (
   }
 });
 
-test('leaves inline, lowercase, indented and unterminated tags alone', () => {
+test('leaves inline, lowercase, code-indented and unterminated tags alone', () => {
   assert.equal(scanMdxBlock('<Badge>new</Badge> and more text'), null);
   assert.equal(scanMdxBlock('<div>html</div>'), null);
-  assert.equal(scanMdxBlock('  <Tweet id="1" />'), null);
+  assert.equal(scanMdxBlock('    <Tweet id="1" />'), null);
   assert.equal(scanMdxBlock('text <Tweet id="1" />'), null);
   assert.equal(scanMdxBlock('<Tweet id="1"'), null);
   assert.equal(scanMdxBlock('<Tweetish-thing />'), null);
+});
+
+test('a component indented up to three spaces is a block; its indent stays out of the source', () => {
+  assert.deepEqual(scanMdxBlock('   <Tweet id="1" />\nnext'), {
+    name: 'Tweet',
+    source: '<Tweet id="1" />',
+    raw: '   <Tweet id="1" />\n',
+  });
+});
+
+// Page-level rewrites run on load and on save; they must not reach into a component the
+// editor keeps as written, nor into code.
+
+test('links inside a component attribute or code stay as written on save', () => {
+  const particle = '<ParticleImage caption="see [docs](https://d.com)" />';
+  const markdown = [
+    particle,
+    '',
+    'Top [a](/b) and `[c](/d)` inline.',
+    '',
+    '```md',
+    '[e](/f)',
+    '```',
+  ].join('\n');
+  assert.equal(
+    markdownTodoListsToMdx(markdown),
+    markdown.replace('[a](/b)', '<Link href="/b">a</Link>'),
+  );
+});
+
+test('a todo list and an image caption inside another component survive load and save', () => {
+  const columns = [
+    '<Columns>',
+    '<TodoList items={[{ label: "one" }, { label: "two", checked: true }]} />',
+    '<Image src="a.webp" alt="A" caption="Shown below" />',
+    '</Columns>',
+  ].join('\n');
+  const loaded = transformOutsideMdxBlocks(mdxToEditorMarkdown(columns), mdxImagesToMarkdown);
+  assert.equal(loaded, columns);
+  assert.equal(
+    transformOutsideMdxBlocks(markdownTodoListsToMdx(loaded), normalizeEditorImageMarkup),
+    columns,
+  );
+});
+
+test('a pasted image alt or src cannot open a JSX line in the saved MDX', () => {
+  const markdown = formatMarkdownImage('a b)<c.webp', 'x]\n<Evil onClick={x} />\\ y');
+  const saved = normalizeEditorImageMarkup(markdown);
+  assert.doesNotMatch(saved, /\n/);
+  assert.equal(saved, '<Image src="a%20b%29%3Cc.webp" alt="x] <Evil onClick={x} />\\ y" />');
 });

@@ -3,16 +3,16 @@
 import { TaskItem, TaskList } from '@tiptap/extension-list';
 import { Table, TableCell, TableHeader, TableRow } from '@tiptap/extension-table';
 import { Placeholder } from '@tiptap/extensions';
-import { Markdown, type MarkdownExtensionOptions } from '@tiptap/markdown';
+import { Markdown } from '@tiptap/markdown';
 import { EditorContent, useEditor, useEditorState } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
-import { Marked } from 'marked';
 import { AnimatePresence } from 'motion/react';
 import { type ReactNode, useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 import { useIsMobile } from '@/hooks/use-is-mobile';
 import { getLinkCardTarget } from '@/lib/link-card';
+import { transformOutsideMdxBlocks } from '@/lib/mdx-editing';
 import { cn } from '@/lib/utils';
 import {
   buildAssetKey,
@@ -223,10 +223,10 @@ export default function TiptapEditor({
       TableRow,
       TableHeader,
       TableCell,
-      // Its own parser per editor: by default @tiptap/markdown registers every tokenizer on
-      // marked's global singleton again for each editor it creates. The option is typed as
-      // that singleton, but the manager only uses what a Marked instance has.
-      Markdown.configure({ marked: new Marked() as unknown as MarkdownExtensionOptions['marked'] }),
+      // ponytail: @tiptap/markdown registers every tokenizer on marked's global instance again
+      // for each editor it creates, so copies pile up per mount (a cost, not a bug). Upgrade
+      // path: once the app runs one marked major, pass `Markdown.configure({ marked: new Marked() })`.
+      Markdown,
       SlashCommand.configure({
         onImage: () => openFilePicker(),
         // Galleries only apply where inline images are inserted (posts/pages),
@@ -239,7 +239,7 @@ export default function TiptapEditor({
 
   const editor = useEditor({
     extensions,
-    content: mdxImagesToMarkdown(value),
+    content: transformOutsideMdxBlocks(value, mdxImagesToMarkdown),
     contentType: 'markdown',
     editable: mode === 'wysiwyg',
     immediatelyRender: false,
@@ -362,9 +362,12 @@ export default function TiptapEditor({
     }
     if (mode !== 'markdown') {
       if (previousModeRef.current === 'markdown') {
-        editor.commands.setContent(mdxImagesToMarkdown(valueRef.current), {
-          contentType: 'markdown',
-        });
+        editor.commands.setContent(
+          transformOutsideMdxBlocks(valueRef.current, mdxImagesToMarkdown),
+          {
+            contentType: 'markdown',
+          },
+        );
         if (insertUploadedImages) {
           groupAdjacentImages(editor);
         }

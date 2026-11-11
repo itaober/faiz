@@ -87,7 +87,18 @@ export const mergeByKey = <T extends { key: string }, S extends { key: string }>
 };
 
 export const unescapeMarkdownValue = (value: string) =>
-  value.replace(/\\([\\`*_{}[\]()#+\-.!_>])/g, '$1');
+  value.replace(/\\([\\`*_{}[\]()#+\-.!_<>])/g, '$1');
+
+/**
+ * Markdown for an editor image. Alt and src come from the document, which a paste can fill
+ * with anything: a newline or an unescaped `]`/`)` would stop the save from turning it into
+ * `<Image>`, leaving its text, `<` included, to be read as JSX.
+ */
+export const formatMarkdownImage = (src: string, alt: string) => {
+  const safeAlt = alt.replace(/\s*[\r\n]+\s*/g, ' ').replace(/[\\\]<]/g, '\\$&');
+  const safeSrc = src.replace(/[\s)<]/g, char => (char === ')' ? '%29' : encodeURIComponent(char)));
+  return `![${safeAlt}](${safeSrc})`;
+};
 
 export const getImageCaptionFromFilename = (filename: string, fallback = 'image') =>
   unescapeMarkdownValue(filename.replace(/\.[^.]+$/, '').trim()) || fallback;
@@ -254,7 +265,15 @@ const markdownImagesToMdx = (value: string) =>
     formatMdxImage(src, alt),
   );
 
-const transformOutsideFencedCode = (value: string, transform: (segment: string) => string) => {
+/**
+ * Applies `transform` to the text outside fenced code. `rawBlockLines`, when given, also
+ * leaves alone the block starting at a line: it returns how many lines that block spans.
+ */
+export const transformOutsideFencedCode = (
+  value: string,
+  transform: (segment: string) => string,
+  rawBlockLines?: (lines: string[], index: number) => number,
+) => {
   const lines = value.split('\n');
   const result: string[] = [];
   let plainLines: string[] = [];
@@ -269,7 +288,8 @@ const transformOutsideFencedCode = (value: string, transform: (segment: string) 
     plainLines = [];
   };
 
-  lines.forEach(line => {
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index];
     const fenceMatch = line.match(/^\s*(`{3,}|~{3,})/);
 
     if (fenceMarker) {
@@ -277,18 +297,26 @@ const transformOutsideFencedCode = (value: string, transform: (segment: string) 
       if (fenceMatch?.[1].startsWith(fenceMarker[0])) {
         fenceMarker = '';
       }
-      return;
+      continue;
     }
 
     if (fenceMatch) {
       flushPlainLines();
       fenceMarker = fenceMatch[1];
       result.push(line);
-      return;
+      continue;
+    }
+
+    const blockLines = rawBlockLines?.(lines, index) ?? 0;
+    if (blockLines > 0) {
+      flushPlainLines();
+      result.push(...lines.slice(index, index + blockLines));
+      index += blockLines - 1;
+      continue;
     }
 
     plainLines.push(line);
-  });
+  }
 
   flushPlainLines();
 

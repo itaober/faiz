@@ -1,0 +1,122 @@
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import test from 'node:test';
+import Image from '@tiptap/extension-image';
+import { TaskItem, TaskList } from '@tiptap/extension-list';
+import { Table, TableCell, TableHeader, TableRow } from '@tiptap/extension-table';
+import { MarkdownManager } from '@tiptap/markdown';
+import StarterKit from '@tiptap/starter-kit';
+
+import { MdxBlockBase, separateInListItem } from '../lib/mdx-block.ts';
+import {
+  markdownTodoListsToMdx,
+  mdxToEditorMarkdown,
+  transformOutsideMdxBlocks,
+} from '../lib/mdx-editing.ts';
+import {
+  formatMarkdownImage,
+  groupConsecutiveMdxImages,
+  mdxImagesToMarkdown,
+  normalizeEditorImageMarkup,
+} from '../lib/utils/editor-image.ts';
+
+// The editor's markdown setup without a DOM: the extensions of components/editing/tiptap-editor.tsx
+// that read or write markdown, StagedImage reduced to its markdown override.
+const manager = new MarkdownManager({
+  extensions: [
+    StarterKit.configure({ heading: { levels: [1, 2, 3] } }),
+    Image.extend({
+      renderMarkdown: (node, _helpers, context) =>
+        separateInListItem(
+          formatMarkdownImage(String(node.attrs.src), String(node.attrs.alt)),
+          context,
+        ),
+    }),
+    MdxBlockBase,
+    TaskList,
+    TaskItem.configure({ nested: true }),
+    Table,
+    TableRow,
+    TableHeader,
+    TableCell,
+  ],
+});
+
+// Load: the surface's draft (page/post), then the editor's image step. Save: the surface's
+// conversion (posts also group images), then the server's image normalisation.
+const load = mdx =>
+  manager.parse(transformOutsideMdxBlocks(mdxToEditorMarkdown(mdx), mdxImagesToMarkdown));
+const server = content =>
+  `${transformOutsideMdxBlocks(content, normalizeEditorImageMarkup).trimEnd()}\n`;
+const savePage = markdown => server(markdownTodoListsToMdx(markdown));
+const savePost = markdown =>
+  server(
+    transformOutsideMdxBlocks(markdownTodoListsToMdx(markdown), segment =>
+      groupConsecutiveMdxImages(normalizeEditorImageMarkup(segment)),
+    ),
+  );
+const cycle = (mdx, save) => save(manager.serialize(load(mdx)));
+
+const fixture = name => readFileSync(new URL(`./fixtures/${name}`, import.meta.url), 'utf8');
+const blocks = doc => doc.content.filter(node => node.type === 'mdxBlock');
+
+test('the About page saves back byte for byte, its portrait and todo list included', () => {
+  const about = fixture('about.mdx');
+  assert.equal(blocks(load(about))[0].attrs.name, 'ParticleImage');
+  assert.equal(cycle(about, savePage), about);
+});
+
+test('weekly #16 keeps its Tweet as written, and a second save changes nothing', () => {
+  const post = fixture('weekly-16-20260824.mdx');
+  const once = cycle(post, savePost);
+  assert.ok(once.includes('\n<Tweet id="2090416137720999992" />\n'));
+  assert.equal(cycle(once, savePost), once);
+});
+
+test('a component under an ordered list item survives repeated saves', () => {
+  const markdown = '1. item\n\n   <Tweet id="1" />\n\nafter\n';
+  const once = manager.serialize(manager.parse(markdown));
+  assert.equal(manager.serialize(manager.parse(once)), once);
+  assert.ok(once.includes('<Tweet id="1" />'));
+  assert.doesNotMatch(once, /&lt;/);
+});
+
+test('an image or a component under a bullet stays in the item across saves', () => {
+  const post = '- item\n\n  <Image src="a.webp" alt="A" />\n\n- next\n\n  <Tweet id="1" />\n';
+  const once = cycle(post, savePost);
+  assert.equal(cycle(once, savePost), once);
+  assert.match(once, /\n {2}<Image src="a.webp" alt="A" \/>\n/);
+  assert.match(once, /\n {2}<Tweet id="1" \/>\n/);
+});
+
+test('an indented component after a paragraph is a block on the first save', () => {
+  const doc = manager.parse('para\n\n  <Tweet id="1" />\n');
+  assert.deepEqual(blocks(doc)[0].attrs, { name: 'Tweet', source: '<Tweet id="1" />' });
+});
+
+test('a capitalized tag the scanner cannot read is kept up to the blank line', () => {
+  const markdown = '<Badge>new</Badge> and more\ncontinued\n\nnext\n';
+  const doc = manager.parse(markdown);
+  assert.equal(blocks(doc)[0].attrs.source, '<Badge>new</Badge> and more\ncontinued');
+  assert.equal(manager.serialize(doc), markdown.trimEnd());
+});
+
+test('a copied chip pastes back with its source; markup from elsewhere does not', () => {
+  const attrs = { name: 'Tweet', source: '<Tweet id="1" />' };
+  const [, rendered] = MdxBlockBase.config.renderHTML({ node: { attrs }, HTMLAttributes: {} });
+  const [rule] = MdxBlockBase.config.parseHTML();
+  const element = values => ({ getAttribute: key => values[key] ?? null });
+
+  assert.deepEqual(rule.getAttrs(element(rendered)), attrs);
+  assert.equal(rule.getAttrs(element({ ...rendered, 'data-mdx-block': 'guessed' })), false);
+  assert.equal(rule.getAttrs(element({ ...rendered, 'data-source': 'plain text' })), false);
+});
+
+test('an image whose alt holds a newline and JSX saves as one Image element', () => {
+  const doc = {
+    type: 'doc',
+    content: [{ type: 'image', attrs: { src: 'a.webp', alt: 'x\n<Evil onClick={x} />' } }],
+  };
+  const saved = savePage(manager.serialize(doc));
+  assert.equal(saved, '<Image src="a.webp" alt="x <Evil onClick={x} />" />\n');
+});

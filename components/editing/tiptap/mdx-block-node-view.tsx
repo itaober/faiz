@@ -4,13 +4,10 @@ import { type NodeViewProps, NodeViewWrapper, useEditorState } from '@tiptap/rea
 import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
+import { mdxBlockLabel } from '@/lib/mdx-block';
 import { scanMdxBlock } from '@/lib/mdx-editing';
 
 const OPEN_MDX_BLOCK_EVENT = 'mdx-block-open';
-
-/** What the chip shows: the component's name, in the shape of its tag. */
-export const mdxBlockLabel = (name: string, source: string) =>
-  source.endsWith('/>') ? `<${name} />` : `<${name}>…</${name}>`;
 
 /** Opens the chip at `pos` into its source. */
 export const openMdxBlock = (editorDom: HTMLElement, pos: number | undefined) =>

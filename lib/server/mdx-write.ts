@@ -1,5 +1,6 @@
 import matter from 'gray-matter';
 
+import { transformOutsideMdxBlocks } from '@/lib/mdx-editing';
 import { writeContent } from '@/lib/storage/r2';
 import { normalizeEditorImageMarkup } from '@/lib/utils/editor-image';
 
@@ -30,7 +31,7 @@ const stripUndefinedValues = (value: unknown): unknown => {
 
 const stringifyMdx = (data: Record<string, unknown>, content: string) =>
   matter.stringify(
-    `${normalizeEditorImageMarkup(content).trimEnd()}\n`,
+    `${transformOutsideMdxBlocks(content, normalizeEditorImageMarkup).trimEnd()}\n`,
     stripUndefinedValues(data) as Record<string, unknown>,
   );
 
