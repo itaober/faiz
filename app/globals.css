@@ -695,6 +695,67 @@ button {
     line-height: 1.6;
     margin: 6px 0 16px;
   }
+  .fz-confirm-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 16px;
+  }
+  /* On a phone the confirm is a bottom sheet instead: full width, within thumb reach, sliding up. */
+  @media (width < 48rem) {
+    .fz-confirm-overlay {
+      align-items: flex-end;
+      padding: 0;
+      background: color-mix(in oklab, var(--foreground) 40%, transparent);
+    }
+    .fz-confirm {
+      max-width: none;
+      border: 0;
+      border-radius: var(--fz-radius-lg) var(--fz-radius-lg) 0 0;
+      box-shadow: none;
+      background: var(--background);
+      padding: 20px 16px calc(1.5rem + env(safe-area-inset-bottom));
+      text-align: center;
+      animation: fz-sheet-up 0.5s var(--ease-drawer);
+    }
+    .fz-confirm h3 {
+      font-size: 14px;
+      font-weight: 500;
+      line-height: 1.25rem;
+    }
+    .fz-confirm p {
+      line-height: 1.25rem;
+      margin: 12px 0 0;
+    }
+    .fz-confirm-actions {
+      gap: 16px;
+      margin-top: 12px;
+      padding-top: 4px;
+    }
+    .fz-confirm-actions .fz-btn {
+      flex: 1;
+      justify-content: center;
+      height: auto;
+      padding: 12px 16px;
+      border-radius: var(--fz-radius-md);
+      font-size: 1rem;
+      font-weight: 400;
+      line-height: 1.5rem;
+    }
+    .fz-confirm-actions .fz-btn-ghost {
+      border-color: var(--border);
+      background: var(--muted);
+      color: var(--foreground);
+    }
+    .fz-confirm-actions .fz-btn-danger {
+      border-color: var(--danger);
+    }
+  }
+  @keyframes fz-sheet-up {
+    from {
+      transform: translateY(100%);
+    }
+  }
   /* A pill like the button under it, so the field and its action read as one shape. */
   .fz-key-field {
     width: 100%;

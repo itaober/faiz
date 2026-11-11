@@ -15,7 +15,7 @@ interface IConfirmDialogProps {
   onConfirm: () => void;
 }
 
-/** Centered confirm for a destructive action, in the sign-in sheet's look. */
+/** Confirm for a destructive action: the sign-in sheet's look on desktop, a bottom sheet on a phone. */
 export default function ConfirmDialog({
   open,
   onOpenChange,
@@ -46,11 +46,16 @@ export default function ConfirmDialog({
   };
 
   return (
-    <Overlay open={open} onClose={cancel} ariaLabel={title} className="fz-sheet-overlay">
-      <div className="fz-sheet">
+    <Overlay
+      open={open}
+      onClose={cancel}
+      ariaLabel={title}
+      className="fz-sheet-overlay fz-confirm-overlay"
+    >
+      <div className="fz-sheet fz-confirm">
         <h3>{title}</h3>
         {description && <p>{description}</p>}
-        <div className="mt-4 flex justify-end gap-2">
+        <div className="fz-confirm-actions">
           <button
             ref={cancelRef}
             type="button"
