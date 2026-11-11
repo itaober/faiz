@@ -12,6 +12,7 @@ import { toast } from 'sonner';
 
 import { useIsMobile } from '@/hooks/use-is-mobile';
 import { getLinkCardTarget } from '@/lib/link-card';
+import { transformOutsideMdxBlocks } from '@/lib/mdx-editing';
 import { cn } from '@/lib/utils';
 import {
   buildAssetKey,
@@ -40,6 +41,7 @@ import {
   StagedImage,
 } from './tiptap/extensions';
 import { EditorLinkCard } from './tiptap/link-card-extension';
+import { MdxBlock } from './tiptap/mdx-block-extension';
 
 interface ITiptapEditorProps {
   value: string;
@@ -214,12 +216,16 @@ export default function TiptapEditor({
       StagedImage,
       ImageGallery,
       EditorLinkCard,
+      MdxBlock,
       TaskList,
       TaskItem.configure({ nested: true }),
       Table.configure({ resizable: false }),
       TableRow,
       TableHeader,
       TableCell,
+      // ponytail: @tiptap/markdown registers every tokenizer on marked's global instance again
+      // for each editor it creates, so copies pile up per mount (a cost, not a bug). Upgrade
+      // path: once the app runs one marked major, pass `Markdown.configure({ marked: new Marked() })`.
       Markdown,
       SlashCommand.configure({
         onImage: () => openFilePicker(),
@@ -231,9 +237,13 @@ export default function TiptapEditor({
     [placeholder, openFilePicker, openGalleryPicker, insertUploadedImages],
   );
 
+  // The editor reads its content only when it is created; parsing it on every render would
+  // cost a full MDX parse per keystroke.
+  const [initialContent] = useState(() => transformOutsideMdxBlocks(value, mdxImagesToMarkdown));
+
   const editor = useEditor({
     extensions,
-    content: mdxImagesToMarkdown(value),
+    content: initialContent,
     contentType: 'markdown',
     editable: mode === 'wysiwyg',
     immediatelyRender: false,
@@ -356,9 +366,12 @@ export default function TiptapEditor({
     }
     if (mode !== 'markdown') {
       if (previousModeRef.current === 'markdown') {
-        editor.commands.setContent(mdxImagesToMarkdown(valueRef.current), {
-          contentType: 'markdown',
-        });
+        editor.commands.setContent(
+          transformOutsideMdxBlocks(valueRef.current, mdxImagesToMarkdown),
+          {
+            contentType: 'markdown',
+          },
+        );
         if (insertUploadedImages) {
           groupAdjacentImages(editor);
         }

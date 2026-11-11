@@ -10,7 +10,7 @@ import {
   getLinkCardSnapshot,
   getLinkCardTarget,
   type LinkCardProps,
-  parseLinkCardMarkup,
+  matchLinkCardMarkup,
   toLinkCardProps,
 } from '@/lib/link-card';
 import { cn } from '@/lib/utils';
@@ -189,9 +189,8 @@ export const EditorLinkCard = Node.create({
     level: 'block',
     start: source => source.indexOf('<LinkCard'),
     tokenize(source) {
-      const match = source.match(/^<LinkCard\b[^>]*\/>/);
-      const attrs = match ? parseLinkCardMarkup(match[0]) : null;
-      return match && attrs ? { type: 'linkCard', raw: match[0], attrs } : undefined;
+      const card = matchLinkCardMarkup(source);
+      return card ? { type: 'linkCard', raw: card.raw, attrs: card.attrs } : undefined;
     },
   },
   parseMarkdown(token, helpers) {

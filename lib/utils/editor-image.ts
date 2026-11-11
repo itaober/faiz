@@ -89,6 +89,21 @@ export const mergeByKey = <T extends { key: string }, S extends { key: string }>
 export const unescapeMarkdownValue = (value: string) =>
   value.replace(/\\([\\`*_{}[\]()#+\-.!_>])/g, '$1');
 
+/**
+ * Markdown for an editor image. Alt and src come from the document, which a paste can fill
+ * with anything: a newline or an unescaped `]`/`)` would stop the save from turning it into
+ * `<Image>`, leaving its text to be read as markdown and JSX.
+ */
+export const formatMarkdownImage = (src: string, alt: string) => {
+  const safeAlt = alt.replace(/\s*[\r\n]+\s*/g, ' ').replace(/[\\\]]/g, '\\$&');
+  const safeSrc = src.replace(/[\s)]/g, char => (char === ')' ? '%29' : encodeURIComponent(char)));
+  return `![${safeAlt}](${safeSrc})`;
+};
+
+/** A gallery's markdown: each image as {@link formatMarkdownImage}, a blank line apart. */
+export const formatMarkdownGallery = (images: MdxImageGalleryItem[]) =>
+  images.map(image => formatMarkdownImage(image.src, (image.alt ?? '').trim())).join('\n\n');
+
 export const getImageCaptionFromFilename = (filename: string, fallback = 'image') =>
   unescapeMarkdownValue(filename.replace(/\.[^.]+$/, '').trim()) || fallback;
 
@@ -316,6 +331,10 @@ export const groupConsecutiveMdxImages = (value: string) =>
       return `${formatMdxImageGallery(images)}\n\n`;
     }),
   );
+
+/** Stored MDX as the read view compiles it; saving checks that this same text compiles. */
+export const toRenderableMdx = (value: string) =>
+  groupConsecutiveMdxImages(normalizeEditorImageMarkup(value));
 
 /**
  * Converts MDX `<Image src="" alt="" />` tags back into plain markdown

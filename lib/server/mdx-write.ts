@@ -1,5 +1,7 @@
 import matter from 'gray-matter';
 
+import { transformOutsideMdxBlocks } from '@/lib/mdx-editing';
+import { assertCompilableMdx } from '@/lib/server/mdx-validate';
 import { writeContent } from '@/lib/storage/r2';
 import { normalizeEditorImageMarkup } from '@/lib/utils/editor-image';
 
@@ -28,21 +30,21 @@ const stripUndefinedValues = (value: unknown): unknown => {
   return value;
 };
 
-const stringifyMdx = (data: Record<string, unknown>, content: string) =>
-  matter.stringify(
-    `${normalizeEditorImageMarkup(content).trimEnd()}\n`,
-    stripUndefinedValues(data) as Record<string, unknown>,
-  );
-
 /**
- * Write a frontmatter+content MDX file to the content bucket.
+ * Write a frontmatter+content MDX file to the content bucket, refusing content the site's MDX
+ * compiler can't compile (InvalidMdxError) before anything is written.
  *
  * @param revision - Revision the editor loaded; null when creating a new file.
  * @returns The new revision.
  */
-export const writeMdx = (
+export const writeMdx = async (
   key: string,
   data: Record<string, unknown>,
   content: string,
   revision: string | null,
-) => writeContent(key, stringifyMdx(data, content), revision, 'text/markdown; charset=utf-8');
+) => {
+  const body = `${transformOutsideMdxBlocks(content, normalizeEditorImageMarkup).trimEnd()}\n`;
+  await assertCompilableMdx(body);
+  const file = matter.stringify(body, stripUndefinedValues(data) as Record<string, unknown>);
+  return writeContent(key, file, revision, 'text/markdown; charset=utf-8');
+};

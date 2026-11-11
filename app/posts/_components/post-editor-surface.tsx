@@ -22,7 +22,11 @@ import {
 } from '@/lib/actions/edit-post';
 import type { PostMeta } from '@/lib/data/data';
 import { formatTime } from '@/lib/dayjs';
-import { markdownTodoListsToMdx, mdxTodoListsToMarkdown } from '@/lib/mdx-editing';
+import {
+  markdownTodoListsToMdx,
+  mdxToEditorMarkdown,
+  transformOutsideMdxBlocks,
+} from '@/lib/mdx-editing';
 import { cn } from '@/lib/utils';
 import {
   groupConsecutiveMdxImages,
@@ -87,7 +91,7 @@ export default function PostEditorSurface({
   const [pinned, setPinned] = useState(Boolean(post?.pinned));
   const [createdDate, setCreatedDate] = useState(formatPostDateInput(post?.createdTime));
   // Checkboxes (<TodoList>/<CheckboxRoot>) edit as markdown task lists, like pages.
-  const [content, setContent] = useState(() => mdxTodoListsToMarkdown(initialContent ?? ''));
+  const [content, setContent] = useState(() => mdxToEditorMarkdown(initialContent ?? ''));
   const [contentRevision, setContentRevision] = useState(revision);
   const [stagedImages, setStagedImages] = useState<StagedEditorImage[]>([]);
   const postDateInputRef = useRef<HTMLInputElement>(null);
@@ -105,7 +109,7 @@ export default function PostEditorSurface({
     setTags(post?.tags.join(', ') ?? '');
     setPinned(Boolean(post?.pinned));
     setCreatedDate(formatPostDateInput(post?.createdTime));
-    setContent(mdxTodoListsToMarkdown(initialContent ?? ''));
+    setContent(mdxToEditorMarkdown(initialContent ?? ''));
     setContentRevision(revision);
     setStagedImages([]);
   }, [post, initialContent, revision]);
@@ -127,8 +131,8 @@ export default function PostEditorSurface({
     // Convert task lists back to MDX (<TodoList>) before saving; the server still
     // normalises images (![](…) → <Image>). Consecutive post images are grouped
     // into an ImageGallery for read mode, then expanded back to images when edited.
-    const mdxContent = groupConsecutiveMdxImages(
-      normalizeEditorImageMarkup(markdownTodoListsToMdx(content)),
+    const mdxContent = transformOutsideMdxBlocks(markdownTodoListsToMdx(content), segment =>
+      groupConsecutiveMdxImages(normalizeEditorImageMarkup(segment)),
     );
     submit<IPostSaveResult | undefined>({
       loading: isEdit ? 'Updating...' : 'Publishing...',

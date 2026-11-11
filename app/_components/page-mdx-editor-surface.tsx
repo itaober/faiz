@@ -12,7 +12,7 @@ import { useContentEditor } from '@/hooks/use-content-editor';
 import { isMobileViewport } from '@/hooks/use-is-mobile';
 import { type IPageSaveResult, updatePageAction } from '@/lib/actions/edit-page';
 import type { EditablePage } from '@/lib/content-editing-validation';
-import { markdownTodoListsToMdx, mdxTodoListsToMarkdown } from '@/lib/mdx-editing';
+import { markdownTodoListsToMdx, mdxToEditorMarkdown } from '@/lib/mdx-editing';
 import { cn } from '@/lib/utils';
 import { mergeByKey, type StagedEditorImage } from '@/lib/utils/editor-image';
 
@@ -40,7 +40,7 @@ export default function PageMdxEditorSurface({
   );
   const { settingsOpen, setSettingsOpen, isSubmitting, submit } = useContentEditor(isSignedIn);
   const [draftTitle, setDraftTitle] = useState(title);
-  const [draftContent, setDraftContent] = useState(() => mdxTodoListsToMarkdown(initialContent));
+  const [draftContent, setDraftContent] = useState(() => mdxToEditorMarkdown(initialContent));
   const [contentRevision, setContentRevision] = useState(revision);
   const [stagedImages, setStagedImages] = useState<StagedEditorImage[]>([]);
   const context = page === 'about' ? 'About' : 'Lines';
@@ -49,7 +49,7 @@ export default function PageMdxEditorSurface({
 
   useEffect(() => {
     setDraftTitle(title);
-    setDraftContent(mdxTodoListsToMarkdown(initialContent));
+    setDraftContent(mdxToEditorMarkdown(initialContent));
     setContentRevision(revision);
     setStagedImages([]);
   }, [initialContent, revision, title]);

@@ -213,3 +213,10 @@ export const parseLinkCardMarkup = (source: string): LinkCardProps | null => {
   }
   return props;
 };
+
+/** The `<LinkCard … />` at the start of `source`, as the editor's card node reads it. */
+export const matchLinkCardMarkup = (source: string) => {
+  const raw = source.match(/^<LinkCard\b[^>]*\/>/)?.[0];
+  const attrs = raw ? parseLinkCardMarkup(raw) : null;
+  return raw && attrs ? { raw, attrs } : null;
+};

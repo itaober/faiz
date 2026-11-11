@@ -1,7 +1,11 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-
-import { markdownTodoListsToMdx, mdxTodoListsToMarkdown } from '../lib/mdx-editing.ts';
+import {
+  markdownTodoListsToMdx,
+  mdxTodoListsToMarkdown,
+  mdxToEditorMarkdown,
+  transformOutsideMdxBlocks,
+} from '../lib/mdx-editing.ts';
 import {
   escapeMdxAttribute,
   groupConsecutiveMdxImages,
@@ -36,7 +40,16 @@ test('normalizing is idempotent for captions holding quotes or ampersands', () =
 });
 
 test('escape and unescape are inverses, with the ampersand entity decoded last', () => {
-  for (const value of ['plain', 'a "b" c', 'a & b', '&quot;', '&amp;', '&amp;quot;', '"&"']) {
+  for (const value of [
+    'plain',
+    'a "b" c',
+    'a & b',
+    '&quot;',
+    '&amp;',
+    '&amp;quot;',
+    '"&"',
+    'a <b /> &lt;',
+  ]) {
     assert.equal(unescapeMdxAttribute(escapeMdxAttribute(value)), value, value);
   }
 });
@@ -99,4 +112,39 @@ test('todo lists survive a round trip and re-converting is stable', () => {
   assert.match(mdx, /\{ label: "done thing", checked: true \}/);
   assert.equal(markdownTodoListsToMdx(mdx), mdx, 'second save must not change the file');
   assert.equal(mdxTodoListsToMarkdown(mdx).trim(), markdown);
+});
+
+// Page-level rewrites run on load and on save; they must not reach into a component the
+// editor keeps as written, nor into code.
+
+test('links inside a component attribute or code stay as written on save', () => {
+  const particle = '<ParticleImage caption="see [docs](https://d.com)" />';
+  const markdown = [
+    particle,
+    '',
+    'Top [a](/b) and `[c](/d)` inline.',
+    '',
+    '```md',
+    '[e](/f)',
+    '```',
+  ].join('\n');
+  assert.equal(
+    markdownTodoListsToMdx(markdown),
+    markdown.replace('[a](/b)', '<Link href="/b">a</Link>'),
+  );
+});
+
+test('a todo list and an image caption inside another component survive load and save', () => {
+  const columns = [
+    '<Columns>',
+    '<TodoList items={[{ label: "one" }, { label: "two", checked: true }]} />',
+    '<Image src="a.webp" alt="A" caption="Shown below" />',
+    '</Columns>',
+  ].join('\n');
+  const loaded = transformOutsideMdxBlocks(mdxToEditorMarkdown(columns), mdxImagesToMarkdown);
+  assert.equal(loaded, columns);
+  assert.equal(
+    transformOutsideMdxBlocks(markdownTodoListsToMdx(loaded), normalizeEditorImageMarkup),
+    columns,
+  );
 });

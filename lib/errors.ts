@@ -23,3 +23,18 @@ export class NotFoundError extends Error {
     this.name = 'NotFoundError';
   }
 }
+
+/**
+ * Raised when content would not compile as MDX, which would break the page that shows it. The
+ * message is meant for the editor and quotes the line the error is on, when known: line numbers
+ * would count the stored text, not what the Markdown view shows.
+ */
+export class InvalidMdxError extends Error {
+  readonly near?: string;
+
+  constructor(near?: string) {
+    super(near ? `Can't save: invalid MDX near “${near}”` : "Can't save: this isn't valid MDX");
+    this.name = 'InvalidMdxError';
+    this.near = near;
+  }
+}

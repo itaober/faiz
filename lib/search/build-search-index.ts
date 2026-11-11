@@ -1,7 +1,7 @@
 import { getPostListInfo, getRecordsInfo, type RecordType } from '@/lib/data/data';
 import { getAboutMDX, getLinesMDX, getPostMDX } from '@/lib/data/mdx';
 import { getMemosByMonths, getMemosIndex } from '@/lib/data/memos';
-import { mdxTodoListsToMarkdown } from '@/lib/mdx-editing';
+import { mdxTodoListsToMarkdown, unescapeMarkdown } from '@/lib/mdx-editing';
 import { mdxImagesToMarkdown } from '@/lib/utils/editor-image';
 
 import type { SearchDoc } from './types';
@@ -15,16 +15,18 @@ const RECORD_TYPES: RecordType[] = ['book', 'movie', 'tv', 'music', 'game'];
  */
 const toSearchText = (markdown?: string) => {
   const md = mdxImagesToMarkdown(mdxTodoListsToMarkdown(markdown ?? ''));
-  return md
+  const text = md
     .replace(/```[\s\S]*?```/g, ' ') // fenced code
     .replace(/`[^`]*`/g, ' ') // inline code
     .replace(/!\[([^\]]*)\]\([^)]*\)/g, '$1') // image → alt
     .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1') // link → text
     .replace(/<[^>]+>/g, ' ') // residual tags
     .replace(/(?:^|\n)[ \t]*[-*+][ \t]+(?:\[[ xX]\][ \t]*)?/g, ' ') // list / task markers
-    .replace(/[>#*_~`|]+/g, ' ') // markdown punctuation
+    .replace(/(?<!\\)[>#*_~`|]+/g, ' ') // markdown punctuation, unless escaped
     .replace(/\s+/g, ' ')
     .trim();
+  // `\*` or `\{` stands for the character itself.
+  return unescapeMarkdown(text);
 };
 
 /** Aggregate every searchable surface into flat plain-text docs. */

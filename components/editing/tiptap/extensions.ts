@@ -13,6 +13,9 @@ import {
   QuoteIcon,
 } from 'lucide-react';
 
+import { separateInListItem } from '@/lib/mdx-block';
+import { formatMarkdownImage } from '@/lib/utils/editor-image';
+
 import { markEditingOverlayClosed, markEditingOverlayOpen } from '../editing-overlays';
 import { ImageNodeView } from './image-node-view';
 import { type SlashItem, SlashList, type SlashListRef } from './slash-list';
@@ -23,6 +26,11 @@ export { ImageGallery } from './image-gallery-extension';
 export { registerImagePreview } from './image-preview-store';
 
 export const StagedImage = Image.extend({
+  renderMarkdown: (node, _helpers, context) =>
+    separateInListItem(
+      formatMarkdownImage(String(node.attrs?.src ?? ''), String(node.attrs?.alt ?? '')),
+      context,
+    ),
   // A React node view shows the image with its (editable) caption below — the
   // serialised markdown stays `![alt](src)`, so the caption rides on `alt`. The
   // view resolves the key for display; renderHTML keeps the bare key, so a copied

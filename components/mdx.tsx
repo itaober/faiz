@@ -9,11 +9,7 @@ import ExternalLinkHoverCard from '@/components/external-link-hover-card';
 import { Preview, PreviewImage, PreviewPortal, PreviewTrigger } from '@/components/preview';
 import { isAssetKey, isTransformableSrc, resolveAssetSrc } from '@/lib/assets';
 import { getImageMeta } from '@/lib/data/images';
-import {
-  groupConsecutiveMdxImages,
-  normalizeEditorImageMarkup,
-  unescapeMarkdownValue,
-} from '@/lib/utils/editor-image';
+import { toRenderableMdx, unescapeMarkdownValue } from '@/lib/utils/editor-image';
 
 import type { ICheckboxRootProps } from './checkbox';
 import { Checkbox, CheckboxLabel, CheckboxRoot } from './checkbox';
@@ -186,10 +182,7 @@ const components: MDXComponents = {
 };
 
 export const MDX = (props: MDXRemoteProps) => {
-  const source =
-    typeof props.source === 'string'
-      ? groupConsecutiveMdxImages(normalizeEditorImageMarkup(props.source))
-      : props.source;
+  const source = typeof props.source === 'string' ? toRenderableMdx(props.source) : props.source;
 
   return (
     <MDXRemote
