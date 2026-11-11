@@ -563,9 +563,12 @@ button {
     color: var(--muted-foreground);
     background: transparent;
   }
-  .fz-btn-ghost:hover {
+  .fz-btn-ghost:not(:disabled):hover {
     background: var(--muted);
     color: var(--foreground);
+  }
+  .fz-btn-ghost:disabled {
+    cursor: not-allowed;
   }
   .fz-btn-primary {
     color: var(--background);
@@ -577,6 +580,18 @@ button {
   .fz-btn-primary:disabled {
     background: var(--muted);
     color: var(--muted-foreground);
+    cursor: not-allowed;
+  }
+  .fz-btn-danger {
+    color: var(--danger);
+    background: var(--danger-soft);
+  }
+  .fz-btn-danger:not(:disabled):hover {
+    background: color-mix(in oklch, var(--danger) 14%, var(--danger-soft));
+  }
+  /* Stays red while it works, unlike primary's muted disabled look. */
+  .fz-btn-danger:disabled {
+    opacity: 0.6;
     cursor: not-allowed;
   }
 
@@ -653,7 +668,13 @@ button {
     color: var(--foreground);
   }
 
-  /* ── Sign-in sheet (edit key, on demand) ────────────────────────────────── */
+  /* ── Sheet — a centered card on an <Overlay> (sign-in, confirm) ──────────── */
+  .fz-sheet-overlay {
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    background: color-mix(in oklch, black 8%, transparent);
+  }
   .fz-sheet {
     width: 100%;
     max-width: 420px;

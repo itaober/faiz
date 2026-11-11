@@ -1,0 +1,75 @@
+'use client';
+
+import { useEffect, useRef } from 'react';
+
+import Overlay from '@/components/overlay';
+
+interface IConfirmDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  title: string;
+  description?: string;
+  confirmLabel?: string;
+  loadingLabel?: string;
+  isLoading?: boolean;
+  onConfirm: () => void;
+}
+
+/** Centered confirm for a destructive action, in the sign-in sheet's look. */
+export default function ConfirmDialog({
+  open,
+  onOpenChange,
+  title,
+  description,
+  confirmLabel = 'Delete',
+  loadingLabel = 'Deleting...',
+  isLoading = false,
+  onConfirm,
+}: IConfirmDialogProps) {
+  const cancelRef = useRef<HTMLButtonElement>(null);
+
+  // Focus starts on Cancel, the safe default when Enter is pressed by habit. Deferred like the
+  // other overlays' initial focus, so it lands once the overlay's focus scope has mounted.
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+    const id = window.setTimeout(() => cancelRef.current?.focus(), 30);
+    return () => window.clearTimeout(id);
+  }, [open]);
+
+  // Escape and the backdrop cancel too, but not while the delete is in flight.
+  const cancel = () => {
+    if (!isLoading) {
+      onOpenChange(false);
+    }
+  };
+
+  return (
+    <Overlay open={open} onClose={cancel} ariaLabel={title} className="fz-sheet-overlay">
+      <div className="fz-sheet">
+        <h3>{title}</h3>
+        {description && <p>{description}</p>}
+        <div className="mt-4 flex justify-end gap-2">
+          <button
+            ref={cancelRef}
+            type="button"
+            className="fz-btn fz-btn-ghost"
+            onClick={cancel}
+            disabled={isLoading}
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            className="fz-btn fz-btn-danger"
+            onClick={onConfirm}
+            disabled={isLoading}
+          >
+            {isLoading ? loadingLabel : confirmLabel}
+          </button>
+        </div>
+      </div>
+    </Overlay>
+  );
+}

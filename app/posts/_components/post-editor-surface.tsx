@@ -7,7 +7,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import PostTitle from '@/app/_components/post-title';
 import { useEditMode } from '@/components/edit-mode-context';
 import type { ActionBarTool, EditViewMode } from '@/components/editing/action-bar';
-import ConfirmDrawer from '@/components/editing/confirm-drawer';
+import ConfirmDialog from '@/components/editing/confirm-dialog';
 import EditKeyDrawer from '@/components/editing/edit-key-drawer';
 import { useDockedActionBar } from '@/components/editing/edit-session';
 import TiptapEditor from '@/components/editing/tiptap-editor';
@@ -323,7 +323,7 @@ export default function PostEditorSurface({
       />
 
       <EditKeyDrawer open={settingsOpen} onOpenChange={setSettingsOpen} />
-      <ConfirmDrawer
+      <ConfirmDialog
         open={confirmOpen}
         onOpenChange={setConfirmOpen}
         title="Delete post?"
