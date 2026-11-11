@@ -21,6 +21,7 @@ import {
   updatePostAction,
 } from '@/lib/actions/edit-post';
 import type { PostMeta } from '@/lib/data/data';
+import { formatTime } from '@/lib/dayjs';
 import { markdownTodoListsToMdx, mdxTodoListsToMarkdown } from '@/lib/mdx-editing';
 import { cn } from '@/lib/utils';
 import {
@@ -54,7 +55,7 @@ const parseTags = (value: string) =>
 
 const formatPostDateInput = (value?: string) => {
   if (!value) {
-    return dayjs().format('YYYY-MM-DD');
+    return formatTime().slice(0, 10);
   }
   return value.slice(0, 10);
 };
