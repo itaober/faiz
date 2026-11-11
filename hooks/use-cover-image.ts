@@ -5,7 +5,7 @@ import { toast } from 'sonner';
 
 import { uploadStagedEditorImage } from '@/components/editing/upload-staged-editor-images';
 import { resolveAssetSrc } from '@/lib/assets';
-import { buildAssetKey, generateEditorImageId } from '@/lib/utils/editor-image';
+import { buildAssetKey, coverImageId, generateEditorImageId } from '@/lib/utils/editor-image';
 import { compressImage, isSupportedImageType, MAX_SOURCE_IMAGE_SIZE } from '@/lib/utils/image';
 
 /**
@@ -53,7 +53,7 @@ export function useCoverImage(initialCoverUrl: string) {
   /** Key the staged cover will be stored at, for showing before the upload. */
   const coverKey = useCallback(
     (entityId: string, name: string) =>
-      buildAssetKey({ entityId, imageId: `${name}_${uploadId}`, scope: 'records' }),
+      buildAssetKey({ entityId, imageId: coverImageId(name, uploadId), scope: 'records' }),
     [uploadId],
   );
 
@@ -78,7 +78,7 @@ export function useCoverImage(initialCoverUrl: string) {
       if (!pendingFile) {
         return initialCoverUrl;
       }
-      const imageId = `${name}_${uploadId}`;
+      const imageId = coverImageId(name, uploadId);
       const key = buildAssetKey({ entityId, imageId, scope: 'records' });
       await uploadStagedEditorImage({
         ...(await compressImage(pendingFile)),

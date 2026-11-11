@@ -22,6 +22,8 @@ export interface MdxImageGalleryItem {
 
 type EditorImageExtension = 'webp' | 'jpg' | 'jpeg' | 'png' | 'gif';
 
+const MAX_IMAGE_SEGMENT_LENGTH = 80;
+
 export const sanitizeImageSegment = (value: string) =>
   Array.from(
     value
@@ -32,12 +34,22 @@ export const sanitizeImageSegment = (value: string) =>
       .replace(/-+/g, '-')
       .replace(/^[-_]+|[-_]+$/g, ''),
   )
-    .slice(0, 80)
+    .slice(0, MAX_IMAGE_SEGMENT_LENGTH)
     .join('')
     .trim()
     .replace(/^[-_]+|[-_]+$/g, '');
 
 export const generateEditorImageId = () => Math.random().toString(36).slice(2, 8);
+
+/**
+ * Image id of a record cover: its readable name plus the upload's suffix. Assets are cached as
+ * immutable, so the name gives way to the length cap and the suffix, which keeps keys unique,
+ * always survives.
+ */
+export const coverImageId = (name: string, uploadId: string) =>
+  `${Array.from(name)
+    .slice(0, MAX_IMAGE_SEGMENT_LENGTH - uploadId.length - 1)
+    .join('')}_${uploadId}`;
 
 /** Key of an uploaded image inside this project's assets folder: `{scope}/{entity}_{image}.webp`. */
 export const buildAssetKey = ({
