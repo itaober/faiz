@@ -1,9 +1,9 @@
 import z from 'zod';
 
-import { cachedResource, fetchGitHubJson } from './common';
+import { CONTENT_KEYS } from '@/lib/content-keys';
+import { readContentJson } from '@/lib/storage/r2';
 
-const META_PATH = 'data/meta.json';
-const RECORDS_PATH = 'data/records.json';
+import { cachedResource } from './common';
 
 export const MetaSchema = z.object({
   name: z.string(),
@@ -19,7 +19,7 @@ export const MetaSchema = z.object({
 
 export const getMetaInfo = cachedResource(
   'meta',
-  async () => MetaSchema.parse(await fetchGitHubJson(META_PATH)),
+  async () => MetaSchema.parse(await readContentJson(CONTENT_KEYS.site)),
   null,
 );
 
@@ -46,7 +46,7 @@ export type Records = z.infer<typeof RecordsSchema>;
 
 export const getRecordsInfo = cachedResource(
   'records',
-  async () => RecordsSchema.parse(await fetchGitHubJson(RECORDS_PATH)),
+  async () => RecordsSchema.parse(await readContentJson(CONTENT_KEYS.records)),
   null,
 );
 
@@ -65,6 +65,6 @@ export type PostList = z.infer<typeof PostListSchema>;
 
 export const getPostListInfo = cachedResource(
   'post list',
-  async () => PostListSchema.parse(await fetchGitHubJson('data/posts.json')),
+  async () => PostListSchema.parse(await readContentJson(CONTENT_KEYS.postsIndex)),
   null,
 );

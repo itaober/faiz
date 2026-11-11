@@ -5,11 +5,11 @@ import { motion } from 'motion/react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useCallback } from 'react';
-
 import { Badge } from '@/components/badge';
 import { useEditMode } from '@/components/edit-mode-context';
 import { Preview, PreviewImage, PreviewPortal, PreviewTrigger } from '@/components/preview';
 import { useMounted } from '@/hooks/use-mounted';
+import { isTransformableSrc, resolveAssetSrc } from '@/lib/assets';
 import { ANIMATION } from '@/lib/constants/animation';
 import type { RecordItem as RecordDataItem } from '@/lib/data/data';
 import { cn } from '@/lib/utils';
@@ -45,6 +45,7 @@ export default function RecordItem({
   // Editable only in the records "edit" sub-mode; in "preview" the cover opens the lightbox.
   const canEdit = mounted && isEditMode && mode === 'wysiwyg';
   const isSelected = editingRecordKey === recordKey;
+  const coverSrc = resolveAssetSrc(coverUrl);
 
   const openEditor = useCallback(() => {
     setEditingRecordKey(recordKey);
@@ -64,7 +65,8 @@ export default function RecordItem({
 
   const squareCoverImage = (
     <Image
-      src={coverUrl}
+      src={coverSrc}
+      unoptimized={!isTransformableSrc(coverSrc)}
       alt={title}
       width={0}
       height={0}
@@ -81,7 +83,8 @@ export default function RecordItem({
   const letterboxFrame = (content: React.ReactNode) => (
     <span className="fz-img-outline relative block aspect-[2/3] w-full overflow-hidden rounded-md bg-[var(--fz-image-frame)]">
       <Image
-        src={coverUrl}
+        src={coverSrc}
+        unoptimized={!isTransformableSrc(coverSrc)}
         alt=""
         aria-hidden
         width={0}
@@ -97,7 +100,8 @@ export default function RecordItem({
 
   const coverImage = isLetterboxedSquare ? null : (
     <Image
-      src={coverUrl}
+      src={coverSrc}
+      unoptimized={!isTransformableSrc(coverSrc)}
       alt={title}
       width={0}
       height={0}
@@ -145,7 +149,7 @@ export default function RecordItem({
             letterboxFrame(
               <PreviewTrigger
                 as="span"
-                previewSrc={coverUrl}
+                previewSrc={coverSrc}
                 ariaLabel={`Open cover preview: ${title}`}
                 className="block"
               >
@@ -154,7 +158,7 @@ export default function RecordItem({
             )
           ) : (
             <PreviewTrigger
-              previewSrc={coverUrl}
+              previewSrc={coverSrc}
               ariaLabel={`Open cover preview: ${title}`}
               className="rounded-md"
             >
@@ -173,7 +177,7 @@ export default function RecordItem({
               ) : undefined
             }
           >
-            <PreviewImage src={coverUrl} alt={title} />
+            <PreviewImage src={coverSrc} alt={title} />
           </PreviewPortal>
         </Preview>
       )}

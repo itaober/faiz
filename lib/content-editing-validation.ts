@@ -1,17 +1,15 @@
 export const EDITABLE_PAGES = ['about', 'lines'] as const;
 export type EditablePage = (typeof EDITABLE_PAGES)[number];
 
-/** Lives here rather than in the action: a 'use server' file can only export async functions. */
-export const EDITABLE_PAGE_PATHS: Record<EditablePage, string> = {
-  about: 'pages/about.mdx',
-  lines: 'pages/lines.mdx',
-};
-
 export const RECORD_TYPES = ['book', 'movie', 'tv', 'music', 'game'] as const;
 export type EditableRecordType = (typeof RECORD_TYPES)[number];
 
+/** Folders the editors upload into; each is also the first segment of the asset key. */
 export const CONTENT_IMAGE_SCOPES = ['memos', 'posts', 'pages', 'records'] as const;
 export type ContentImageScope = (typeof CONTENT_IMAGE_SCOPES)[number];
+
+/** Every folder an asset key may start with: upload scopes plus site-wide files (the avatar). */
+const ASSET_FOLDERS = new Set<string>([...CONTENT_IMAGE_SCOPES, 'site']);
 
 /** Upper bound on memo body length, shared by the create and update actions. */
 export const MAX_MEMO_CONTENT_LENGTH = 10000;
@@ -69,7 +67,7 @@ export const isSafeContentImagePath = (
   }
 
   const normalized = normalizeContentImagePath(value);
-  const match = normalized.match(/^assets\/([^/]+)\/([\p{L}\p{N}_-]+)\.(webp|jpe?g|png|gif)$/u);
+  const match = normalized.match(/^([^/]+)\/([\p{L}\p{N}_-]+)\.(webp|jpe?g|png|gif)$/u);
 
   if (!match) {
     return false;
@@ -84,29 +82,22 @@ export const isSafeContentImagePath = (
 };
 
 /**
- * Guard for the read-side image proxy. Deliberately looser than
- * `isSafeContentImagePath`: that one validates paths we generate, while this one
- * has to accept every filename already committed to the content repo — spaces
- * and full-width punctuation included. It also skips NFKC normalization, which
- * would rewrite `：` to `:` and stop the path from resolving on GitHub.
+ * Guard for reading an asset key that content already holds. Deliberately looser than
+ * `isSafeContentImagePath`: that one validates keys we generate, while this one has to accept
+ * every filename already stored — spaces and full-width punctuation included — so it skips NFKC
+ * normalization, which would rewrite `：` to `:` and miss the object.
  *
- * Safety here only needs three things: stay inside `assets/`, no traversal, and
- * a raster image extension (so `data/*.json`, `*.mdx` and inline-renderable SVG
- * stay unreachable).
+ * Safety only needs three things: a known top-level folder, no traversal, and a raster image
+ * extension.
  */
-export const isContentImageReadPath = (segments: string[]) => {
-  if (segments.length < 2 || segments[0] !== 'assets') {
+export const isAssetImageKey = (key: string) => {
+  const segments = key.split('/');
+  if (segments.length < 2 || !ASSET_FOLDERS.has(segments[0])) {
     return false;
   }
 
-  // A decoded %2F or %5C would smuggle extra path levels through a single segment.
   const hasUnsafeSegment = segments.some(
-    segment =>
-      !segment ||
-      segment === '.' ||
-      segment === '..' ||
-      segment.includes('/') ||
-      segment.includes('\\'),
+    segment => !segment || segment === '.' || segment === '..' || segment.includes('\\'),
   );
   if (hasUnsafeSegment) {
     return false;

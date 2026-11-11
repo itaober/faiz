@@ -7,6 +7,7 @@ import { usePathname } from 'next/navigation';
 import { cloneElement, isValidElement, type ReactElement, type ReactNode } from 'react';
 
 import { useEditMode } from '@/components/edit-mode-context';
+import { isTransformableSrc } from '@/lib/assets';
 import { ANIMATION } from '@/lib/constants/animation';
 import { cn } from '@/lib/utils';
 
@@ -73,6 +74,7 @@ export default function HeaderClient({ avatar, avatarAlt, navNodes }: IHeaderCli
               alt={avatarAlt}
               width={48}
               height={48}
+              unoptimized={!isTransformableSrc(avatar)}
               className="size-10 rounded-full select-none md:size-12"
             />
             {isEditModeLoaded && isEditMode && (

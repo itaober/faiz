@@ -8,12 +8,6 @@ importers:
 
   .:
     dependencies:
-      '@jsquash/jpeg':
-        specifier: ^1.6.0
-        version: 1.6.0
-      '@jsquash/png':
-        specifier: ^3.1.1
-        version: 3.1.1
       '@jsquash/resize':
         specifier: ^2.1.1
         version: 2.1.1
@@ -71,6 +65,9 @@ importers:
       '@vercel/speed-insights':
         specifier: ^2.0.0
         version: 2.0.0(next@16.3.4(@types/node@24.13.3)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react@19.2.8)
+      aws4fetch:
+        specifier: 1.0.20
+        version: 1.0.20
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -116,9 +113,6 @@ importers:
       react-tweet:
         specifier: ^3.3.1
         version: 3.3.1(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
-      sharp:
-        specifier: 0.35.4
-        version: 0.35.4(@types/node@24.13.3)
       sonner:
         specifier: ^2.0.8
         version: 2.0.8(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
@@ -515,12 +509,6 @@ packages:
 
   '@jridgewell/trace-mapping@0.3.31':
     resolution: {integrity: sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw==}
-
-  '@jsquash/jpeg@1.6.0':
-    resolution: {integrity: sha512-zwN46Awh1VM6gXlIcALwb5WzqK5H2e6+Awcs1QP8AvS8ohsK/sbE4esvmH4jhlhW7+CgiUUww66vg0aTnlSIMA==}
-
-  '@jsquash/png@3.1.1':
-    resolution: {integrity: sha512-C10pc+0H6j0h8fENOfnGOvkXCmvpSQTDGlfGd0sHphZhPSGTyLjIrHba0FaZZdsKqA/wlmhYicUHb92vfZphaw==}
 
   '@jsquash/resize@2.1.1':
     resolution: {integrity: sha512-0R5UL1ZLHUT+carjVikcE1QfA+kfNQ2YamYyGVRmhfh4zttU5EY3bQBGxPIPtY2xIAw1P4Kgyxm2xrceRw1r2w==}
@@ -1678,6 +1666,9 @@ packages:
   astring@1.9.0:
     resolution: {integrity: sha512-LElXdjswlqjWrPpJFg1Fx4wpkOCxj1TDHlSV4PlaRxHGWko024xICaa97ZkMfs6DRKlCguiAI+rbXv5GWwXIkg==}
     hasBin: true
+
+  aws4fetch@1.0.20:
+    resolution: {integrity: sha512-/djoAN709iY65ETD6LKCtyyEI04XIBP5xVvfmNxsEP0uJB5tyaGBztSryRr4HqMStr9R06PisQE7m9zDTXKu6g==}
 
   bail@2.0.2:
     resolution: {integrity: sha512-0xO6mYd7JB2YesxDKplafRpsiOzPt9V02ddPCLbY1xYGPOX24NTyN50qnUxgCPcSoYMhKpAuBTjQoRZCAkUDRw==}
@@ -3116,7 +3107,8 @@ snapshots:
 
   '@iarna/toml@2.2.5': {}
 
-  '@img/colour@1.1.0': {}
+  '@img/colour@1.1.0':
+    optional: true
 
   '@img/sharp-darwin-arm64@0.35.4':
     optionalDependencies:
@@ -3245,10 +3237,6 @@ snapshots:
     dependencies:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.6.0
-
-  '@jsquash/jpeg@1.6.0': {}
-
-  '@jsquash/png@3.1.1': {}
 
   '@jsquash/resize@2.1.1': {}
 
@@ -4094,6 +4082,8 @@ snapshots:
   array-ify@1.0.0: {}
 
   astring@1.9.0: {}
+
+  aws4fetch@1.0.20: {}
 
   bail@2.0.2: {}
 
@@ -5346,6 +5336,7 @@ snapshots:
       '@img/sharp-win32-ia32': 0.35.4
       '@img/sharp-win32-x64': 0.35.4
       '@types/node': 24.13.3
+    optional: true
 
   signal-exit@4.1.0: {}
 

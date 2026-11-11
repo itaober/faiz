@@ -9,7 +9,7 @@ const EAGER_MEMOS = 3;
 
 /**
  * Static first page: the newest months render into the prerendered HTML (data
- * refreshes at runtime via fetch revalidate + updateTag on save, same as
+ * refreshes at runtime via the content cache's revalidate + updateTag on save, same as
  * posts). Older months stream in client-side via the load-more server action,
  * so no searchParams touch this route and it never goes dynamic.
  */

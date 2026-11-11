@@ -1,10 +1,7 @@
 import matter from 'gray-matter';
 
-import { putGitHubFile } from '@/lib/data/common';
+import { writeContent } from '@/lib/storage/r2';
 import { normalizeEditorImageMarkup } from '@/lib/utils/editor-image';
-
-/** Always read fresh (no cache) when about to mutate, to avoid stale SHA / 409s. */
-export const createMutationFetchInit = (): RequestInit => ({ cache: 'no-store' });
 
 /** Trimmed string, or '' when the value is missing / blank. */
 export const normalizeOptionalString = (value: unknown) =>
@@ -38,27 +35,14 @@ const stringifyMdx = (data: Record<string, unknown>, content: string) =>
   );
 
 /**
- * Write a frontmatter+content MDX file to the content repo.
+ * Write a frontmatter+content MDX file to the content bucket.
  *
- * @param sha - Revision the editor loaded; omit when creating a new file.
- * @returns The new revision's SHA.
+ * @param revision - Revision the editor loaded; null when creating a new file.
+ * @returns The new revision.
  */
-export const writeMdx = async (
-  path: string,
+export const writeMdx = (
+  key: string,
   data: Record<string, unknown>,
   content: string,
-  message: string,
-  token: string,
-  sha?: string,
-) => {
-  const mdx = stringifyMdx(data, content);
-  return putGitHubFile(
-    path,
-    {
-      contentBase64: Buffer.from(mdx, 'utf8').toString('base64'),
-      message,
-      sha,
-    },
-    token,
-  );
-};
+  revision: string | null,
+) => writeContent(key, stringifyMdx(data, content), revision, 'text/markdown; charset=utf-8');

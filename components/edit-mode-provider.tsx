@@ -2,14 +2,14 @@
 
 import { type ReactNode, useCallback, useEffect, useMemo, useState } from 'react';
 
-import { useGitHubToken } from '@/hooks/use-github-token';
+import { useEditSession } from '@/hooks/use-edit-session';
 
 import { EditModeContext } from './edit-mode-context';
 
 const EDIT_MODE_STORAGE_KEY = 'FAIZ_EDIT_MODE';
 
 export function EditModeProvider({ children }: { children: ReactNode }) {
-  const { token, isLoaded: isTokenLoaded, saveToken, clearToken } = useGitHubToken();
+  const { isSignedIn, isSessionLoaded, signIn, signOut } = useEditSession();
   const [isEditMode, setIsEditMode] = useState(false);
   const [isEditModeLoaded, setIsEditModeLoaded] = useState(false);
 
@@ -47,20 +47,20 @@ export function EditModeProvider({ children }: { children: ReactNode }) {
       isEditModeLoaded,
       toggleEditMode,
       setEditMode,
-      token,
-      isTokenLoaded,
-      saveToken,
-      clearToken,
+      isSignedIn,
+      isSessionLoaded,
+      signIn,
+      signOut,
     }),
     [
-      clearToken,
       isEditMode,
       isEditModeLoaded,
-      isTokenLoaded,
-      saveToken,
+      isSessionLoaded,
+      isSignedIn,
       setEditMode,
+      signIn,
+      signOut,
       toggleEditMode,
-      token,
     ],
   );
 

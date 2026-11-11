@@ -8,8 +8,8 @@ import PostTitle from '@/app/_components/post-title';
 import { useEditMode } from '@/components/edit-mode-context';
 import type { ActionBarTool, EditViewMode } from '@/components/editing/action-bar';
 import ConfirmDrawer from '@/components/editing/confirm-drawer';
+import EditKeyDrawer from '@/components/editing/edit-key-drawer';
 import { useDockedActionBar } from '@/components/editing/edit-session';
-import GitHubTokenDrawer from '@/components/editing/github-token-drawer';
 import TiptapEditor from '@/components/editing/tiptap-editor';
 import { uploadStagedEditorImages } from '@/components/editing/upload-staged-editor-images';
 import { useContentEditor } from '@/hooks/use-content-editor';
@@ -25,7 +25,7 @@ import { markdownTodoListsToMdx, mdxTodoListsToMarkdown } from '@/lib/mdx-editin
 import { cn } from '@/lib/utils';
 import {
   groupConsecutiveMdxImages,
-  mergeByPath,
+  mergeByKey,
   normalizeEditorImageMarkup,
   type StagedEditorImage,
 } from '@/lib/utils/editor-image';
@@ -35,7 +35,7 @@ interface IPostEditorSurfaceProps {
   /** Raw MDX body, loaded on demand rather than shipped with every page view. */
   initialContent?: string;
   /** Revision the body came from; sent back on save so a concurrent edit conflicts. */
-  sha?: string;
+  revision?: string;
   onExit: () => void;
 }
 
@@ -69,11 +69,11 @@ const buildPostCreatedTime = (dateValue: string, previousValue?: string) => {
 export default function PostEditorSurface({
   post,
   initialContent,
-  sha,
+  revision,
   onExit,
 }: IPostEditorSurfaceProps) {
   const router = useRouter();
-  const { token } = useEditMode();
+  const { isSignedIn } = useEditMode();
   const isEdit = !!post;
   const [mode, setMode] = useState<EditViewMode>(() =>
     !isEdit || isMobileViewport() ? 'wysiwyg' : 'preview',
@@ -87,18 +87,17 @@ export default function PostEditorSurface({
     isDeleting,
     submit,
     remove,
-  } = useContentEditor(token);
+  } = useContentEditor(isSignedIn);
   const [title, setTitle] = useState(post?.title ?? '');
   const [tags, setTags] = useState(post?.tags.join(', ') ?? '');
   const [pinned, setPinned] = useState(Boolean(post?.pinned));
   const [createdTime, setCreatedTime] = useState(formatPostDateInput(post?.createdTime));
   // Checkboxes (<TodoList>/<CheckboxRoot>) edit as markdown task lists, like pages.
   const [content, setContent] = useState(() => mdxTodoListsToMarkdown(initialContent ?? ''));
-  const [contentSha, setContentSha] = useState(sha);
+  const [contentRevision, setContentRevision] = useState(revision);
   const [stagedImages, setStagedImages] = useState<StagedEditorImage[]>([]);
   const postDateInputRef = useRef<HTMLInputElement>(null);
 
-  const hasToken = !!token;
   const slug = useMemo(() => post?.slug ?? (slugify(title) || 'post'), [post, title]);
   const uploadEntityId = slug;
   const isSaveDisabled = isSubmitting || !title.trim() || !content.trim();
@@ -113,9 +112,9 @@ export default function PostEditorSurface({
     setPinned(Boolean(post?.pinned));
     setCreatedTime(formatPostDateInput(post?.createdTime));
     setContent(mdxTodoListsToMarkdown(initialContent ?? ''));
-    setContentSha(sha);
+    setContentRevision(revision);
     setStagedImages([]);
-  }, [post, initialContent, sha]);
+  }, [post, initialContent, revision]);
 
   const openPostDatePicker = () => {
     const input = postDateInputRef.current;
@@ -146,19 +145,14 @@ export default function PostEditorSurface({
         setMode('preview');
         // Adopt the revision we just wrote, so saving again without reopening
         // the editor isn't reported as a conflict.
-        setContentSha(saved?.contentSha);
+        setContentRevision(saved?.revision);
         router.refresh();
         if (!isEdit && saved?.post.slug) {
           router.push(`/posts/${saved.post.slug}`);
         }
       },
-      run: async token => {
-        await uploadStagedEditorImages({
-          images: stagedImages,
-          content: mdxContent,
-          token,
-          revalidatePath: isEdit && post ? `/posts/${post.slug}` : '/posts',
-        });
+      run: async () => {
+        await uploadStagedEditorImages({ images: stagedImages, content: mdxContent });
 
         const payload = {
           title,
@@ -167,12 +161,15 @@ export default function PostEditorSurface({
           pinned,
           createdTime: buildPostCreatedTime(createdTime, post?.createdTime),
           content: mdxContent,
-          token,
         };
 
         const result =
           isEdit && post
-            ? await updatePostAction({ ...payload, originalSlug: post.slug, sha: contentSha })
+            ? await updatePostAction({
+                ...payload,
+                originalSlug: post.slug,
+                revision: contentRevision,
+              })
             : await createPostAction(payload);
 
         if (!result.success) {
@@ -196,8 +193,8 @@ export default function PostEditorSurface({
         router.push('/posts');
         router.refresh();
       },
-      run: async token => {
-        const result = await deletePostAction({ slug: post.slug, token });
+      run: async () => {
+        const result = await deletePostAction({ slug: post.slug });
         if (!result.success) {
           throw new Error(result.error || 'Delete failed');
         }
@@ -272,8 +269,8 @@ export default function PostEditorSurface({
   useDockedActionBar({
     context: title.trim() || (isEdit ? 'Post' : 'New post'),
     status: isSubmitting ? 'saving' : pinDirty || !isPreview ? 'dirty' : 'idle',
-    hasToken,
-    onConnect: () => setSettingsOpen(true),
+    isSignedIn,
+    onSignIn: () => setSettingsOpen(true),
     mode,
     onModeChange: setMode,
     tools,
@@ -321,11 +318,11 @@ export default function PostEditorSurface({
         minHeightClassName={content.trim() ? 'min-h-0' : 'min-h-40'}
         autoFocus={!isEdit}
         onImagesStaged={images =>
-          setStagedImages(previous => mergeByPath(previous, images, image => image))
+          setStagedImages(previous => mergeByKey(previous, images, image => image))
         }
       />
 
-      <GitHubTokenDrawer open={settingsOpen} onOpenChange={setSettingsOpen} />
+      <EditKeyDrawer open={settingsOpen} onOpenChange={setSettingsOpen} />
       <ConfirmDrawer
         open={confirmOpen}
         onOpenChange={setConfirmOpen}

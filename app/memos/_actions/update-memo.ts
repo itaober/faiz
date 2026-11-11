@@ -4,8 +4,8 @@ import { revalidatePath } from 'next/cache';
 
 import { MAX_MEMO_CONTENT_LENGTH, normalizeImagePathList } from '@/lib/content-editing-validation';
 import type { Memo } from '@/lib/data/memos';
-import { updateMemoWithImages } from '@/lib/data/memos';
-import { requireAuth } from '@/lib/server/content-edit-token';
+import { updateMemo } from '@/lib/data/memos';
+import { requireEditSession } from '@/lib/server/edit-session';
 import { type ActionResult, createActionError, validationError } from '@/lib/types/action-result';
 
 interface IUpdateMemoInput {
@@ -13,13 +13,12 @@ interface IUpdateMemoInput {
   content: string;
   images?: string[];
   createdTime: string;
-  token: string;
 }
 
 export async function updateMemoAction(input: IUpdateMemoInput): Promise<ActionResult<Memo>> {
-  const token = await requireAuth(input.token);
-  if (typeof token !== 'string') {
-    return token;
+  const denied = await requireEditSession();
+  if (denied) {
+    return denied;
   }
 
   const content = typeof input.content === 'string' ? input.content : '';
@@ -47,12 +46,11 @@ export async function updateMemoAction(input: IUpdateMemoInput): Promise<ActionR
   }
 
   try {
-    const { memo } = await updateMemoWithImages({
+    const memo = await updateMemo({
       id: input.id,
       content: content.trim(),
       images: normalizedImages?.paths,
       createdTime: input.createdTime,
-      token,
     });
 
     revalidatePath('/memos');

@@ -7,7 +7,7 @@ import { toast } from 'sonner';
 import { Drawer } from 'vaul';
 import { useEditMode } from '@/components/edit-mode-context';
 import ConfirmDrawer from '@/components/editing/confirm-drawer';
-import GitHubTokenDrawer from '@/components/editing/github-token-drawer';
+import EditKeyDrawer from '@/components/editing/edit-key-drawer';
 import Segmented from '@/components/segmented';
 import { useContentEditor } from '@/hooks/use-content-editor';
 import { useCoverImage } from '@/hooks/use-cover-image';
@@ -19,7 +19,7 @@ import {
 } from '@/lib/actions/edit-record';
 import { SUPPORTED_IMAGE_TYPES } from '@/lib/constants/image';
 import type { RecordItem } from '@/lib/data/data';
-import { buildEditorImageStoragePath } from '@/lib/utils/editor-image';
+import { sanitizeImageSegment } from '@/lib/utils/editor-image';
 
 import { isSquareCoverType, tabList } from '../_constants';
 
@@ -51,9 +51,8 @@ export default function RecordsSidePanel({
   onClose,
 }: IRecordsSidePanelProps) {
   const router = useRouter();
-  const { token } = useEditMode();
+  const { isSignedIn } = useEditMode();
   const isEdit = !!record;
-  const hasToken = !!token;
 
   const {
     settingsOpen,
@@ -64,11 +63,18 @@ export default function RecordsSidePanel({
     isDeleting,
     submit,
     remove,
-  } = useContentEditor(token);
+  } = useContentEditor(isSignedIn);
   const [title, setTitle] = useState(record?.title ?? '');
   const [type, setType] = useState<RecordItem['type']>(record?.type ?? initialType);
-  const { coverPreviewSrc, hasCover, pendingFile, stageCoverFile, clearPendingCover, uploadCover } =
-    useCoverImage(record?.coverUrl ?? '');
+  const {
+    coverPreviewSrc,
+    hasCover,
+    pendingFile,
+    stageCoverFile,
+    clearPendingCover,
+    coverKey,
+    uploadCover,
+  } = useCoverImage(record?.coverUrl ?? '');
   // Cover filename slug — follows the title until manually overridden (null = follow).
   const [coverName, setCoverName] = useState<string | null>(null);
   const [link, setLink] = useState(record?.link ?? '');
@@ -79,9 +85,10 @@ export default function RecordsSidePanel({
   const coverInputRef = useRef<HTMLInputElement>(null);
   const dateInputRef = useRef<HTMLInputElement>(null);
 
-  // Cover is stored at assets/records/{type}_{name}.webp — `name` defaults to the
-  // title but is editable (the Image name field) for awkward titles.
-  const coverImageName = (coverName ?? title).trim() || 'cover';
+  // Cover is stored at records/{type}_{name}_{random}.webp — `name` defaults to the title but
+  // is editable (the Image name field) for awkward titles. Sanitised here, so a name
+  // with no usable characters still maps to the same key on the client and server.
+  const coverImageName = sanitizeImageSegment(coverName ?? title) || 'cover';
   const isSaveDisabled = isSubmitting || !title.trim() || !link.trim() || !hasCover;
   const ratingStars = Math.round((Number(rating) || 0) / 2);
 
@@ -100,9 +107,9 @@ export default function RecordsSidePanel({
   const parsedRating = rating.trim() ? Number(rating) : undefined;
 
   const handleSubmit = () => {
-    // Validate only once a token exists, so a token-less save still routes to the
-    // connect-token drawer first (matching the prior gate ordering).
-    if (hasToken && parsedRating !== undefined && Number.isNaN(parsedRating)) {
+    // Validate only once signed in, so a signed-out save still routes to the
+    // edit-key drawer first.
+    if (isSignedIn && parsedRating !== undefined && Number.isNaN(parsedRating)) {
       toast.error('Invalid rating');
       return;
     }
@@ -115,8 +122,8 @@ export default function RecordsSidePanel({
         onClose();
         router.refresh();
       },
-      run: async token => {
-        const nextCoverUrl = await uploadCover(type, coverImageName, token);
+      run: async () => {
+        const nextCoverUrl = await uploadCover(type, coverImageName);
         const nextRecord: RecordItem = {
           title,
           type,
@@ -135,9 +142,8 @@ export default function RecordsSidePanel({
                   createdTime: record.createdTime,
                 },
                 record: nextRecord,
-                token,
               })
-            : await createRecordAction({ record: nextRecord, token });
+            : await createRecordAction({ record: nextRecord });
         if (!result.success) {
           throw new Error(result.error || 'Save failed');
         }
@@ -159,10 +165,9 @@ export default function RecordsSidePanel({
         onClose();
         router.refresh();
       },
-      run: async token => {
+      run: async () => {
         const result = await deleteRecordAction({
           original: { title: record.title, type: record.type, createdTime: record.createdTime },
-          token,
         });
         if (!result.success) {
           throw new Error(result.error || 'Delete failed');
@@ -171,7 +176,7 @@ export default function RecordsSidePanel({
     });
   };
 
-  useSaveShortcut(hasToken && !isSaveDisabled, handleSubmit);
+  useSaveShortcut(isSignedIn && !isSaveDisabled, handleSubmit);
 
   return (
     <Drawer.Root direction="right" open onOpenChange={open => !open && onClose()} handleOnly>
@@ -197,13 +202,13 @@ export default function RecordsSidePanel({
           </div>
 
           <div className="flex-1 overflow-y-auto px-5 pt-1 pb-5">
-            {!hasToken && (
+            {!isSignedIn && (
               <button
                 type="button"
                 onClick={() => setSettingsOpen(true)}
                 className="fz-composer-prompt mb-4"
               >
-                <KeyRoundIcon className="size-4" /> Connect a GitHub token to save
+                <KeyRoundIcon className="size-4" /> Sign in to save
               </button>
             )}
 
@@ -235,7 +240,7 @@ export default function RecordsSidePanel({
                   onClick={() => coverInputRef.current?.click()}
                   aria-label="Change cover image"
                 >
-                  {/* biome-ignore lint/performance/noImgElement: editor preview of a local blob: URL, not optimizable by next/image */}
+                  {/* biome-ignore lint/performance/noImgElement: editor preview; src may be a local blob: URL, which next/image cannot optimize */}
                   <img
                     src={coverPreviewSrc}
                     alt={title || 'Cover'}
@@ -270,11 +275,7 @@ export default function RecordsSidePanel({
                     placeholder="cover"
                   />
                   <span className="text-muted-foreground/60 truncate font-mono text-[11px]">
-                    {buildEditorImageStoragePath({
-                      entityId: type,
-                      imageId: coverImageName,
-                      scope: 'records',
-                    })}
+                    {coverKey(type, coverImageName)}
                   </span>
                 </div>
               </div>
@@ -414,7 +415,7 @@ export default function RecordsSidePanel({
         </Drawer.Content>
       </Drawer.Portal>
 
-      <GitHubTokenDrawer open={settingsOpen} onOpenChange={setSettingsOpen} />
+      <EditKeyDrawer open={settingsOpen} onOpenChange={setSettingsOpen} />
       <ConfirmDrawer
         open={confirmOpen}
         onOpenChange={setConfirmOpen}

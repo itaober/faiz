@@ -12,8 +12,8 @@ export const SUPPORTED_IMAGE_TYPES = [
 // Stored (already-compressed WebP) size, checked on the server.
 export const MAX_IMAGE_SIZE = 10 * 1024 * 1024;
 
-// Picked file before compression. Phone photos and screenshots routinely exceed the
-// stored limit but compress to a few hundred KB, so this only guards browser decode memory.
+// Picked file before compression. Phone photos and screenshots can exceed the stored
+// limit but re-encode well under it, so this only guards browser decode memory.
 export const MAX_SOURCE_IMAGE_SIZE = 50 * 1024 * 1024;
 
 export function isSupportedImageType(mimeType: string): boolean {

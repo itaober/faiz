@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 
 import MotionWrapper from '@/components/motion-wrapper';
-import { hasContentEditToken } from '@/lib/server/content-edit-token';
+import { hasEditSession } from '@/lib/server/edit-session';
 
 import NewPostEditorPage from './new-post-editor-page';
 
@@ -10,8 +10,8 @@ export const metadata = {
 };
 
 export default async function NewPostPage() {
-  // Without a token the list never offers "New post", so this only turns visitors away.
-  if (!(await hasContentEditToken())) {
+  // Signed-out visitors are never offered "New post", so this only turns them away.
+  if (!(await hasEditSession())) {
     redirect('/posts');
   }
 

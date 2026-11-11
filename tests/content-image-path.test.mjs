@@ -1,49 +1,59 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { isContentImageReadPath } from '../lib/content-editing-validation.ts';
+import {
+  isAssetImageKey,
+  isSafeContentImagePath,
+  normalizeImagePathList,
+} from '../lib/content-editing-validation.ts';
 
-const asSegments = path => path.split('/');
-
-test('accepts every filename shape already committed to the content repo', () => {
-  // Sampled from `git ls-tree -r content -- assets`: spaces and full-width
-  // punctuation are real, and the avatar sits at the top level with no scope.
-  for (const path of [
-    'assets/avatar.webp',
-    'assets/memos/memo_2026-08-19_01.webp',
-    'assets/posts/weekly_15_黑松露炒饭.webp',
-    'assets/records/music_David Tao.webp',
-    'assets/records/music_没有鸟鸣，关上窗吧.webp',
-    'assets/records/music_秋：故事.webp',
+test('reads every asset key content already holds, odd filenames included', () => {
+  for (const key of [
+    'site/avatar.webp',
+    'memos/memo_2026-08-19_01.webp',
+    'posts/weekly_15_黑松露炒饭.webp',
+    'records/music_David Tao.webp',
+    'records/music_没有鸟鸣，关上窗吧.webp',
+    'records/music_秋：故事.webp',
   ]) {
-    assert.equal(isContentImageReadPath(asSegments(path)), true, path);
+    assert.equal(isAssetImageKey(key), true, key);
   }
 });
 
-test('keeps the proxy inside assets/ and off non-image files', () => {
-  for (const path of [
-    'data/meta.json',
-    'data/posts.json',
-    'data/posts/weekly-15-20260817.mdx',
-    'pages/about.mdx',
-    'assets',
-    'assets/notes.mdx',
-    'assets/records/cover',
+test('stays inside the known folders and off non-image files', () => {
+  for (const key of [
+    'avatar.webp',
+    'assets/memos/x.webp',
+    'data/meta.webp',
+    'posts/notes.mdx',
+    'records/cover',
+    'records/logo.svg',
+    'records/logo.ico',
   ]) {
-    assert.equal(isContentImageReadPath(asSegments(path)), false, path);
+    assert.equal(isAssetImageKey(key), false, key);
   }
 });
 
-test('rejects traversal, including separators smuggled inside one segment', () => {
-  assert.equal(isContentImageReadPath(['assets', '..', 'data', 'meta.webp']), false);
-  assert.equal(isContentImageReadPath(['assets', '.', 'avatar.webp']), false);
-  assert.equal(isContentImageReadPath(['assets', '', 'avatar.webp']), false);
-  // A decoded %2F or %5C arrives as one segment holding a separator.
-  assert.equal(isContentImageReadPath(['assets', '../data/meta.webp']), false);
-  assert.equal(isContentImageReadPath(['assets', '..\\data\\meta.webp']), false);
+test('rejects traversal and empty segments', () => {
+  assert.equal(isAssetImageKey('memos/../site/x.webp'), false);
+  assert.equal(isAssetImageKey('memos/./x.webp'), false);
+  assert.equal(isAssetImageKey('memos//x.webp'), false);
+  assert.equal(isAssetImageKey('memos/..\\site\\x.webp'), false);
 });
 
-test('refuses inline-renderable SVG even under assets/', () => {
-  assert.equal(isContentImageReadPath(asSegments('assets/records/logo.svg')), false);
-  assert.equal(isContentImageReadPath(asSegments('assets/records/logo.ico')), false);
+test('only keys we generate pass the write-side check, scoped when asked', () => {
+  assert.equal(isSafeContentImagePath('memos/memo_20261109_a2mijt_y0zzcs.webp', 'memos'), true);
+  assert.equal(isSafeContentImagePath('memos/memo_x.webp', 'posts'), false);
+  assert.equal(isSafeContentImagePath('assets/memos/memo_x.webp'), false);
+  assert.equal(isSafeContentImagePath('site/avatar.webp'), false);
+  assert.equal(isSafeContentImagePath('records/music_David Tao.webp'), false);
+});
+
+test('normalizes and de-duplicates memo image keys, reporting the rest', () => {
+  const { paths, invalid } = normalizeImagePathList(
+    ['/memos/a_1.webp', 'memos/a_1.webp', 'posts/b_2.webp', 42],
+    'memos',
+  );
+  assert.deepEqual(paths, ['memos/a_1.webp']);
+  assert.deepEqual(invalid, ['posts/b_2.webp', 42]);
 });

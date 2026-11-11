@@ -5,8 +5,8 @@ import { useState } from 'react';
 
 import { useEditMode } from '@/components/edit-mode-context';
 import type { ActionBarTool } from '@/components/editing/action-bar';
+import EditKeyDrawer from '@/components/editing/edit-key-drawer';
 import { useDockedActionBar } from '@/components/editing/edit-session';
-import GitHubTokenDrawer from '@/components/editing/github-token-drawer';
 
 import { useRecordsInlineComposer } from './use-records-inline-composer';
 
@@ -16,7 +16,7 @@ import { useRecordsInlineComposer } from './use-records-inline-composer';
  * "add" affordance appears. Hidden while the side panel is open (it has its own).
  */
 function RecordsActionBar() {
-  const { setEditMode, token } = useEditMode();
+  const { setEditMode, isSignedIn } = useEditMode();
   const { mode, setMode, setComposerOpen } = useRecordsInlineComposer();
   const [settingsOpen, setSettingsOpen] = useState(false);
   const isEditing = mode === 'wysiwyg';
@@ -36,13 +36,13 @@ function RecordsActionBar() {
   useDockedActionBar({
     context: 'Records',
     status: 'idle',
-    hasToken: !!token,
-    onConnect: () => setSettingsOpen(true),
+    isSignedIn,
+    onSignIn: () => setSettingsOpen(true),
     tools,
     onExit: () => setEditMode(false),
   });
 
-  return <GitHubTokenDrawer open={settingsOpen} onOpenChange={setSettingsOpen} />;
+  return <EditKeyDrawer open={settingsOpen} onOpenChange={setSettingsOpen} />;
 }
 
 export default function RecordsTitleActions() {

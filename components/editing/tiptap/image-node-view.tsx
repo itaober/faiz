@@ -4,7 +4,7 @@ import type { NodeViewProps } from '@tiptap/react';
 import { NodeViewWrapper, useEditorState } from '@tiptap/react';
 import { useEffect, useState } from 'react';
 
-import { getImagePreviewSrc } from './image-preview-store';
+import { resolveEditorImageSrc } from './image-preview-store';
 
 /**
  * Renders an image with its caption (the `alt`) shown below it — mirroring the
@@ -15,7 +15,6 @@ import { getImagePreviewSrc } from './image-preview-store';
 export function ImageNodeView({ node, updateAttributes, editor }: NodeViewProps) {
   const src = typeof node.attrs.src === 'string' ? node.attrs.src : '';
   const alt = typeof node.attrs.alt === 'string' ? node.attrs.alt : '';
-  const displaySrc = getImagePreviewSrc(src) ?? src;
   const editable = useEditorState({ editor, selector: ({ editor: e }) => e?.isEditable ?? false });
 
   // Decouple the input from the node attr so per-keystroke updates don't reset
@@ -28,7 +27,7 @@ export function ImageNodeView({ node, updateAttributes, editor }: NodeViewProps)
   return (
     <NodeViewWrapper as="figure" className="fz-editor-figure">
       {/* biome-ignore lint/performance/noImgElement: editor node view; src may be a local blob: URL */}
-      <img src={displaySrc} alt={alt} draggable={false} />
+      <img src={resolveEditorImageSrc(src)} alt={alt} draggable={false} />
       {editable ? (
         <input
           className="fz-editor-figcaption"

@@ -4,9 +4,9 @@ import Image from 'next/image';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { Preview, PreviewImage, PreviewPortal, PreviewTrigger } from '@/components/preview';
+import { isTransformableSrc, resolveAssetSrc } from '@/lib/assets';
 import type { ImageMeta } from '@/lib/data/images';
 import { cn } from '@/lib/utils';
-import { toApiImageUrl } from '@/lib/utils/editor-image';
 
 import { getMemoImageLayout } from './memo-image-layout';
 
@@ -38,7 +38,7 @@ export default function MemoCardImages({ images, eager }: MemoCardImagesProps) {
   const touchStartXRef = useRef<number | null>(null);
   const touchStartYRef = useRef<number | null>(null);
   const previewUrls = useMemo(
-    () => visibleImages.map(image => toApiImageUrl(image.path)),
+    () => visibleImages.map(image => resolveAssetSrc(image.path)),
     [visibleImages],
   );
 
@@ -154,6 +154,7 @@ export default function MemoCardImages({ images, eager }: MemoCardImagesProps) {
                   sizes={imageSizes}
                   loading={eager ? 'eager' : undefined}
                   placeholder={meta?.blurDataURL ?? 'empty'}
+                  unoptimized={!isTransformableSrc(url)}
                   className={cn({
                     'h-auto max-w-full rounded-md': columns === 1,
                     'w-auto': columns === 1 && !meta,

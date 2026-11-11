@@ -4,8 +4,8 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { useEditMode } from '@/components/edit-mode-context';
 import type { EditViewMode } from '@/components/editing/action-bar';
+import EditKeyDrawer from '@/components/editing/edit-key-drawer';
 import { useDockedActionBar } from '@/components/editing/edit-session';
-import GitHubTokenDrawer from '@/components/editing/github-token-drawer';
 import TiptapEditor from '@/components/editing/tiptap-editor';
 import { uploadStagedEditorImages } from '@/components/editing/upload-staged-editor-images';
 import { useContentEditor } from '@/hooks/use-content-editor';
@@ -14,7 +14,7 @@ import { type IPageSaveResult, updatePageAction } from '@/lib/actions/edit-page'
 import type { EditablePage } from '@/lib/content-editing-validation';
 import { markdownTodoListsToMdx, mdxTodoListsToMarkdown } from '@/lib/mdx-editing';
 import { cn } from '@/lib/utils';
-import { mergeByPath, type StagedEditorImage } from '@/lib/utils/editor-image';
+import { mergeByKey, type StagedEditorImage } from '@/lib/utils/editor-image';
 
 import PostTitle from './post-title';
 
@@ -23,27 +23,26 @@ interface IPageMdxEditorSurfaceProps {
   title: string;
   initialContent: string;
   /** Revision the body came from; sent back on save so a concurrent edit conflicts. */
-  sha?: string;
+  revision?: string;
 }
 
 export default function PageMdxEditorSurface({
   page,
   title,
   initialContent,
-  sha,
+  revision,
 }: IPageMdxEditorSurfaceProps) {
   const router = useRouter();
-  const { token, setEditMode } = useEditMode();
+  const { isSignedIn, setEditMode } = useEditMode();
   // Touch enters edit directly (tap-to-edit); desktop opens in preview.
   const [mode, setMode] = useState<EditViewMode>(() =>
     isMobileViewport() ? 'wysiwyg' : 'preview',
   );
-  const { settingsOpen, setSettingsOpen, isSubmitting, submit } = useContentEditor(token);
+  const { settingsOpen, setSettingsOpen, isSubmitting, submit } = useContentEditor(isSignedIn);
   const [draftTitle, setDraftTitle] = useState(title);
   const [draftContent, setDraftContent] = useState(() => mdxTodoListsToMarkdown(initialContent));
-  const [contentSha, setContentSha] = useState(sha);
+  const [contentRevision, setContentRevision] = useState(revision);
   const [stagedImages, setStagedImages] = useState<StagedEditorImage[]>([]);
-  const hasToken = !!token;
   const context = page === 'about' ? 'About' : 'Lines';
   const isSaveDisabled = isSubmitting || !draftTitle.trim();
   const readOnlyTitle = mode === 'preview';
@@ -51,9 +50,9 @@ export default function PageMdxEditorSurface({
   useEffect(() => {
     setDraftTitle(title);
     setDraftContent(mdxTodoListsToMarkdown(initialContent));
-    setContentSha(sha);
+    setContentRevision(revision);
     setStagedImages([]);
-  }, [initialContent, sha, title]);
+  }, [initialContent, revision, title]);
 
   const handleSubmit = () => {
     submit<IPageSaveResult | undefined>({
@@ -64,22 +63,16 @@ export default function PageMdxEditorSurface({
         setStagedImages([]);
         setMode('preview');
         // Adopt the revision we just wrote so a second save isn't a conflict.
-        setContentSha(saved?.contentSha);
+        setContentRevision(saved?.revision);
         router.refresh();
       },
-      run: async token => {
-        await uploadStagedEditorImages({
-          images: stagedImages,
-          content: draftContent,
-          token,
-          revalidatePath: page === 'about' ? '/' : `/${page}`,
-        });
+      run: async () => {
+        await uploadStagedEditorImages({ images: stagedImages, content: draftContent });
         const result = await updatePageAction({
           page,
           title: draftTitle,
           content: markdownTodoListsToMdx(draftContent),
-          token,
-          sha: contentSha,
+          revision: contentRevision,
         });
         if (!result.success) {
           throw new Error(result.error || 'Save failed');
@@ -92,8 +85,8 @@ export default function PageMdxEditorSurface({
   useDockedActionBar({
     context,
     status: isSubmitting ? 'saving' : 'dirty',
-    hasToken,
-    onConnect: () => setSettingsOpen(true),
+    isSignedIn,
+    onSignIn: () => setSettingsOpen(true),
     mode,
     onModeChange: setMode,
     onExit: () => setEditMode(false),
@@ -133,11 +126,11 @@ export default function PageMdxEditorSurface({
         editorClassName="site-prose-editor-content"
         minHeightClassName="min-h-0"
         onImagesStaged={images =>
-          setStagedImages(previous => mergeByPath(previous, images, image => image))
+          setStagedImages(previous => mergeByKey(previous, images, image => image))
         }
       />
 
-      <GitHubTokenDrawer open={settingsOpen} onOpenChange={setSettingsOpen} />
+      <EditKeyDrawer open={settingsOpen} onOpenChange={setSettingsOpen} />
     </>
   );
 }

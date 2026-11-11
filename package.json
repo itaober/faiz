@@ -4,11 +4,13 @@
   "private": true,
   "scripts": {
     "build": "next build",
+    "clean:images": "node --env-file=.env.local --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/clean-images.mjs",
     "dev": "next dev -p 1999",
     "format": "biome format --write .",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
     "prepare": "simple-git-hooks",
+    "setup:cloudflare": "node scripts/setup.mjs",
     "start": "next start",
     "test": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test tests/*.test.mjs"
   },
@@ -17,8 +19,6 @@
     "commit-msg": "npx --no-install commitlint --edit $1"
   },
   "dependencies": {
-    "@jsquash/jpeg": "^1.6.0",
-    "@jsquash/png": "^3.1.1",
     "@jsquash/resize": "^2.1.1",
     "@jsquash/webp": "^1.5.0",
     "@mdx-js/loader": "^3.1.1",
@@ -38,6 +38,7 @@
     "@tiptap/suggestion": "3.31.2",
     "@vercel/analytics": "^2.0.1",
     "@vercel/speed-insights": "^2.0.0",
+    "aws4fetch": "1.0.20",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "dayjs": "^1.11.23",
@@ -53,7 +54,6 @@
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "react-tweet": "^3.3.1",
-    "sharp": "0.35.4",
     "sonner": "^2.0.8",
     "tailwind-merge": "^3.6.0",
     "vaul": "^1.1.2",

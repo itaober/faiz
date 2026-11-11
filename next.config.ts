@@ -22,6 +22,13 @@ const getAllowedDevOrigins = () => {
 
 const allowedDevOrigins = getAllowedDevOrigins();
 
+// Inlined into the client bundle at build time, so a build without it ships broken image URLs for
+// good; fail here rather than at runtime like the server-only secrets (lib/server/env.ts).
+const assetsUrl = process.env.NEXT_PUBLIC_ASSETS_URL?.replace(/\/+$/, '');
+if (!assetsUrl) {
+  throw new Error('NEXT_PUBLIC_ASSETS_URL is not set (see .env.example)');
+}
+
 const nextConfig: NextConfig = {
   ...(allowedDevOrigins ? { allowedDevOrigins } : {}),
   // Pin the project root: the parent dir is itself a pnpm workspace, and letting
@@ -29,18 +36,27 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: __dirname,
   },
-  // Vercel Hobby caps optimization at 5K transforms/month; past it every uncached
-  // /_next/image returns 402 and the image breaks. Uploads are already webp ≤1920px,
-  // so serve them as-is from /api/image (CDN-cached) instead.
+  // Assets are resized at the Cloudflare edge (lib/image-loader.ts); Vercel's optimizer is not
+  // used. Widths are the layouts' real slots — every extra width is another unique
+  // transformation against the monthly allowance.
   images: {
-    unoptimized: true,
+    loader: 'custom',
+    loaderFile: './lib/image-loader.ts',
+    deviceSizes: [640, 1200, 1920, 2560],
+    imageSizes: [64, 128, 256, 384],
+    qualities: [75],
   },
-  experimental: {
-    serverActions: {
-      // Keep this at Vercel's Function payload limit (request/response body max: 4.5 MB):
-      // https://vercel.com/docs/functions/limitations
-      bodySizeLimit: '4.5mb',
-    },
+  // Image URLs from before the move to R2 live on in feed readers and shared links. Same layout
+  // as the migration: files at the top of the old folder (the avatars) went to `site/`.
+  async redirects() {
+    return [
+      {
+        source: '/api/image/assets/:file([^/]+)',
+        destination: `${assetsUrl}/site/:file`,
+        permanent: true,
+      },
+      { source: '/api/image/assets/:path+', destination: `${assetsUrl}/:path+`, permanent: true },
+    ];
   },
 };
 

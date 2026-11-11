@@ -2,20 +2,19 @@
 
 import { revalidatePath } from 'next/cache';
 
-import { deleteMemoWithImages } from '@/lib/data/memos';
-import { requireAuth } from '@/lib/server/content-edit-token';
+import { deleteMemo } from '@/lib/data/memos';
+import { requireEditSession } from '@/lib/server/edit-session';
 import { type ActionResult, createActionError } from '@/lib/types/action-result';
 
 interface IDeleteMemoInput {
   id: string;
   createdTime: string;
-  token: string;
 }
 
 export async function deleteMemoAction(input: IDeleteMemoInput): Promise<ActionResult> {
-  const token = await requireAuth(input.token);
-  if (typeof token !== 'string') {
-    return token;
+  const denied = await requireEditSession();
+  if (denied) {
+    return denied;
   }
 
   if (!input.id?.trim()) {
@@ -37,10 +36,9 @@ export async function deleteMemoAction(input: IDeleteMemoInput): Promise<ActionR
   }
 
   try {
-    await deleteMemoWithImages({
+    await deleteMemo({
       id: input.id,
       createdTime: input.createdTime,
-      token,
     });
     revalidatePath('/memos');
 

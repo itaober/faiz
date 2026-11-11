@@ -1,13 +1,12 @@
 'use server';
 
 import matter from 'gray-matter';
+import { headers } from 'next/headers';
 
-import {
-  EDITABLE_PAGE_PATHS,
-  type EditablePage,
-  isEditablePage,
-} from '@/lib/content-editing-validation';
-import { fetchGitHubFileWithSha } from '@/lib/data/common';
+import { type EditablePage, isEditablePage } from '@/lib/content-editing-validation';
+import { CONTENT_KEYS } from '@/lib/content-keys';
+import { createRateLimiter } from '@/lib/server/rate-limit';
+import { readContentForUpdate } from '@/lib/storage/r2';
 import {
   type ActionResult,
   createActionError,
@@ -21,18 +20,21 @@ export type EditableContentTarget =
 
 export interface EditableContent {
   content: string;
-  /** Blob SHA of the revision that was loaded, so a save can detect a conflict. */
-  sha: string;
+  /** Revision that was loaded, so a save can detect a conflict. */
+  revision: string;
 }
 
 const POST_SLUG_PATTERN = /^[a-z0-9-]+$/;
 
-const resolvePath = (target: EditableContentTarget) => {
+// Each call is an uncached storage read, and it needs no sign-in, so it is capped like sign-in is.
+const allowLoad = createRateLimiter({ windowMs: 60 * 1000, max: 30 });
+
+const resolveKey = (target: EditableContentTarget) => {
   if (target.kind === 'page') {
-    return isEditablePage(target.page) ? EDITABLE_PAGE_PATHS[target.page] : null;
+    return isEditablePage(target.page) ? CONTENT_KEYS.page(target.page) : null;
   }
 
-  return POST_SLUG_PATTERN.test(target.slug) ? `data/posts/${target.slug}.mdx` : null;
+  return POST_SLUG_PATTERN.test(target.slug) ? CONTENT_KEYS.post(target.slug) : null;
 };
 
 /**
@@ -40,27 +42,39 @@ const resolvePath = (target: EditableContentTarget) => {
  * so the source is fetched when someone actually opens the editor rather than
  * riding along in every visitor's payload.
  *
- * Unauthenticated on purpose — this returns content that is already public. It
- * uses the server token, and the SHA it returns is what the matching save sends
- * back to prove nothing changed underneath.
+ * Unauthenticated on purpose — this returns content that is already public. The
+ * revision it returns is what the matching save sends back to prove nothing
+ * changed underneath.
  */
 export async function loadEditableContentAction(
   target: EditableContentTarget,
 ): Promise<ActionResult<EditableContent>> {
-  const path = resolvePath(target);
-  if (!path) {
+  if (!allowLoad(await headers())) {
+    return {
+      success: false,
+      error: 'Too many requests. Try again in a minute.',
+      code: 'RATE_LIMIT',
+      retryable: true,
+    };
+  }
+
+  const key = resolveKey(target);
+  if (!key) {
     return validationError('Invalid content target');
   }
 
   try {
-    const file = await fetchGitHubFileWithSha(path);
+    const file = await readContentForUpdate(key);
     if (!file) {
       return notFoundError('Content not found');
     }
 
-    return { success: true, data: { content: matter(file.text).content, sha: file.sha } };
+    return {
+      success: true,
+      data: { content: matter(file.text).content, revision: file.revision },
+    };
   } catch (error) {
-    console.error('Failed to load editable content:', path, error);
+    console.error('Failed to load editable content:', key, error);
     return createActionError(error, 'Failed to load content');
   }
 }

@@ -7,11 +7,11 @@ import type { AnchorHTMLAttributes, ImgHTMLAttributes } from 'react';
 
 import ExternalLinkHoverCard from '@/components/external-link-hover-card';
 import { Preview, PreviewImage, PreviewPortal, PreviewTrigger } from '@/components/preview';
+import { isAssetKey, isTransformableSrc, resolveAssetSrc } from '@/lib/assets';
 import { getImageMeta } from '@/lib/data/images';
 import {
   groupConsecutiveMdxImages,
   normalizeEditorImageMarkup,
-  toApiImageUrl,
   unescapeMarkdownValue,
 } from '@/lib/utils/editor-image';
 
@@ -118,8 +118,6 @@ const MarkdownLink = ({ href = '', children, hoverCard = true, ...props }: Markd
   );
 };
 
-const API_IMAGE_PREFIX = toApiImageUrl('');
-
 interface IImageProps extends ImgHTMLAttributes<HTMLImageElement> {
   src?: string;
   alt?: string;
@@ -131,15 +129,14 @@ const Image = async ({ src, alt = '', caption }: IImageProps) => {
     return null;
   }
 
-  const imageSrc = unescapeMarkdownValue(String(src));
+  const storedSrc = unescapeMarkdownValue(String(src));
+  const imageSrc = resolveAssetSrc(storedSrc);
   const imageAlt = unescapeMarkdownValue(String(alt));
   const _caption = caption || imageAlt;
   const resolvedAlt = imageAlt.trim() || _caption || 'Content image';
   const previewLabel = `Open image preview${resolvedAlt ? `: ${resolvedAlt}` : ''}`;
   const imageSizes = '(max-width: 768px) calc(100vw - 2.5rem), 36rem';
-  const meta = imageSrc.startsWith(API_IMAGE_PREFIX)
-    ? await getImageMeta(imageSrc.slice(API_IMAGE_PREFIX.length))
-    : null;
+  const meta = isAssetKey(storedSrc) ? await getImageMeta(storedSrc) : null;
 
   return (
     <Preview>
@@ -157,6 +154,7 @@ const Image = async ({ src, alt = '', caption }: IImageProps) => {
             height={meta?.height ?? 0}
             sizes={imageSizes}
             placeholder={meta?.blurDataURL ?? 'empty'}
+            unoptimized={!isTransformableSrc(imageSrc)}
             className="fz-img-outline h-auto w-full"
           />
         </PreviewTrigger>
