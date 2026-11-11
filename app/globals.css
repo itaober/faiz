@@ -1170,57 +1170,75 @@ button {
   .tiptap input.fz-editor-figcaption:focus {
     color: var(--foreground);
   }
-  /* An MDX component the editor can't render: a compact chip that opens into its source. */
-  .tiptap .fz-mdx-block {
-    width: fit-content;
+  /* An MDX component the editor can't render: a chip that opens into a box with its source. */
+  .tiptap .fz-mdx-slot {
     margin-block: 1rem;
-    padding: 0.25rem 0.625rem;
+  }
+  /* overflow keeps the incoming content inside the frame while it grows; it doesn't clip the
+     frame's own selection ring. */
+  .tiptap .fz-mdx-frame {
+    position: relative;
+    width: fit-content;
+    max-width: 100%;
+    overflow: hidden;
     border: 1px solid var(--border);
     border-radius: var(--fz-radius-sm);
     background: var(--muted);
     color: var(--muted-foreground);
     font-family: var(--font-mono);
     font-size: 0.8125rem;
-    cursor: default;
     user-select: none;
+    outline: 2px solid transparent;
+    transition: outline-color 0s;
   }
-  .tiptap[contenteditable='true'] .fz-mdx-block {
+  /* Set from React state, not :has(textarea), so it changes as the box closes, not after the
+     textarea's fade-out. */
+  .tiptap .fz-mdx-frame-open {
+    width: 100%;
+    color: var(--foreground);
+  }
+  .tiptap .fz-mdx-frame:focus-within {
+    border-color: var(--accent);
+  }
+  .tiptap .fz-mdx-frame:has([aria-invalid='true']) {
+    border-color: var(--danger);
+  }
+  .tiptap[contenteditable='true'] .fz-mdx-frame:not(.fz-mdx-frame-open) {
     cursor: pointer;
+  }
+  .tiptap[contenteditable='true'] .fz-mdx-frame:not(.fz-mdx-frame-open):hover {
+    color: var(--foreground);
+  }
+  .tiptap .fz-mdx-label {
+    display: block;
+    padding: 0.25rem 0.625rem;
+    white-space: nowrap;
+  }
+  .tiptap .fz-mdx-frame textarea {
+    display: block;
+    width: 100%;
+    max-height: 20rem;
+    padding: 0.5rem 0.625rem;
+    resize: none;
+    overflow-y: auto;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    line-height: 1.6;
+    outline: none;
   }
   /* The node view wrapper spans the column; the ring belongs on the chip. */
   .tiptap .node-mdxBlock.ProseMirror-selectednode {
     outline: none;
   }
-  .tiptap[contenteditable='true'] .node-mdxBlock.ProseMirror-selectednode .fz-mdx-block {
-    outline: 2px solid var(--accent);
-  }
-  .tiptap[contenteditable='true'] .fz-mdx-block:hover {
-    color: var(--foreground);
-  }
-  .tiptap .fz-mdx-editor {
-    margin-block: 1rem;
-  }
-  .tiptap .fz-mdx-editor textarea {
-    display: block;
-    width: 100%;
-    resize: none;
-    padding: 0.5rem 0.625rem;
-    border: 1px solid var(--border);
-    border-radius: var(--fz-radius-sm);
-    background: var(--muted);
-    color: var(--foreground);
-    font-family: var(--font-mono);
-    font-size: 0.8125rem;
-    line-height: 1.6;
-    max-height: 20rem;
-    overflow-y: auto;
-    outline: none;
-  }
-  .tiptap .fz-mdx-editor textarea:focus {
-    border-color: var(--accent);
-  }
-  .tiptap .fz-mdx-editor textarea[aria-invalid='true'] {
-    border-color: var(--danger);
+  .tiptap[contenteditable='true']
+    .node-mdxBlock.ProseMirror-selectednode
+    .fz-mdx-frame:not(.fz-mdx-frame-open) {
+    outline-color: var(--accent);
+    /* Closing selects the chip while its frame is still scaled by the morph; showing the ring
+       after it keeps the ring from scaling too. Removing it stays immediate. */
+    transition-delay: 0.2s;
   }
   .tiptap .fz-mdx-error {
     margin: 0.375rem 0 0;

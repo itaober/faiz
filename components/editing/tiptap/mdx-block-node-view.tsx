@@ -1,13 +1,21 @@
 'use client';
 
 import { type NodeViewProps, NodeViewWrapper, useEditorState } from '@tiptap/react';
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
+import { ANIMATION } from '@/lib/constants/animation';
+
 import { mdxBlockLabel } from '@/lib/mdx-block';
 import { isReadableMdxBlock, readMdxBlock, scanMdxBlock } from '@/lib/mdx-editing';
+import { cn } from '@/lib/utils';
 
 const OPEN_MDX_BLOCK_EVENT = 'mdx-block-open';
+
+// Long enough to read as the chip opening into the box, short enough not to wait on.
+const RESIZE = { duration: 0.2, ease: ANIMATION.ease.out };
+const FADE = { duration: ANIMATION.duration.fast, ease: ANIMATION.ease.out };
 
 /** Opens the chip at `pos` into its source. */
 export const openMdxBlock = (editorDom: HTMLElement, pos: number | undefined) =>
@@ -26,6 +34,11 @@ export function MdxBlockNodeView({ node, editor, getPos, updateAttributes }: Nod
   const [invalid, setInvalid] = useState(false);
   // Closing moves focus away, which fires blur; this keeps that blur from deciding again.
   const closedRef = useRef(false);
+  const reducedMotion = useReducedMotion();
+  // The frame morphs with a layout animation, which leaves its layout box at the new size at
+  // once; animating the block's real height lets the text below follow instead of jumping.
+  const contentRef = useRef<HTMLDivElement>(null);
+  const [contentHeight, setContentHeight] = useState<number>();
 
   const close = (refocus: boolean) => {
     closedRef.current = true;
@@ -59,68 +72,104 @@ export function MdxBlockNodeView({ node, editor, getPos, updateAttributes }: Nod
     return () => dom.removeEventListener(OPEN_MDX_BLOCK_EVENT, handleOpen);
   }, [editor, getPos, source]);
 
-  if (draft !== null && editable) {
-    return (
-      <NodeViewWrapper className="fz-mdx-editor">
-        <textarea
-          // biome-ignore lint/a11y/noAutofocus: opened by a click or Enter on the chip, so focus follows it
-          autoFocus
-          value={draft}
-          rows={draft.split('\n').length}
-          spellCheck={false}
-          aria-label={`${name} source`}
-          aria-invalid={invalid}
-          onChange={event => {
-            setDraft(event.target.value);
-            setInvalid(false);
-          }}
-          onBlur={() => {
-            // Switching windows or tabs also blurs; keep the draft for when focus comes back.
-            if (closedRef.current || !document.hasFocus()) return;
-            const block = parseDraft();
-            if (block) commit(block);
-            else toast.error('Not a valid component — kept the original');
-            close(false);
-          }}
-          onKeyDown={event => {
-            const isApply = event.key === 'Enter' && (event.metaKey || event.ctrlKey);
-            if (event.key !== 'Escape' && !isApply) return;
-            // Keep these from the page's shortcuts (⌘Enter saves, Escape exits editing), and
-            // leave them to an IME that is using them to confirm or cancel its composition.
-            event.stopPropagation();
-            if (event.nativeEvent.isComposing) return;
-            event.preventDefault();
-            if (!isApply) {
-              close(true);
-              return;
-            }
-            const block = parseDraft();
-            if (!block) {
-              setInvalid(true);
-              return;
-            }
-            commit(block);
-            close(true);
-          }}
-        />
-        {invalid ? (
-          <p className="fz-mdx-error" role="alert">
-            Not a valid component
-          </p>
-        ) : null}
-      </NodeViewWrapper>
-    );
-  }
+  useEffect(() => {
+    const content = contentRef.current;
+    if (!content) return;
+    const observer = new ResizeObserver(() => setContentHeight(content.offsetHeight));
+    observer.observe(content);
+    return () => observer.disconnect();
+  }, []);
+
+  const open = draft !== null && editable;
 
   return (
-    <NodeViewWrapper
-      className="fz-mdx-block"
-      title={editable ? 'Click to edit' : undefined}
-      onClick={() => {
-        if (editable) openMdxBlock(editor.view.dom, getPos());
-      }}
-    >
-      {mdxBlockLabel(name, source)}
+    <NodeViewWrapper className="fz-mdx-slot">
+      <motion.div
+        initial={false}
+        animate={{ height: contentHeight ?? 'auto' }}
+        transition={reducedMotion ? { duration: 0 } : RESIZE}
+      >
+        <div ref={contentRef}>
+          <motion.div
+            layout
+            transition={RESIZE}
+            className={cn('fz-mdx-frame', open && 'fz-mdx-frame-open')}
+            title={editable && !open ? 'Click to edit' : undefined}
+            onClick={() => {
+              if (editable && !open) openMdxBlock(editor.view.dom, getPos());
+            }}
+          >
+            <AnimatePresence initial={false} mode="popLayout">
+              {open ? (
+                <motion.textarea
+                  key="source"
+                  layout
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={FADE}
+                  // Opened by a click or Enter on the chip, so focus follows it.
+                  autoFocus
+                  value={draft}
+                  rows={draft.split('\n').length}
+                  spellCheck={false}
+                  aria-label={`${name} source`}
+                  aria-invalid={invalid}
+                  onChange={event => {
+                    setDraft(event.target.value);
+                    setInvalid(false);
+                  }}
+                  onBlur={() => {
+                    // Switching windows or tabs also blurs; keep the draft for when focus comes back.
+                    if (closedRef.current || !document.hasFocus()) return;
+                    const block = parseDraft();
+                    if (block) commit(block);
+                    else toast.error('Not a valid component — kept the original');
+                    close(false);
+                  }}
+                  onKeyDown={event => {
+                    const isApply = event.key === 'Enter' && (event.metaKey || event.ctrlKey);
+                    if (event.key !== 'Escape' && !isApply) return;
+                    // Keep these from the page's shortcuts (⌘Enter saves, Escape exits editing),
+                    // and leave them to an IME that is using them to confirm or cancel its text.
+                    event.stopPropagation();
+                    if (event.nativeEvent.isComposing) return;
+                    event.preventDefault();
+                    if (!isApply) {
+                      close(true);
+                      return;
+                    }
+                    const block = parseDraft();
+                    if (!block) {
+                      setInvalid(true);
+                      return;
+                    }
+                    commit(block);
+                    close(true);
+                  }}
+                />
+              ) : (
+                <motion.span
+                  key="label"
+                  layout
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={FADE}
+                  className="fz-mdx-label"
+                >
+                  {mdxBlockLabel(name, source)}
+                </motion.span>
+              )}
+            </AnimatePresence>
+          </motion.div>
+          {open && invalid ? (
+            <p className="fz-mdx-error" role="alert">
+              Not a valid component
+            </p>
+          ) : null}
+        </div>
+      </motion.div>
     </NodeViewWrapper>
   );
 }
