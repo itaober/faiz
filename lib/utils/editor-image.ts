@@ -100,11 +100,17 @@ export const formatMarkdownImage = (src: string, alt: string) => {
   return `![${safeAlt}](${safeSrc})`;
 };
 
+/** A gallery's markdown: each image as {@link formatMarkdownImage}, a blank line apart. */
+export const formatMarkdownGallery = (images: MdxImageGalleryItem[]) =>
+  images.map(image => formatMarkdownImage(image.src, (image.alt ?? '').trim())).join('\n\n');
+
 export const getImageCaptionFromFilename = (filename: string, fallback = 'image') =>
   unescapeMarkdownValue(filename.replace(/\.[^.]+$/, '').trim()) || fallback;
 
+// `<` and `>` too: the tag readers here end an `<Image … />` at the first `/>`, so a raw one
+// inside an attribute would cut it short. JSX decodes the entities back.
 export const escapeMdxAttribute = (value: string) =>
-  value.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+  value.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
 /**
  * Inverse of {@link escapeMdxAttribute}. Without it the pair is asymmetric —
@@ -113,7 +119,11 @@ export const escapeMdxAttribute = (value: string) =>
  * `&amp;amp;`). `&amp;` must be decoded last, or `&amp;quot;` over-decodes to `"`.
  */
 export const unescapeMdxAttribute = (value: string) =>
-  value.replace(/&quot;/g, '"').replace(/&amp;/g, '&');
+  value
+    .replace(/&quot;/g, '"')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&amp;/g, '&');
 
 export const formatMdxImage = (src: string, alt: string, caption?: string) => {
   const captionAttr = caption?.trim()
@@ -166,7 +176,9 @@ const normalizeGalleryImages = (images: MdxImageGalleryItem[]) =>
 
 export const formatMdxImageGallery = (images: MdxImageGalleryItem[]) => {
   const normalizedImages = normalizeGalleryImages(images);
-  return `<ImageGallery images={${JSON.stringify(normalizedImages)}} />`;
+  // Same reason as escapeMdxAttribute; the JS string escapes decode back to `<` and `>`.
+  const json = JSON.stringify(normalizedImages).replace(/</g, '\\u003c').replace(/>/g, '\\u003e');
+  return `<ImageGallery images={${json}} />`;
 };
 
 const extractJsxExpression = (attributes: string, propName: string) => {

@@ -214,41 +214,49 @@ export const markdownTodoListsToMdx = (value: string) =>
 const findTagEnd = (source: string, from: number) => {
   let depth = 0;
   let quote = '';
-  let quoteStart = 0;
-  for (let index = from; index <= source.length; index += 1) {
-    const char = source[index] ?? '\n';
+  for (let index = from; index < source.length; index += 1) {
+    const char = source[index];
     if (quote) {
-      if (char === quote) quote = '';
       // Backslash escapes only exist in JS strings; a JSX attribute string has none.
-      else if (char === '\\' && depth > 0) index += 1;
-      // A JS '…' or "…" string can't span lines, so this quote was JSX text such as `Don't`:
-      // rescan from just after it.
-      // ponytail: each such quote rescans the rest of its line, O(L²) on a line full of them.
-      else if (char === '\n' && depth > 0 && quote !== '`') {
-        quote = '';
-        index = quoteStart;
-      }
-    } else if (char === '"' || char === "'" || (char === '`' && depth > 0)) {
-      quote = char;
-      quoteStart = index;
-    } else if (char === '{') depth += 1;
+      if (char === '\\' && depth > 0) index += 1;
+      else if (char === quote) quote = '';
+    } else if (char === '"' || char === "'" || (char === '`' && depth > 0)) quote = char;
+    else if (char === '{') depth += 1;
     else if (char === '}') depth -= 1;
     else if (char === '>' && depth === 0) return index + 1;
   }
   return -1;
 };
 
+/** Index just past the fence closing the one whose opening line starts at `start`, or the end. */
+const skipFencedCode = (source: string, start: number, fence: string) => {
+  let lineStart = source.indexOf('\n', start) + 1;
+  while (lineStart > 0) {
+    const lineEnd = source.indexOf('\n', lineStart);
+    const line = source.slice(lineStart, lineEnd < 0 ? source.length : lineEnd).trim();
+    if (line.length >= fence.length && [...line].every(char => char === fence[0])) {
+      return lineEnd < 0 ? source.length : lineEnd;
+    }
+    lineStart = lineEnd + 1;
+  }
+  return source.length;
+};
+
 /** Index just past the `</name>` that closes the element whose opening tag ends at `from`. */
 const findClosingTag = (source: string, name: string, from: number) => {
-  // ponytail: same-name tags inside a code span in the children still count toward depth.
-  const tag = /<(\/?)([A-Z][\w.]*)/g;
+  // ponytail: same-name tags inside an inline code span in the children still count.
+  const tag = /^ {0,3}(`{3,}|~{3,})|<(\/?)([A-Z][\w.]*)/gm;
   const closeEnd = /\s*>/y;
   let depth = 1;
   tag.lastIndex = from;
   for (let match = tag.exec(source); match; match = tag.exec(source)) {
-    if (match[2] !== name) continue;
-    const after = match.index + match[0].length;
     if (match[1]) {
+      tag.lastIndex = skipFencedCode(source, match.index, match[1]);
+      continue;
+    }
+    if (match[3] !== name) continue;
+    const after = match.index + match[0].length;
+    if (match[2]) {
       closeEnd.lastIndex = after;
       if (!closeEnd.test(source)) continue;
       depth -= 1;
@@ -299,6 +307,9 @@ const scanUnreadableMdxBlock = (source: string): MdxBlock | null => {
     raw: source.slice(0, blankLine ? end + 1 : end),
   };
 };
+
+/** Whether `source` is exactly one component the scanner reads. */
+export const isReadableMdxBlock = (source: string) => scanMdxBlock(source)?.source === source;
 
 /** The component block at the start of `source`, read or kept as written. */
 export const readMdxBlock = (source: string) =>

@@ -7,13 +7,14 @@ import { Table, TableCell, TableHeader, TableRow } from '@tiptap/extension-table
 import { MarkdownManager } from '@tiptap/markdown';
 import StarterKit from '@tiptap/starter-kit';
 
-import { MdxBlockBase, separateInListItem } from '../lib/mdx-block.ts';
+import { MdxBlockBase, mdxBlockLabel, separateInListItem } from '../lib/mdx-block.ts';
 import {
   markdownTodoListsToMdx,
   mdxToEditorMarkdown,
   transformOutsideMdxBlocks,
 } from '../lib/mdx-editing.ts';
 import {
+  formatMarkdownGallery,
   formatMarkdownImage,
   groupConsecutiveMdxImages,
   mdxImagesToMarkdown,
@@ -97,7 +98,9 @@ test('an indented component after a paragraph is a block on the first save', () 
 test('a capitalized tag the scanner cannot read is kept up to the blank line', () => {
   const markdown = '<Badge>new</Badge> and more\ncontinued\n\nnext\n';
   const doc = manager.parse(markdown);
-  assert.equal(blocks(doc)[0].attrs.source, '<Badge>new</Badge> and more\ncontinued');
+  const { name, source } = blocks(doc)[0].attrs;
+  assert.equal(source, '<Badge>new</Badge> and more\ncontinued');
+  assert.equal(mdxBlockLabel(name, source), '<Badge>new</Badge> and more');
   assert.equal(manager.serialize(doc), markdown.trimEnd());
 });
 
@@ -112,11 +115,19 @@ test('a copied chip pastes back with its source; markup from elsewhere does not'
   assert.equal(rule.getAttrs(element({ ...rendered, 'data-source': 'plain text' })), false);
 });
 
-test('an image whose alt holds a newline and JSX saves as one Image element', () => {
-  const doc = {
-    type: 'doc',
-    content: [{ type: 'image', attrs: { src: 'a.webp', alt: 'x\n<Evil onClick={x} />' } }],
-  };
-  const saved = savePage(manager.serialize(doc));
-  assert.equal(saved, '<Image src="a.webp" alt="x <Evil onClick={x} />" />\n');
+test('a pasted image or gallery alt cannot open a JSX line in the saved MDX', () => {
+  const alt = 'x]\n<Evil onClick={x} />';
+  const doc = { type: 'doc', content: [{ type: 'image', attrs: { src: 'a b).webp', alt } }] };
+  assert.equal(
+    savePage(manager.serialize(doc)),
+    '<Image src="a%20b%29.webp" alt="x] &lt;Evil onClick={x} /&gt;" />\n',
+  );
+  const gallery = formatMarkdownGallery([
+    { src: 'a.webp', alt },
+    { src: 'b.webp', alt: 'B' },
+  ]);
+  assert.equal(
+    savePost(gallery),
+    '<ImageGallery images={[{"src":"a.webp","alt":"x] \\u003cEvil onClick={x} /\\u003e"},{"src":"b.webp","alt":"B"}]} />\n',
+  );
 });

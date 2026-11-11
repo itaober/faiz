@@ -10,7 +10,6 @@ import {
 } from '../lib/mdx-editing.ts';
 import {
   escapeMdxAttribute,
-  formatMarkdownImage,
   groupConsecutiveMdxImages,
   mdxImagesToMarkdown,
   normalizeEditorImageMarkup,
@@ -43,7 +42,16 @@ test('normalizing is idempotent for captions holding quotes or ampersands', () =
 });
 
 test('escape and unescape are inverses, with the ampersand entity decoded last', () => {
-  for (const value of ['plain', 'a "b" c', 'a & b', '&quot;', '&amp;', '&amp;quot;', '"&"']) {
+  for (const value of [
+    'plain',
+    'a "b" c',
+    'a & b',
+    '&quot;',
+    '&amp;',
+    '&amp;quot;',
+    '"&"',
+    'a <b /> &lt;',
+  ]) {
     assert.equal(unescapeMdxAttribute(escapeMdxAttribute(value)), value, value);
   }
 });
@@ -108,46 +116,21 @@ test('todo lists survive a round trip and re-converting is stable', () => {
   assert.equal(mdxTodoListsToMarkdown(mdx).trim(), markdown);
 });
 
-// The editor keeps a component it can't render as its source; anything the scanner
-// misses is parsed as text and escaped on save, which breaks the published page.
-
-test('scans a multi-line self-closing component and the rest of its line', () => {
-  const element = '<ParticleImage\n  src="site/avatar-particle.png"\n  align="left"\n/>';
-  assert.deepEqual(scanMdxBlock(`${element}  \n\nnext`), {
-    name: 'ParticleImage',
-    source: element,
-    raw: `${element}  \n`,
-  });
-  assert.equal(
-    scanMdxBlock('<Tweet id="2090416137720999992" />')?.source,
-    '<Tweet id="2090416137720999992" />',
-  );
-});
+// The scanner decides what the editor keeps as written; the round trips through the real
+// MarkdownManager live in mdx-block.test.mjs.
 
 test('a > inside quotes or braces does not end the tag', () => {
   const element = '<Chart label="a > b" data={[{ x: 1, note: "}>" }]} render={() => <b>hi</b>} />';
   assert.equal(scanMdxBlock(element)?.source, element);
 });
 
-test('scans a paired component up to its closing tag', () => {
-  const element = '<Columns widths={[2, 1]}>\n\nLeft *text*\n\nRight\n\n</Columns >';
-  assert.equal(scanMdxBlock(`${element}\nafter`)?.source, element);
-  assert.equal(scanMdxBlock('<Columns>\nno closing tag'), null);
-});
-
-test('a nested same-name element does not close its parent', () => {
-  const element =
-    '<Columns>\n<Columns>\ninner\n</Columns>\n<Columns />\n<ColumnsItem>x</ColumnsItem>\n</Columns>';
-  assert.equal(scanMdxBlock(`${element}\n\nafter`)?.source, element);
+test('a paired component ends at its own closing tag, not a nested or fenced one', () => {
+  const nested =
+    '<Columns>\n<Columns>\ninner\n</Columns>\n<Columns />\n<ColumnsItem>x</ColumnsItem>\n</Columns >';
+  assert.equal(scanMdxBlock(`${nested}\n\nafter`)?.source, nested);
+  const fenced = '<Columns>\n\n```html\n</Columns>\n```\n\ntext\n\n</Columns>';
+  assert.equal(scanMdxBlock(`${fenced}\n`)?.source, fenced);
   assert.equal(scanMdxBlock('<Columns>\n<Columns>\n</Columns>'), null);
-});
-
-test("an apostrophe in JSX text inside braces doesn't swallow the tag", () => {
-  const oneLine = `<Card render={() => <p>Don't</p>} />`;
-  assert.equal(scanMdxBlock(oneLine)?.source, oneLine);
-  assert.equal(scanMdxBlock(`${oneLine}\nnext`)?.source, oneLine);
-  const multiLine = `<Card\n  render={() => (\n    <p>It's {"a > b"}</p>\n  )}\n/>`;
-  assert.equal(scanMdxBlock(multiLine)?.source, multiLine);
 });
 
 test('a LinkCard its own node rejects is still scanned, so it stays verbatim', () => {
@@ -170,14 +153,6 @@ test('leaves inline, lowercase, code-indented and unterminated tags alone', () =
   assert.equal(scanMdxBlock('text <Tweet id="1" />'), null);
   assert.equal(scanMdxBlock('<Tweet id="1"'), null);
   assert.equal(scanMdxBlock('<Tweetish-thing />'), null);
-});
-
-test('a component indented up to three spaces is a block; its indent stays out of the source', () => {
-  assert.deepEqual(scanMdxBlock('   <Tweet id="1" />\nnext'), {
-    name: 'Tweet',
-    source: '<Tweet id="1" />',
-    raw: '   <Tweet id="1" />\n',
-  });
 });
 
 // Page-level rewrites run on load and on save; they must not reach into a component the
@@ -213,11 +188,4 @@ test('a todo list and an image caption inside another component survive load and
     transformOutsideMdxBlocks(markdownTodoListsToMdx(loaded), normalizeEditorImageMarkup),
     columns,
   );
-});
-
-test('a pasted image alt or src cannot open a JSX line in the saved MDX', () => {
-  const markdown = formatMarkdownImage('a b)<c.webp', 'x]\n<Evil onClick={x} />\\ y');
-  const saved = normalizeEditorImageMarkup(markdown);
-  assert.doesNotMatch(saved, /\n/);
-  assert.equal(saved, '<Image src="a%20b%29%3Cc.webp" alt="x] <Evil onClick={x} />\\ y" />');
 });

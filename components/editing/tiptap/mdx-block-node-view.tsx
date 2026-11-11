@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 import { mdxBlockLabel } from '@/lib/mdx-block';
-import { scanMdxBlock } from '@/lib/mdx-editing';
+import { isReadableMdxBlock, readMdxBlock, scanMdxBlock } from '@/lib/mdx-editing';
 
 const OPEN_MDX_BLOCK_EVENT = 'mdx-block-open';
 
@@ -15,8 +15,8 @@ export const openMdxBlock = (editorDom: HTMLElement, pos: number | undefined) =>
 
 /**
  * A component chip that opens into its source while editing. ⌘Enter applies the source if it
- * is still exactly one component, else shows an inline error; clicking away applies it or
- * keeps the original; Escape restores the chip.
+ * is still exactly one component, else shows an inline error; clicking elsewhere in the page
+ * applies it or keeps the original; Escape restores the chip.
  */
 export function MdxBlockNodeView({ node, editor, getPos, updateAttributes }: NodeViewProps) {
   const name = String(node.attrs.name);
@@ -34,13 +34,15 @@ export function MdxBlockNodeView({ node, editor, getPos, updateAttributes }: Nod
     const pos = getPos();
     if (refocus && typeof pos === 'number') editor.chain().focus().setNodeSelection(pos).run();
   };
-  // The draft as one component, or null when it isn't exactly one.
+  // The block to keep: the original when unchanged, else the draft if it is still one block
+  // (read the lenient way when the original was kept as written), else null.
   const parseDraft = () => {
     const next = (draft ?? '').trim();
-    const block = scanMdxBlock(next);
-    return block && block.source === next ? block : null;
+    if (next === source.trim()) return { name, source };
+    const block = (isReadableMdxBlock(source) ? scanMdxBlock : readMdxBlock)(next);
+    return block?.source === next ? block : null;
   };
-  const commit = (block: NonNullable<ReturnType<typeof scanMdxBlock>>) => {
+  const commit = (block: { name: string; source: string }) => {
     if (block.source !== source) updateAttributes({ name: block.name, source: block.source });
   };
 
@@ -73,13 +75,16 @@ export function MdxBlockNodeView({ node, editor, getPos, updateAttributes }: Nod
             setInvalid(false);
           }}
           onBlur={() => {
-            if (closedRef.current) return;
+            // Switching windows or tabs also blurs; keep the draft for when focus comes back.
+            if (closedRef.current || !document.hasFocus()) return;
             const block = parseDraft();
             if (block) commit(block);
             else toast.error('Not a valid component — kept the original');
             close(false);
           }}
           onKeyDown={event => {
+            // An IME uses these keys to confirm or cancel its own composition.
+            if (event.nativeEvent.isComposing) return;
             // Keep ⌘Enter (save) and Escape (exit editing) from reaching the page's shortcuts.
             if (event.key === 'Escape') {
               event.preventDefault();

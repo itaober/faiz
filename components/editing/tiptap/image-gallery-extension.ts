@@ -1,7 +1,7 @@
 import { mergeAttributes, Node } from '@tiptap/core';
 import { ReactNodeViewRenderer } from '@tiptap/react';
 
-import type { MdxImageGalleryItem } from '@/lib/utils/editor-image';
+import { formatMarkdownGallery, type MdxImageGalleryItem } from '@/lib/utils/editor-image';
 
 import { ImageGalleryNodeView } from './image-gallery-node-view';
 
@@ -94,8 +94,6 @@ export const ImageGallery = Node.create({
   },
 
   renderMarkdown(node) {
-    return parseGalleryImages(node.attrs?.images)
-      .map(image => `![${(image.alt ?? '').trim()}](${image.src})`)
-      .join('\n\n');
+    return formatMarkdownGallery(parseGalleryImages(node.attrs?.images));
   },
 });
