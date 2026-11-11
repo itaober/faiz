@@ -56,25 +56,25 @@ export default function EditKeyDrawer({ open, onOpenChange }: IEditKeyDrawerProp
       className="items-center justify-center bg-[color-mix(in_oklch,black_8%,transparent)] p-4"
     >
       <form
-        className="fz-sheet relative"
+        className="fz-sheet"
         onSubmit={async event => {
           event.preventDefault();
           await handleSave();
         }}
       >
-        <button
-          type="button"
-          onClick={() => onOpenChange(false)}
-          className="fz-iconbtn absolute top-3 right-3"
-          aria-label="Close"
-        >
-          <XIcon className="size-4" />
-        </button>
-
-        <span className="bg-muted text-foreground inline-flex size-11 items-center justify-center rounded-full">
-          <KeyRoundIcon className="size-5" />
-        </span>
-        <h3>Enter your edit key</h3>
+        {/* Negative margins: the row keeps the title's height, the X glyph sits on the content edge. */}
+        <div className="flex items-center gap-2">
+          <KeyRoundIcon className="size-4 shrink-0" />
+          <h3 className="flex-1">Enter your edit key</h3>
+          <button
+            type="button"
+            onClick={() => onOpenChange(false)}
+            className="fz-iconbtn -my-1 -mr-2"
+            aria-label="Close"
+          >
+            <XIcon className="size-4" />
+          </button>
+        </div>
         <p>You only need it once in this browser.</p>
 
         {/* A fixed username lets password managers save and fill the key like a login. */}
@@ -88,26 +88,24 @@ export default function EditKeyDrawer({ open, onOpenChange }: IEditKeyDrawerProp
           aria-hidden="true"
           className="hidden"
         />
-        <div className="fz-key-field">
-          <input
-            ref={inputRef}
-            name="edit-key"
-            aria-label="Edit key"
-            type="password"
-            value={inputValue}
-            onChange={event => setInputValue(event.target.value)}
-            placeholder="Edit key"
-            autoComplete="current-password"
-          />
-          <button
-            type="submit"
-            className="fz-btn fz-btn-primary"
-            style={{ height: 32 }}
-            disabled={isSaving || !inputValue.trim()}
-          >
-            {isSaving ? 'Signing in…' : 'Sign in'}
-          </button>
-        </div>
+        <input
+          ref={inputRef}
+          name="edit-key"
+          aria-label="Edit key"
+          type="password"
+          value={inputValue}
+          onChange={event => setInputValue(event.target.value)}
+          placeholder="Edit key"
+          autoComplete="current-password"
+          className="fz-key-field"
+        />
+        <button
+          type="submit"
+          className="fz-btn fz-btn-primary mt-2 h-10 w-full justify-center"
+          disabled={isSaving || !inputValue.trim()}
+        >
+          {isSaving ? 'Signing in…' : 'Sign in'}
+        </button>
       </form>
     </Overlay>
   );
