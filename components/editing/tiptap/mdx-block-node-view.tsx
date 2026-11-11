@@ -94,7 +94,15 @@ export function MdxBlockNodeView({ node, editor, getPos, updateAttributes }: Nod
     return () => dom.removeEventListener(OPEN_MDX_BLOCK_EVENT, handleOpen);
   }, [editor, getPos, source]);
 
-  useEffect(() => () => setInvalidDraft(id, false), [id]);
+  // Unmounting (Exit, Markdown mode) closes the box first, so a pending acorn read can't flag
+  // the draft again or apply it to a node that is gone.
+  useEffect(
+    () => () => {
+      closedRef.current = true;
+      setInvalidDraft(id, false);
+    },
+    [id],
+  );
 
   useEffect(() => {
     const content = contentRef.current;

@@ -288,6 +288,15 @@ test('a TodoList label shows the same text after three saves: entities, strings,
   const todo = items => `<TodoList items={[${items}]} />\n`;
   const shownList = items => `<TodoList readonly=true items=[${items.join('')}]></TodoList>`;
   const cases = [
+    // A no-break space is text, not whitespace to collapse; a `!` before a link is text.
+    [
+      todo('{ label: (<div>a&nbsp;b <Link href="/y">x</Link></div>) }'),
+      ['{label: <div>a\u00a0b <Link href="/y">x</Link></div>}'],
+    ],
+    [
+      todo('{ label: (<div>wow!<Link href="/x">a</Link></div>) }'),
+      ['{label: <div>wow!<Link href="/x">a</Link></div>}'],
+    ],
     // JSX text reads its entities; a string child keeps them as written.
     [
       todo('{ label: (<div>A &amp; B <Link href="/x">C &lt; D</Link></div>), checked: true }'),
@@ -309,6 +318,13 @@ test('a TodoList label shows the same text after three saves: entities, strings,
     assert.equal(await shown(mdx), shownList(items).replace(' readonly=true', ''), mdx);
     for (const saved of threeSaves(mdx)) assert.equal(await shown(saved), shownList(items), saved);
   }
+});
+
+test('a `!` before a link in a todo label loads as text and a link, not an image', () => {
+  const doc = load('<TodoList items={[{ label: (<div>wow!<Link href="/x">a</Link></div>) }]} />\n');
+  const json = JSON.stringify(doc);
+  assert.doesNotMatch(json, /"type":"image"/);
+  assert.match(json, /"text":"wow!"\}.*"href":"\/x"/);
 });
 
 test('a TodoList label this reader cannot read keeps the list as written', async () => {

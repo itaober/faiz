@@ -83,7 +83,7 @@ const readJsxText = (text: string) => {
 
 // Plain text as the editor's markdown, and back: the editor escapes these characters and writes
 // `<`, `>` and `&` as entities, so a label reads back as the text it is, not as markup.
-const textToMarkdown = (text: string) => text.replace(/[\\`*_[\]~{}<&]/g, '\\$&');
+const textToMarkdown = (text: string) => text.replace(/[\\`*_[\]~{}<&!]/g, '\\$&');
 const markdownToText = (markdown: string) =>
   markdown.replace(
     /\\([!-/:-@[-`{-~])|&(lt|gt|amp);/g,
@@ -172,7 +172,7 @@ const jsxToMarkdown = (value: string) => {
           ? readString(literal)
           : /^[{<]$/.test(token)
             ? null
-            : readJsxText(token.replace(/\s+/g, ' '));
+            : readJsxText(token.replace(/[ \t\r\n]+/g, ' '));
       if (text === null) valid = false;
       return textToMarkdown(text ?? '');
     },
