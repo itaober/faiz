@@ -93,7 +93,7 @@ pnpm clean:images            # dry run: what would go
 pnpm clean:images --apply    # delete it
 ```
 
-Like `migrate:github` below, it works on what `.env.local` points at; prefix the production values
+It works on what `.env.local` points at (the dev bucket and folder); prefix the production values
 for the live site.
 
 ## Cost
@@ -104,19 +104,3 @@ for the live site.
 - **Image transformations**: 5,000 unique (image × size) per month free. On the Free plan there is
   no charge past that: new sizes fall back to the original file, so pages keep working, just
   heavier, and sizes already made keep being served.
-
-## Moving from GitHub content
-
-A site that kept its content on a GitHub `content` branch copies it over once, from a local checkout:
-
-```sh
-git -C ../faiz-content pull
-pnpm migrate:github           # dry run: the plan, what the buckets hold, anything it cannot rewrite
-pnpm migrate:github --apply   # write, then verify
-```
-
-It writes where `.env.local` points (the dev bucket and folder). For the live site, prefix the
-production values; real environment variables win over `.env.local`:
-`R2_CONTENT_BUCKET=faiz-content NEXT_PUBLIC_ASSETS_URL=https://assets.itaober.com/faiz pnpm migrate:github --apply`.
-Re-running skips what is already there; `--overwrite` also replaces content that changed since, and
-keeps the replaced version in `_history/`.

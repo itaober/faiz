@@ -275,8 +275,7 @@ try {
   }
 
   // A fresh site has nothing to render until site.json and the two pages exist, and no screen
-  // creates them (the pages' editors live on the pages). Opt-in: a site being migrated gets its own
-  // from the migration instead.
+  // creates them (the pages' editors live on the pages). Opt-in: an existing site already has its own.
   if (options.seed) {
     // The app's own timestamp format and zone (formatTime in lib/dayjs.ts).
     const now = new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Shanghai' });
