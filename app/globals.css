@@ -1121,7 +1121,8 @@ button {
     border-bottom: 2.5px solid var(--foreground);
     transform: rotate(45deg);
   }
-  .tiptap .ProseMirror-selectednode {
+  /* Preview is read-only, yet ProseMirror still selects a leading atom node on load. */
+  .tiptap[contenteditable='true'] .ProseMirror-selectednode {
     outline: 2px solid var(--accent);
     border-radius: var(--fz-radius-sm);
   }
@@ -1168,6 +1169,20 @@ button {
   }
   .tiptap input.fz-editor-figcaption:focus {
     color: var(--foreground);
+  }
+  /* An MDX component the editor can't render: a compact chip, its source edited in Markdown mode. */
+  .tiptap .fz-mdx-block {
+    width: fit-content;
+    margin-block: 1rem;
+    padding: 0.25rem 0.625rem;
+    border: 1px solid var(--border);
+    border-radius: var(--fz-radius-sm);
+    background: var(--muted);
+    color: var(--muted-foreground);
+    font-family: var(--font-mono);
+    font-size: 0.8125rem;
+    cursor: default;
+    user-select: none;
   }
 }
 

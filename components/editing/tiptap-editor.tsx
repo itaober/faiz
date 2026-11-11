@@ -40,6 +40,7 @@ import {
   StagedImage,
 } from './tiptap/extensions';
 import { EditorLinkCard } from './tiptap/link-card-extension';
+import { MdxBlock } from './tiptap/mdx-block-extension';
 
 interface ITiptapEditorProps {
   value: string;
@@ -214,6 +215,7 @@ export default function TiptapEditor({
       StagedImage,
       ImageGallery,
       EditorLinkCard,
+      MdxBlock,
       TaskList,
       TaskItem.configure({ nested: true }),
       Table.configure({ resizable: false }),
