@@ -25,7 +25,7 @@ const USAGE = `Usage: pnpm setup:cloudflare [options]
   --zone-id <id>           zone of the assets domain, to connect the domain
                            (dashboard → the domain → Overview → API → Zone ID)
   --account-id <id>        only when your login can see several accounts
-  --seed                   write a starter site.json into empty content buckets (new sites only)`;
+  --seed                   write starter site.json, about and lines pages where missing (new sites)`;
 
 const fail = message => {
   console.error(`\n✗ ${message}`);
@@ -274,36 +274,64 @@ try {
     );
   }
 
-  // A fresh site has nothing to render until site.json exists, and no screen creates it. Opt-in:
-  // a site being migrated gets its own site.json from the migration instead.
+  // A fresh site has nothing to render until site.json and the two pages exist, and no screen
+  // creates them (the pages' editors live on the pages). Opt-in: a site being migrated gets its own
+  // from the migration instead.
   if (options.seed) {
-    const starter = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'faiz-seed-')), 'site.json');
-    fs.writeFileSync(
-      starter,
-      `${JSON.stringify({ name: 'My Blog', bio: '', site: options.origin }, null, 2)}\n`,
-    );
-    for (const bucket of [contentBucket, devContentBucket]) {
-      try {
-        wrangler('r2', 'object', 'get', `${bucket}/site.json`, '--remote', '--pipe');
-        done(`${bucket}/site.json already exists`);
-      } catch (error) {
-        // Only a missing object is seeded; any other failure must not end in overwriting it.
-        if (!/does not exist|not found|NoSuchKey|10007/i.test(error.message)) {
-          throw error;
+    const now = new Date().toISOString().slice(0, 16).replace('T', ' ');
+    const page = (slug, title, body) =>
+      `---\nslug: ${slug}\ntitle: ${title}\ncreatedTime: '${now}'\nupdatedTime: '${now}'\n---\n\n${body}\n`;
+    const starters = [
+      {
+        key: 'site.json',
+        body: `${JSON.stringify({ name: 'My Blog', bio: '', site: options.origin }, null, 2)}\n`,
+        type: 'application/json',
+        hint: 'edit name, bio and site to your own',
+      },
+      {
+        key: 'pages/about.mdx',
+        body: page('about', 'About', 'Click the title five times to edit this page.'),
+        type: 'text/plain; charset=utf-8',
+        hint: 'the home page',
+      },
+      {
+        key: 'pages/lines.mdx',
+        body: page('lines', 'Lines', 'Click the title five times to edit this page.'),
+        type: 'text/plain; charset=utf-8',
+        hint: 'the /lines page',
+      },
+    ];
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'faiz-seed-'));
+    try {
+      for (const { key, body, type, hint } of starters) {
+        const file = path.join(dir, key.replaceAll('/', '_'));
+        fs.writeFileSync(file, body);
+        for (const bucket of [contentBucket, devContentBucket]) {
+          try {
+            wrangler('r2', 'object', 'get', `${bucket}/${key}`, '--remote', '--pipe');
+            done(`${bucket}/${key} already exists`);
+          } catch (error) {
+            // Only a missing object is seeded; any other failure must not end in overwriting it.
+            if (!/does not exist|not found|NoSuchKey|10007/i.test(error.message)) {
+              throw error;
+            }
+            wrangler(
+              'r2',
+              'object',
+              'put',
+              `${bucket}/${key}`,
+              '--file',
+              file,
+              '--content-type',
+              type,
+              '--remote',
+            );
+            done(`seeded ${bucket}/${key} — ${hint}`);
+          }
         }
-        wrangler(
-          'r2',
-          'object',
-          'put',
-          `${bucket}/site.json`,
-          '--file',
-          starter,
-          '--content-type',
-          'application/json',
-          '--remote',
-        );
-        done(`seeded ${bucket}/site.json — edit name, bio and site to your own`);
       }
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
     }
   }
 

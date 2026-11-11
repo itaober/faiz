@@ -19,7 +19,7 @@ subdomain of it) and a Vercel account.
    ```
 
    It creates the buckets, CORS and history cleanup, connects the domain, writes a starter
-   `site.json` (`--seed`; edit its name, bio and URL later), and prints the environment variables
+   `site.json` plus About and Lines pages (`--seed`; edit them later), and prints the environment variables
    with fresh edit keys. Re-running is safe. The zone ID is on the domain's
    Overview page in the Cloudflare dashboard.
 
