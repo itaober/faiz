@@ -76,8 +76,12 @@ How to generate each value: [`.env.example`](.env.example).
 - Click a page title five times for edit mode. The first save asks for `EDIT_KEY`; the browser
   then stays signed in for 90 days.
 - Every overwrite or delete first copies the old version to `_history/<key>/<time>`.
-- To restore, download that version in the R2 dashboard and upload it as `<key>`. For a post,
-  then open it in edit mode and save once, so the post list picks it up.
+- **Roll back a file:** in the R2 dashboard, download its version from `_history/<key>/` and
+  upload it as `<key>`. If a rolled-back post's title, tags, date or pin differ, save it once in
+  edit mode so the post list matches.
+- **Restore a deleted post:** upload its MDX as `posts/<slug>.mdx`, then add its entry (from a
+  `_history/` copy of `posts/_index.json`) back into the current `posts/_index.json`, in date
+  order. Keep every other entry; never replace the whole index with an old copy.
 
 ## Clean up images
 
