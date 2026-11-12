@@ -1256,7 +1256,7 @@ button {
   .tiptap input.fz-editor-figcaption:focus {
     color: var(--foreground);
   }
-  /* An MDX component the editor can't render: a chip that opens into a box with its source. */
+  /* An MDX component as a chip, or as itself (a preview), that opens into a box with its source. */
   .tiptap .fz-mdx-slot {
     margin-block: 1rem;
   }
@@ -1284,6 +1284,15 @@ button {
   .tiptap .fz-mdx-frame-open {
     width: 100%;
     color: var(--foreground);
+  }
+  /* A component shown as itself: no chip around it, the frame sized to the component so the
+     selection ring fits it. Its border stays, transparent, and fades in as the box opens. */
+  .tiptap .fz-mdx-frame-preview {
+    /* ponytail: ParticleImage's width (max-w-64) plus the border; it is the only preview.
+       Move the width onto the registry entry when a second component joins. */
+    width: calc(16rem + 2px);
+    border-color: transparent;
+    background: transparent;
   }
   /* Like the site's other text fields: the open box only darkens its border, no ring. */
   .tiptap .fz-mdx-frame:focus-within {

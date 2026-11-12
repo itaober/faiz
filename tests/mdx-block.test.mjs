@@ -14,6 +14,7 @@ import {
   markdownTodoListsToMdx,
   mdxToEditorMarkdown,
   readEditedBlock,
+  readMdxPreview,
   transformOutsideMdxBlocks,
 } from '../lib/mdx-editing.ts';
 import { assertCompilableMdx } from '../lib/server/mdx-validate.ts';
@@ -112,6 +113,51 @@ test('the About page saves back byte for byte, its portrait and todo list includ
   const about = fixture('about.mdx');
   assert.equal(blocks(load(about))[0].attrs.name, 'ParticleImage');
   assert.equal(cycle(about, savePage), about);
+});
+
+test('a registered component with literal props previews with those props, read not run', () => {
+  const registry = new Map([['ParticleImage', 'particle']]);
+  const [portrait] = blocks(load(fixture('about.mdx')));
+  assert.deepEqual(readMdxPreview(portrait.attrs.source, registry), {
+    component: 'particle',
+    props: { src: 'site/avatar-particle.png', label: '涛宝的粒子肖像', align: 'left' },
+  });
+  assert.deepEqual(
+    readMdxPreview(
+      '<ParticleImage src="a&amp;b.png" spacing={4} ratio={-0.5} fit={false} title={"{x}"} still />',
+      registry,
+    )?.props,
+    { src: 'a&b.png', spacing: 4, ratio: -0.5, fit: false, title: '{x}', still: true },
+  );
+  for (const source of [
+    '<ParticleImage src={`a.png`} />',
+    "<ParticleImage src={'a.png'} />",
+    '<ParticleImage spacing={2 + 2} />',
+    // The brace reader can't take this string; a chip, as the box needs acorn for it too.
+    '<ParticleImage title={"x } y"} />',
+    '<ParticleImage spacing={null} />',
+    '<ParticleImage data={[1]} />',
+    '<ParticleImage data={{ a: 1 }} />',
+    '<ParticleImage src={/* c */ "a.png"} />',
+    '<ParticleImage {...props} />',
+    '<ParticleImage src={globalThis.alert("x")} />',
+    '<ParticleImage src="a.png">\n  caption\n</ParticleImage>',
+    'Hi <ParticleImage src="a.png" />',
+    '<ParticleImage src="a.png" />\n\n<ParticleImage src="b.png" />',
+    '<ParticleImage src="a.png"',
+  ]) {
+    assert.equal(readMdxPreview(source, registry), null, source);
+  }
+});
+
+test('a component missing from the preview registry stays a chip', () => {
+  const registry = new Map([['ParticleImage', 'particle']]);
+  const tweet = '<Tweet id="2090416137720999992" />';
+  assert.equal(readMdxPreview(tweet, registry), null);
+  assert.equal(readMdxPreview('{1 + 1}', registry), null);
+  assert.equal(readMdxPreview('<particleImage src="a.png" />', registry), null);
+  assert.equal(readMdxPreview('<constructor />', registry), null);
+  assert.equal(readMdxPreview(tweet, new Map([['Tweet', 'tweet']]))?.component, 'tweet');
 });
 
 test('weekly #16 keeps its Tweet as written, and a second save changes nothing', () => {

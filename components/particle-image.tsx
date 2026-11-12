@@ -166,8 +166,11 @@ export default function ParticleImage({
       canvas.height = Math.round(height * dpr);
       context.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-      const sampleWidth = Math.max(1, Math.ceil(width / spacing));
-      const sampleHeight = Math.max(1, Math.ceil(height / spacing));
+      // One particle per `step` px: the count grows with its inverse square, so a tiny spacing
+      // (0.1 → 6.5M particles) would freeze the tab. Below 2px the dots no longer read as dots.
+      const step = Math.max(2, spacing);
+      const sampleWidth = Math.max(1, Math.ceil(width / step));
+      const sampleHeight = Math.max(1, Math.ceil(height / step));
       const sampleCanvas = canvas.ownerDocument.createElement('canvas');
       const sampleContext = sampleCanvas.getContext('2d', { willReadFrequently: true });
       if (!sampleContext) {

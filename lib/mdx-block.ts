@@ -61,8 +61,8 @@ const readBlock = (source: string) => {
 };
 
 /**
- * An MDX component the editor can't render (ParticleImage, Tweet…), kept as its source and
- * written back unchanged. The editor extends this with the chip that edits it.
+ * An MDX component (ParticleImage, Tweet…), kept as its source and written back unchanged. The
+ * editor extends this with the chip, or the component's preview, that edits it.
  */
 export const MdxBlockBase = Node.create({
   name: 'mdxBlock',

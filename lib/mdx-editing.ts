@@ -531,6 +531,49 @@ export const isReadableMdxBlock = (source: string, acorn?: Acorn) => {
   }
 };
 
+export type LiteralProps = Record<string, string | number | boolean>;
+
+// A `{…}` attribute value the preview takes: a JSON number, boolean or string, read as data.
+const readLiteral = (expression: string) => {
+  try {
+    const value: unknown = JSON.parse(expression);
+    return ['number', 'boolean', 'string'].includes(typeof value)
+      ? (value as string | number | boolean)
+      : undefined;
+  } catch {
+    return undefined;
+  }
+};
+
+/**
+ * The component `registry` holds for `source` and its props, when `source` is exactly one
+ * childless element of that name and every attribute is a literal: a string, a bare name (true),
+ * or a `{…}` holding a JSON number, boolean or string. Null for anything else, which the editor
+ * keeps as a chip. Values are read, never evaluated.
+ */
+export const readMdxPreview = <T>(source: string, registry: ReadonlyMap<string, T>) => {
+  let node: MdxNode | undefined;
+  try {
+    const { children } = parseMdx(source);
+    if (children.length === 1) [node] = children;
+  } catch {
+    return null;
+  }
+  if (node?.type !== 'mdxJsxFlowElement' || node.children.length) return null;
+  const component = registry.get(node.name ?? '');
+  if (component === undefined) return null;
+  const props: LiteralProps = {};
+  for (const attribute of node.attributes) {
+    if (attribute.type !== 'mdxJsxAttribute') return null;
+    const { name, value } = attribute;
+    const literal =
+      value == null ? true : typeof value === 'string' ? value : readLiteral(value.value);
+    if (literal === undefined) return null;
+    props[name] = literal;
+  }
+  return { component, props };
+};
+
 /**
  * The block an edited source stands for, or null: still exactly one block, and one the parser
  * reads unless the original was kept as written. Read by braces unless `acorn` is given; the

@@ -2,12 +2,27 @@
 
 import { type NodeViewProps, NodeViewWrapper, useEditorState } from '@tiptap/react';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
-import { useEffect, useId, useRef, useState } from 'react';
+import {
+  Component,
+  type ComponentType,
+  type ReactNode,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+} from 'react';
 
+import ParticleImage from '@/components/particle-image';
 import { ANIMATION } from '@/lib/constants/animation';
-
 import { mdxBlockLabel } from '@/lib/mdx-block';
-import { type Acorn, loadAcorn, type MdxBlock, readEditedBlock } from '@/lib/mdx-editing';
+import {
+  type Acorn,
+  type LiteralProps,
+  loadAcorn,
+  type MdxBlock,
+  readEditedBlock,
+  readMdxPreview,
+} from '@/lib/mdx-editing';
 import { cn } from '@/lib/utils';
 
 import { setInvalidDraft } from '../editing-overlays';
@@ -18,12 +33,33 @@ const OPEN_MDX_BLOCK_EVENT = 'mdx-block-open';
 const RESIZE = { duration: 0.2, ease: ANIMATION.ease.out };
 const FADE = { duration: ANIMATION.duration.fast, ease: ANIMATION.ease.out };
 
+// Components the editor shows as themselves, the same ones the read view maps in
+// components/mdx.tsx. A block previews only with literal props (readMdxPreview); the rest stay chips.
+const PREVIEWS = new Map<string, ComponentType<LiteralProps>>([
+  ['ParticleImage', ParticleImage as unknown as ComponentType<LiteralProps>],
+]);
+
+/** Shows `fallback` if the preview throws, so a bad prop can't take the editor and its draft down. */
+class PreviewBoundary extends Component<
+  { fallback: ReactNode; children: ReactNode },
+  { failed: boolean }
+> {
+  state = { failed: false };
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+  render() {
+    return this.state.failed ? this.props.fallback : this.props.children;
+  }
+}
+
 /** Opens the chip at `pos` into its source. */
 export const openMdxBlock = (editorDom: HTMLElement, pos: number | undefined) =>
   editorDom.dispatchEvent(new CustomEvent(OPEN_MDX_BLOCK_EVENT, { detail: pos }));
 
 /**
- * A component chip that opens into its source while editing. ⌘Enter, or clicking elsewhere in
+ * A component chip, or the component itself when it can preview (PREVIEWS), that opens into its
+ * source while editing. ⌘Enter, or clicking elsewhere in
  * the page, applies the source if it is still exactly one component; else the box stays open on
  * the draft with an inline error, and the page won't save until it is fixed or cancelled.
  * Escape restores the chip.
@@ -113,6 +149,20 @@ export function MdxBlockNodeView({ node, editor, getPos, updateAttributes }: Nod
   }, []);
 
   const open = draft !== null && editable;
+  const preview = readMdxPreview(source, PREVIEWS);
+  const label = (
+    <motion.span
+      key="label"
+      layout
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={FADE}
+      className="fz-mdx-label"
+    >
+      {mdxBlockLabel(name, source)}
+    </motion.span>
+  );
 
   return (
     <NodeViewWrapper className="fz-mdx-slot">
@@ -125,7 +175,11 @@ export function MdxBlockNodeView({ node, editor, getPos, updateAttributes }: Nod
           <motion.div
             layout
             transition={RESIZE}
-            className={cn('fz-mdx-frame', open && 'fz-mdx-frame-open')}
+            className={cn(
+              'fz-mdx-frame',
+              open && 'fz-mdx-frame-open',
+              !open && preview && 'fz-mdx-frame-preview',
+            )}
             title={editable && !open ? 'Click to edit' : undefined}
             onClick={() => {
               if (editable && !open) openMdxBlock(editor.view.dom, getPos());
@@ -177,18 +231,30 @@ export function MdxBlockNodeView({ node, editor, getPos, updateAttributes }: Nod
                     });
                   }}
                 />
-              ) : (
-                <motion.span
-                  key="label"
+              ) : preview ? (
+                <motion.div
+                  key="preview"
                   layout
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
                   transition={FADE}
-                  className="fz-mdx-label"
+                  // Capture runs before ProseMirror's mousedown on the editor, which would take a
+                  // press on the canvas for a text selection or a drag. The press selects the
+                  // block as ProseMirror does a chip's; the click then opens the box.
+                  onMouseDownCapture={event => {
+                    event.preventDefault();
+                    const pos = getPos();
+                    if (editable && typeof pos === 'number') editor.commands.setNodeSelection(pos);
+                  }}
                 >
-                  {mdxBlockLabel(name, source)}
-                </motion.span>
+                  {/* Keyed by source, so an undo back to working props clears a failure. */}
+                  <PreviewBoundary key={source} fallback={label}>
+                    <preview.component {...preview.props} />
+                  </PreviewBoundary>
+                </motion.div>
+              ) : (
+                label
               )}
             </AnimatePresence>
           </motion.div>
