@@ -52,7 +52,7 @@ export default function ImageGallery({ items, layout, eager }: ImageGalleryProps
     itemIndex: number,
     className: string,
     style?: CSSProperties,
-    share = 1,
+    fill?: number,
   ) => {
     const ratio = getRatio(item);
     return (
@@ -61,7 +61,7 @@ export default function ImageGallery({ items, layout, eager }: ImageGalleryProps
         alt={item.alt}
         width={item.width ?? 0}
         height={item.height ?? 0}
-        sizes={getSizes(config, ratio, share)}
+        sizes={getSizes(config, ratio, fill)}
         loading={eager && itemIndex < 2 ? 'eager' : undefined}
         placeholder={item.blurDataURL ?? 'empty'}
         unoptimized={!isTransformableSrc(item.src)}
