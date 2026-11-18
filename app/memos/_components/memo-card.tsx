@@ -1,5 +1,5 @@
+import ImageGallery from '@/components/image-gallery';
 import { MDX } from '@/components/mdx';
-import MediaStrip from '@/components/media-strip';
 import { resolveAssetSrc } from '@/lib/assets';
 import { getImageMeta } from '@/lib/data/images';
 import type { Memo } from '@/lib/data/memos';
@@ -27,7 +27,7 @@ export default async function MemoCard({ memo, eager }: IMemoCardProps) {
       <MDX source={memo.content} />
       {images.length > 0 && (
         <div className="mt-3">
-          <MediaStrip items={images} layout="stream" eager={eager} />
+          <ImageGallery items={images} layout="memo" eager={eager} />
         </div>
       )}
     </MemoCardInline>

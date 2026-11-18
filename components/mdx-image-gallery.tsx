@@ -1,4 +1,4 @@
-import MediaStrip, { type MediaItem } from '@/components/media-strip';
+import ImageGallery, { type GalleryImage } from '@/components/image-gallery';
 import { isAssetKey, resolveAssetSrc } from '@/lib/assets';
 import { getImageMeta } from '@/lib/data/images';
 import { type MdxImageGalleryItem, unescapeMarkdownValue } from '@/lib/utils/editor-image';
@@ -7,9 +7,9 @@ interface MDXImageGalleryProps {
   images?: Array<MdxImageGalleryItem | string>;
 }
 
-const toMediaItem = async (
+const toGalleryImage = async (
   value: MdxImageGalleryItem | string | null | undefined,
-): Promise<MediaItem | null> => {
+): Promise<GalleryImage | null> => {
   const raw = typeof value === 'string' ? value : value?.src;
   const stored = raw ? unescapeMarkdownValue(raw).trim() : '';
   if (!stored) {
@@ -35,8 +35,8 @@ const toMediaItem = async (
 
 /** Read view for a run of images in a post: the same fixed-height strip memos use. */
 export default async function MDXImageGallery({ images }: MDXImageGalleryProps) {
-  const items = (await Promise.all((images ?? []).map(toMediaItem))).filter(
-    (image): image is MediaItem => Boolean(image),
+  const items = (await Promise.all((images ?? []).map(toGalleryImage))).filter(
+    (image): image is GalleryImage => Boolean(image),
   );
 
   if (items.length === 0) {
@@ -45,7 +45,7 @@ export default async function MDXImageGallery({ images }: MDXImageGalleryProps) 
 
   return (
     <span className="mb-4 block">
-      <MediaStrip items={items} layout="article" />
+      <ImageGallery items={items} layout="post" />
     </span>
   );
 }

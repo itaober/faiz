@@ -5,7 +5,7 @@ import { NodeViewWrapper } from '@tiptap/react';
 import { PlusIcon, XIcon } from 'lucide-react';
 import { useEffect, useId, useRef, useState } from 'react';
 
-import MediaStrip from '@/components/media-strip';
+import ImageGallery from '@/components/image-gallery';
 import { cn } from '@/lib/utils';
 import type { MdxImageGalleryItem } from '@/lib/utils/editor-image';
 import { SUPPORTED_IMAGE_TYPES } from '@/lib/utils/image';
@@ -61,7 +61,7 @@ export function ImageGalleryNodeView({
   if (!editable) {
     return (
       <NodeViewWrapper className="my-4">
-        <MediaStrip
+        <ImageGallery
           items={images.map(image => {
             const label = image.alt || image.caption;
             return {
@@ -70,7 +70,7 @@ export function ImageGalleryNodeView({
               caption: label || undefined,
             };
           })}
-          layout="article"
+          layout="post"
         />
       </NodeViewWrapper>
     );

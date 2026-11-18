@@ -5,7 +5,7 @@ import { MDXRemote } from 'next-mdx-remote/rsc';
 import type { AnchorHTMLAttributes, ImgHTMLAttributes } from 'react';
 
 import ExternalLinkHoverCard from '@/components/external-link-hover-card';
-import MediaStrip from '@/components/media-strip';
+import ImageGallery from '@/components/image-gallery';
 import { isAssetKey, resolveAssetSrc } from '@/lib/assets';
 import { getImageMeta } from '@/lib/data/images';
 import { toRenderableMdx, unescapeMarkdownValue } from '@/lib/utils/editor-image';
@@ -131,8 +131,8 @@ const Image = async ({ src, alt = '', caption }: IImageProps) => {
 
   return (
     <span className="mb-4 block">
-      <MediaStrip
-        layout="article"
+      <ImageGallery
+        layout="post"
         items={[
           {
             src: resolveAssetSrc(storedSrc),
