@@ -1,9 +1,9 @@
 'use client';
 
 import { ChevronLeftIcon, ChevronRightIcon, XIcon } from 'lucide-react';
-import { motion, type PanInfo } from 'motion/react';
+import { motion } from 'motion/react';
 import type { KeyboardEvent as ReactKeyboardEvent } from 'react';
-import { useCallback, useEffect, useLayoutEffect, useRef, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef } from 'react';
 
 import Overlay from '@/components/overlay';
 import { cn } from '@/lib/utils';
@@ -15,23 +15,19 @@ import {
   getCoverFlip,
   getFocusableElements,
   getRevealMask,
-  getRowView,
-  getSlideCenter,
   getSourceLook,
-  getSpringPath,
   isValidRect,
   PREVIEW_CLOSE_TIMEOUT_MS,
-  PREVIEW_DURATION_MS,
-  PREVIEW_EASING,
   PREVIEW_FULL_FRAME,
   PREVIEW_REVEAL,
-  PREVIEW_TURN_MS,
   prefersReducedMotion,
   readFlipFrame,
   toPreviewRect,
   whenPaintable,
 } from './geometry.ts';
+import { PREVIEW_DURATION_MS, PREVIEW_EASING } from './spring.ts';
 import { useAsideLayout } from './use-aside-layout.ts';
+import { useRowPaging } from './use-row-paging.ts';
 
 /** One picture of a row the preview pages through. */
 export interface IPreviewSlide {
@@ -74,16 +70,8 @@ const NAV_BUTTON =
 
 // The space between neighbouring pictures as they pass through the frame.
 const ROW_GAP = '1rem';
-// Past the first or last picture the row follows the finger at this fraction, then springs back.
-const RUBBER_BAND = 0.3;
-// How far ahead, in seconds, a flick is carried when deciding where it lands.
-const FLICK_REACH = 0.12;
-// A key press against either end: a nudge, in px/s, that the spring takes back.
-const END_NUDGE = 600;
 // How far into the opening flight the part a strip was hiding has fully appeared.
 const REVEAL_BY = 0.4;
-// Keyframes a page turn's path is cut into: one every 8ms or so, finer than a frame.
-const ROW_STEPS = 48;
 
 const getSlideWidth = (aspectRatio: number) =>
   `min(var(--preview-max-w), ${Number((80 * aspectRatio).toFixed(3))}svh, 64rem)`;
@@ -95,12 +83,6 @@ const getSlideWidth = (aspectRatio: number) =>
  */
 const getSlideSpacing = (width: string, nextWidth: string) =>
   `calc(${ROW_GAP} + max(${width} - ${nextWidth}, ${nextWidth} - ${width}) / 2)`;
-
-const subscribeToZoom = (onChange: () => void) => {
-  window.visualViewport?.addEventListener('resize', onChange);
-  return () => window.visualViewport?.removeEventListener('resize', onChange);
-};
-const isZoomedIn = () => (window.visualViewport?.scale ?? 1) > 1.01;
 
 const clearReveal = (frame: HTMLElement) => {
   frame.style.maskImage = '';
@@ -140,7 +122,6 @@ export const PreviewPortal = ({
     originRectRef,
     mediaAspectRatio,
     setActiveSourceImage,
-    retargetSource,
   } = usePreview();
   const row = slides ?? [{ src: '', aspectRatio: targetAspectRatio, media: children, footer }];
   const count = row.length;
@@ -151,7 +132,6 @@ export const PreviewPortal = ({
   const dialogRef = useRef<HTMLDivElement>(null);
   const anchorRef = useRef<HTMLDivElement>(null);
   const mediaFrameRef = useRef<HTMLDivElement>(null);
-  const trackRef = useRef<HTMLDivElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement | null>(null);
   const animationRef = useRef<Animation | null>(null);
   const animationGenerationRef = useRef(0);
@@ -161,135 +141,26 @@ export const PreviewPortal = ({
   const hasNavigation = count > 1;
   const interactive = phase === 'opening' || phase === 'open';
   const controlsVisible = phase === 'open';
+  const pannable = hasNavigation && controlsVisible;
   const asideLayout = useAsideLayout({
     enabled: hasAside,
     phase,
     frameRef: previewFrameRef,
   });
   const prepareReturnRef = useRef(prepareReturn);
-  // The index the row is laid out around, for the handlers below that run outside render.
-  const shownRef = useRef(shown);
-  // A page turn on its way to rest. The row itself moves as an animation, off the main thread,
-  // so nothing the page is busy with can make it stutter; `path` says where it is at any moment.
-  const flightRef = useRef<{ animation: Animation; path: ReturnType<typeof getSpringPath> } | null>(
-    null,
-  );
-  // How far off rest a finger is holding the row.
-  const heldRef = useRef(0);
-  // Where the row was when a finger took hold of it; false for a pan left to the browser.
-  const panRef = useRef<number | false | null>(null);
-  // The finger's speed as it let go, for the page turn that follows to carry on from.
-  const flickRef = useRef<number | null>(null);
-  // A pinched-in page pans with one finger, so sideways drags are the browser's while zoomed.
-  const zoomed = useSyncExternalStore(subscribeToZoom, isZoomedIn, () => false);
-
-  // What shows follows from how far the row sits off the picture it is laid out around. Only the
-  // two pictures passing each other are in sight, inside a frame as wide as the wider of them:
-  // each keeps its shape, leaving and arriving through that frame's sides, the way a strip cuts
-  // on the page. The close button crosses from one picture's corner to the other's with them.
-  const showRowAt = useCallback((offset: number) => {
-    const frame = mediaFrameRef.current;
-    const track = trackRef.current;
-    const close = closeButtonRef.current;
-    const current = track?.children[shownRef.current];
-    if (!frame || !track || !close || !(current instanceof HTMLElement)) {
-      return;
-    }
-    const atRest = Math.abs(offset) < 0.5;
-    const view = getRowView(track.children, shownRef.current, offset);
-    for (const slide of track.children as HTMLCollectionOf<HTMLElement>) {
-      // At rest the classes decide.
-      slide.style.visibility = atRest
-        ? ''
-        : slide === view.near || slide === view.far
-          ? 'visible'
-          : 'hidden';
-    }
-    const spare = atRest ? 0 : (current.offsetWidth - view.span) / 2;
-    // Only the sides cut: a neighbour of another height, and its caption, show in full. At rest
-    // the frame is the picture's own box, with its neighbours already painted just outside it,
-    // so a page turn has nothing left to draw. A lone picture needs no frame.
-    frame.style.clipPath =
-      track.children.length > 1
-        ? `inset(-100vh ${spare - Math.max(0, view.drift)}px -100vh ${spare + Math.min(0, view.drift)}px)`
-        : '';
-    const mix = (from: number, to: number) => from + (to - from) * view.blend;
-    close.style.translate = atRest
-      ? ''
-      : `${(mix(view.near.offsetWidth, view.far.offsetWidth) - current.offsetWidth) / 2}px ${
-          (current.offsetHeight - mix(view.near.offsetHeight, view.far.offsetHeight)) / 2
-        }px`;
-  }, []);
-
-  const getRowMotion = useCallback(() => {
-    const flight = flightRef.current;
-    if (!flight) {
-      return { offset: heldRef.current, velocity: 0 };
-    }
-    const seconds = Number(flight.animation.currentTime ?? 0) / 1000;
-    return { offset: flight.path.offsetAt(seconds), velocity: flight.path.velocityAt(seconds) };
-  }, []);
-
-  /** Puts the row `offset` px off rest and keeps it there: under a finger, or back at rest. */
-  const holdRow = useCallback(
-    (offset: number) => {
-      flightRef.current?.animation.cancel();
-      flightRef.current = null;
-      heldRef.current = offset;
-      if (trackRef.current) {
-        trackRef.current.style.transform = offset ? `translateX(${offset}px)` : '';
-      }
-      showRowAt(offset);
-    },
-    [showRowAt],
-  );
-
-  /** Lets the row go from `from` px off rest, moving at `velocity` px/s, to settle on the spring. */
-  const flyRow = useCallback(
-    (from: number, velocity: number) => {
-      const track = trackRef.current;
-      if (!track) {
-        return;
-      }
-      holdRow(0);
-      const path = getSpringPath(from, velocity);
-      const animation = track.animate(
-        Array.from({ length: ROW_STEPS + 1 }, (_, step) => ({
-          transform: `translateX(${path.offsetAt(((step / ROW_STEPS) * PREVIEW_TURN_MS) / 1000)}px)`,
-        })),
-        PREVIEW_TURN_MS,
-      );
-      const flight = { animation, path };
-      flightRef.current = flight;
-      const follow = () => {
-        if (flightRef.current !== flight) {
-          return;
-        }
-        if (animation.playState === 'finished') {
-          holdRow(0);
-          return;
-        }
-        showRowAt(getRowMotion().offset);
-        requestAnimationFrame(follow);
-      };
-      follow();
-    },
-    [getRowMotion, holdRow, showRowAt],
-  );
-
-  const page = (direction: -1 | 1) => {
-    const target = shown + direction;
-    if (target >= 0 && target < count) {
-      onIndexChange?.(target);
-    } else if (!prefersReducedMotion()) {
-      flyRow(0, -direction * END_NUDGE);
-    }
-  };
-  const pageRef = useRef(page);
+  const { trackRef, zoomed, page, getRowMotion, holdRow, panHandlers } = useRowPaging({
+    shown,
+    count,
+    shownSrc,
+    active: pannable,
+    onIndexChange,
+    dialogRef,
+    frameRef: mediaFrameRef,
+    closeButtonRef,
+  });
 
   useEffect(() => {
     prepareReturnRef.current = prepareReturn;
-    pageRef.current = page;
   });
 
   const restoreSource = useCallback(() => {
@@ -586,38 +457,6 @@ export const PreviewPortal = ({
     };
   }, [cancelAnimation, finishClose, getReturnRect, phase, phaseRef, sourceMediaRef]);
 
-  // The row has just been laid out around another picture. It is put back where it was showing
-  // and left to settle from there, so a page turn, a flick, and a turn taken mid-turn are all
-  // one continuous slide.
-  useLayoutEffect(() => {
-    const from = shownRef.current;
-    shownRef.current = shown;
-    const track = trackRef.current;
-    if (from === shown || phaseRef.current !== 'open' || !track) {
-      return;
-    }
-    retargetSource(shownSrc);
-    // An arrow that has run out of pictures hides, and would take the focus with it.
-    if (dialogRef.current?.querySelector('[aria-hidden="true"]:focus')) {
-      closeButtonRef.current?.focus({ preventScroll: true });
-    }
-
-    const { offset, velocity } = getRowMotion();
-    const flick = flickRef.current;
-    flickRef.current = null;
-    const last = track.children[from];
-    const next = track.children[shown];
-    if (
-      !(last instanceof HTMLElement) ||
-      !(next instanceof HTMLElement) ||
-      prefersReducedMotion()
-    ) {
-      holdRow(0);
-      return;
-    }
-    flyRow(offset + getSlideCenter(next) - getSlideCenter(last), flick ?? velocity);
-  }, [flyRow, getRowMotion, holdRow, phaseRef, retargetSource, shown, shownSrc]);
-
   useLayoutEffect(() => {
     if (phase === 'open') {
       closeButtonRef.current?.focus({ preventScroll: true });
@@ -658,70 +497,11 @@ export const PreviewPortal = ({
   }, []);
 
   useEffect(() => {
-    // Paging only once open: the opening flight is computed for the current image's shape.
-    if (!controlsVisible || !hasNavigation) {
-      return;
-    }
-    const handleKey = (event: KeyboardEvent) => {
-      if (event.key === 'ArrowLeft') {
-        event.preventDefault();
-        pageRef.current(-1);
-      } else if (event.key === 'ArrowRight') {
-        event.preventDefault();
-        pageRef.current(1);
-      }
-    };
-    document.addEventListener('keydown', handleKey);
-    return () => document.removeEventListener('keydown', handleKey);
-  }, [controlsVisible, hasNavigation]);
-
-  useEffect(() => {
     return () => {
-      flightRef.current?.animation.cancel();
       cancelAnimation();
       restoreSource();
     };
   }, [cancelAnimation, restoreSource]);
-
-  // A finger moves the row directly; letting go hands its speed to the spring.
-  const handlePanStart = (event: PointerEvent, info: PanInfo) => {
-    const sideways = Math.abs(info.offset.x) > Math.abs(info.offset.y);
-    if (event.pointerType === 'mouse' || zoomed || !sideways) {
-      panRef.current = false;
-      return;
-    }
-    const { offset } = getRowMotion();
-    holdRow(offset);
-    panRef.current = offset;
-  };
-
-  const handlePan = (_event: PointerEvent, info: PanInfo) => {
-    const origin = panRef.current;
-    if (typeof origin !== 'number') {
-      return;
-    }
-    const offset = origin + info.offset.x;
-    const pastEnd = offset > 0 ? shown === 0 : shown === count - 1;
-    holdRow(pastEnd ? offset * RUBBER_BAND : offset);
-  };
-
-  const handlePanEnd = (_event: PointerEvent, info: PanInfo) => {
-    const origin = panRef.current;
-    panRef.current = null;
-    if (typeof origin !== 'number') {
-      return;
-    }
-    // Turns the page when the drag, carried on by its speed, would end past a quarter of the frame.
-    const landing = heldRef.current + info.velocity.x * FLICK_REACH;
-    const reach = (mediaFrameRef.current?.offsetWidth ?? 0) / 4;
-    const target = shown + (landing < -reach ? 1 : landing > reach ? -1 : 0);
-    if (target !== shown && target >= 0 && target < count) {
-      flickRef.current = info.velocity.x;
-      onIndexChange?.(target);
-    } else {
-      flyRow(heldRef.current, info.velocity.x);
-    }
-  };
 
   if (!portalMounted) {
     return null;
@@ -749,7 +529,6 @@ export const PreviewPortal = ({
       </button>
     );
   });
-  const pannable = hasNavigation && controlsVisible;
 
   return (
     <Overlay
@@ -769,9 +548,7 @@ export const PreviewPortal = ({
         aria-label={ariaLabel}
         tabIndex={-1}
         onKeyDown={handleDialogKeyDown}
-        onPanStart={pannable ? handlePanStart : undefined}
-        onPan={pannable ? handlePan : undefined}
-        onPanEnd={pannable ? handlePanEnd : undefined}
+        {...panHandlers}
         // Sideways drags are ours; pinching stays the browser's.
         style={{ touchAction: hasNavigation && !zoomed ? 'pan-y pinch-zoom' : undefined }}
         // Focus only parks here while the media flies; a ring would trace the box mid-flight.

@@ -6,7 +6,8 @@ import { type CSSProperties, useRef, useState } from 'react';
 
 import { Preview, PreviewImage, PreviewPortal, PreviewTrigger } from '@/components/preview';
 import type { IPreviewRect } from '@/components/preview/context';
-import { PREVIEW_DURATION_MS, PREVIEW_EASING, toPreviewRect } from '@/components/preview/geometry';
+import { toPreviewRect } from '@/components/preview/geometry';
+import { PREVIEW_DURATION_MS, PREVIEW_EASING } from '@/components/preview/spring';
 import ScrollArea from '@/components/scroll-area';
 import { isTransformableSrc } from '@/lib/assets';
 import { cn } from '@/lib/utils';
