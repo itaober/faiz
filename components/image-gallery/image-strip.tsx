@@ -18,11 +18,6 @@ import { cn } from '@/lib/utils';
 
 import { type GalleryImage, getRatio, MAX_RATIO, MIN_RATIO } from './sizing.ts';
 
-// Shares of a strip's width: the image it rests on, and the end of the one before it. What is
-// left shows the start of the next image.
-const SLOT = 0.7;
-const SLIVER = 0.1;
-
 /** How far the strip must scroll to rest on `slot`: its start on the snap line, within range. */
 const getSnapDelta = (scroller: HTMLElement, slot: Element) => {
   const padStart = Number.parseFloat(getComputedStyle(scroller).scrollPaddingLeft) || 0;
@@ -66,13 +61,13 @@ interface ImageStripProps {
   items: GalleryImage[];
   /** Centers a strip that is narrower than its column. */
   center: boolean;
-  /** Draws one image. `share` is the part of the strip's width it takes, for `sizes`. */
+  /** Draws one image. `fill` is the part of the strip's slot it takes, for `sizes`. */
   renderImage: (
     item: GalleryImage,
     index: number,
     className: string,
     style: CSSProperties,
-    share: number,
+    fill: number,
   ) => ReactNode;
   onOpen: (index: number) => void;
 }
@@ -80,7 +75,7 @@ interface ImageStripProps {
 /**
  * Two or more images in a row of one height that scrolls sideways. A strip shows mainly one
  * image, with part of the one before and the one after either side of it. An image of the shape
- * most of the strip has takes `SLOT` of its width, and that sets one height for every image in
+ * most of the strip has takes the layout's slot, and that sets one height for every image in
  * it, so nothing reflows as images load: narrower ones follow their own shape at that height,
  * wider ones crop to the same width.
  */
@@ -186,10 +181,10 @@ export default function ImageStrip({ ref, items, center, renderImage, onOpen }: 
       style={
         {
           '--strip-w': 'calc(100cqw + var(--gallery-bleed-start) + var(--gallery-bleed-end))',
-          '--strip-slot-w': `calc(var(--strip-w) * ${SLOT})`,
+          '--strip-slot-w': 'calc(var(--strip-w) * var(--gallery-slot))',
           '--strip-h': `min(var(--gallery-h), calc(var(--strip-slot-w) / ${stripRatio}))`,
           // Where an image comes to rest: past the end of the one before it, and the gap.
-          '--strip-rest': `calc(var(--strip-w) * ${SLIVER} + 0.5rem)`,
+          '--strip-rest': 'calc(var(--strip-w) * var(--gallery-sliver) + 0.5rem)',
         } as CSSProperties
       }
     >
@@ -224,7 +219,7 @@ export default function ImageStrip({ ref, items, center, renderImage, onOpen }: 
                   itemIndex,
                   'h-(--strip-h) w-auto max-w-full min-w-[calc(var(--strip-h)*9/16)] object-cover',
                   { aspectRatio: ratio === undefined ? 'auto 1 / 1' : Math.max(ratio, MIN_RATIO) },
-                  (SLOT * Math.min(ratio ?? 1, stripRatio)) / stripRatio,
+                  Math.min(ratio ?? 1, stripRatio) / stripRatio,
                 )}
               </PreviewTrigger>
               {item.caption ? (
