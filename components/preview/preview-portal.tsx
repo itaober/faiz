@@ -1,31 +1,46 @@
 'use client';
 
 import { ChevronLeftIcon, ChevronRightIcon, XIcon } from 'lucide-react';
-import type { KeyboardEvent as ReactKeyboardEvent, TouchEventHandler } from 'react';
+import { motion } from 'motion/react';
+import type { KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { useCallback, useEffect, useLayoutEffect, useRef } from 'react';
 
 import Overlay from '@/components/overlay';
 import { cn } from '@/lib/utils';
 
-import { usePreview } from './context.ts';
+import { type IPreviewRect, usePreview } from './context.ts';
 import {
+  applyFlipFrame,
   areRectsEqual,
   getCoverFlip,
   getFocusableElements,
-  getSourceRadius,
+  getRevealMask,
+  getSourceLook,
   isValidRect,
   PREVIEW_CLOSE_TIMEOUT_MS,
-  PREVIEW_DURATION_MS,
-  PREVIEW_EASING,
   PREVIEW_FULL_FRAME,
+  PREVIEW_REVEAL,
   prefersReducedMotion,
+  readFlipFrame,
   toPreviewRect,
   whenPaintable,
 } from './geometry.ts';
+import { PREVIEW_DURATION_MS, PREVIEW_EASING } from './spring.ts';
 import { useAsideLayout } from './use-aside-layout.ts';
+import { useRowPaging } from './use-row-paging.ts';
+
+/** One picture of a row the preview pages through. */
+export interface IPreviewSlide {
+  /** What its trigger previews (`previewSrc`): names the slide and the thumbnail it flies home to. */
+  src: string;
+  aspectRatio?: number;
+  media: React.ReactNode;
+  footer?: React.ReactNode;
+}
 
 interface IPreviewPortalProps {
-  children: React.ReactNode;
+  /** The media, when the preview shows one thing. */
+  children?: React.ReactNode;
   className?: string;
   contentClassName?: string;
   ariaLabel?: string;
@@ -33,11 +48,54 @@ interface IPreviewPortalProps {
   asideClassName?: string;
   targetAspectRatio?: number;
   footer?: React.ReactNode;
-  onTouchStart?: TouchEventHandler<HTMLDivElement>;
-  onTouchEnd?: TouchEventHandler<HTMLDivElement>;
-  onPrevious?: () => void;
-  onNext?: () => void;
+  /**
+   * A row to page through, in place of `children`: the pictures sit side by side as they do on
+   * the page, and `index` is the one in the frame.
+   */
+  slides?: IPreviewSlide[];
+  index?: number;
+  onIndexChange?: (index: number) => void;
+  /**
+   * Runs as the media starts flying home, so a container that cuts part of the source off (a
+   * sideways strip) can bring it into view first; returns where the source will sit once it has.
+   */
+  prepareReturn?: (source: HTMLElement) => IPreviewRect | undefined;
 }
+
+// Wide screens keep the arrows beside the media, on the backdrop; a narrow window has no room, so
+// there they sit on the photo and need a chip that reads over any image. Touch pages by swiping,
+// so there the arrows are kept for screen readers only.
+const NAV_BUTTON =
+  'focus-ring-overlay icon-button bg-overlay-control text-overlay-control-foreground hover:bg-overlay-control-hover pointer-events-auto absolute top-0 size-10 -translate-y-1/2 max-md:bg-surface/90 max-md:text-foreground max-md:shadow-(--fz-shadow-md) pointer-coarse:sr-only';
+
+// The space between neighbouring pictures as they pass through the frame.
+const ROW_GAP = '1rem';
+// How far into the opening flight the part a strip was hiding has fully appeared.
+const REVEAL_BY = 0.4;
+
+const getSlideWidth = (aspectRatio: number) =>
+  `min(var(--preview-max-w), ${Number((80 * aspectRatio).toFixed(3))}svh, 64rem)`;
+
+/**
+ * The space between two neighbours in the row. Pictures of one width sit a gap apart; otherwise
+ * they are spaced as if both were the wider one, so either can leave the frame they share
+ * before the other arrives.
+ */
+const getSlideSpacing = (width: string, nextWidth: string) =>
+  `calc(${ROW_GAP} + max(${width} - ${nextWidth}, ${nextWidth} - ${width}) / 2)`;
+
+const clearReveal = (frame: HTMLElement) => {
+  frame.style.maskImage = '';
+  frame.style.removeProperty(PREVIEW_REVEAL);
+};
+
+/** At rest when open: no transform, clip or mask, so nothing costs a compositing pass. */
+const settleOpen = (frame: HTMLElement) => {
+  frame.style.transform = 'none';
+  frame.style.clipPath = '';
+  frame.style.willChange = '';
+  clearReveal(frame);
+};
 
 export const PreviewPortal = ({
   children,
@@ -48,10 +106,10 @@ export const PreviewPortal = ({
   asideClassName,
   targetAspectRatio,
   footer,
-  onTouchStart,
-  onTouchEnd,
-  onPrevious,
-  onNext,
+  slides,
+  index = 0,
+  onIndexChange,
+  prepareReturn,
 }: IPreviewPortalProps) => {
   const {
     phase,
@@ -65,7 +123,12 @@ export const PreviewPortal = ({
     mediaAspectRatio,
     setActiveSourceImage,
   } = usePreview();
-  const anchorAspectRatio = targetAspectRatio ?? mediaAspectRatio;
+  const row = slides ?? [{ src: '', aspectRatio: targetAspectRatio, media: children, footer }];
+  const count = row.length;
+  const shown = Math.min(Math.max(index, 0), count - 1);
+  const shownSrc = row[shown].src;
+  const widths = row.map(slide => getSlideWidth(slide.aspectRatio ?? mediaAspectRatio));
+  const anchorAspectRatio = row[shown].aspectRatio ?? mediaAspectRatio;
   const dialogRef = useRef<HTMLDivElement>(null);
   const anchorRef = useRef<HTMLDivElement>(null);
   const mediaFrameRef = useRef<HTMLDivElement>(null);
@@ -75,20 +138,29 @@ export const PreviewPortal = ({
   const isReversingOpeningRef = useRef(false);
   const previewFrameRef = useRef<HTMLDivElement | null>(null);
   const hasAside = Boolean(aside);
-  const hasNavigation = Boolean(onPrevious || onNext);
+  const hasNavigation = count > 1;
   const interactive = phase === 'opening' || phase === 'open';
   const controlsVisible = phase === 'open';
+  const pannable = hasNavigation && controlsVisible;
   const asideLayout = useAsideLayout({
     enabled: hasAside,
     phase,
     frameRef: previewFrameRef,
   });
-  const onPreviousRef = useRef(onPrevious);
-  const onNextRef = useRef(onNext);
+  const prepareReturnRef = useRef(prepareReturn);
+  const { trackRef, zoomed, page, getRowMotion, holdRow, panHandlers } = useRowPaging({
+    shown,
+    count,
+    shownSrc,
+    active: pannable,
+    onIndexChange,
+    dialogRef,
+    frameRef: mediaFrameRef,
+    closeButtonRef,
+  });
 
   useEffect(() => {
-    onPreviousRef.current = onPrevious;
-    onNextRef.current = onNext;
+    prepareReturnRef.current = prepareReturn;
   });
 
   const restoreSource = useCallback(() => {
@@ -217,13 +289,28 @@ export const PreviewPortal = ({
       return;
     }
 
-    const { transform, clipPath } = getComputedStyle(frame);
-    frame.style.transform = transform;
-    // `none` can't interpolate to inset(); leaving it unset lets the close start from the full frame.
-    frame.style.clipPath = clipPath === 'none' ? '' : clipPath;
+    // A page turn or a drag stops where it is, and the picture flies home from there.
+    const { offset } = getRowMotion();
+    holdRow(0);
+    if (offset) {
+      frame.style.transform = `translateX(${offset}px)`;
+    }
+    // Freezes the pose the media is in now (fully open, mid-opening or mid-page) as the close's
+    // start.
+    applyFlipFrame(frame, readFlipFrame(getComputedStyle(frame)));
+    clearReveal(frame);
     cancelAnimation();
     setPhase('closing');
-  }, [cancelAnimation, finishClose, getReturnRect, originRectRef, phaseRef, setPhase]);
+  }, [
+    cancelAnimation,
+    finishClose,
+    getReturnRect,
+    getRowMotion,
+    holdRow,
+    originRectRef,
+    phaseRef,
+    setPhase,
+  ]);
 
   useLayoutEffect(() => {
     if (phase !== 'opening' || !anchorRef.current || !mediaFrameRef.current) {
@@ -240,11 +327,16 @@ export const PreviewPortal = ({
 
     const frame = mediaFrameRef.current;
     const source = sourceMediaRef.current;
-    const from = getCoverFlip(sourceRect, targetRect, getSourceRadius(source));
+    const look = getSourceLook(source);
+    const from = getCoverFlip(sourceRect, targetRect, look);
+    // A picture a strip half hides still lifts whole, at its own shape; only its hidden part
+    // waits behind a mask and dissolves in over the first stretch of the flight.
+    const reveal = source ? getRevealMask(source, sourceRect, targetRect, look) : undefined;
     frame.style.visibility = 'visible';
     frame.style.transformOrigin = '0 0';
-    frame.style.transform = from.transform;
-    frame.style.clipPath = from.clipPath;
+    applyFlipFrame(frame, from);
+    frame.style.maskImage = reveal ?? '';
+    frame.style.setProperty(PREVIEW_REVEAL, '0');
     frame.style.willChange = 'transform, clip-path';
 
     const generation = ++animationGenerationRef.current;
@@ -266,18 +358,19 @@ export const PreviewPortal = ({
       }
 
       if (prefersReducedMotion()) {
-        frame.style.transform = 'none';
-        frame.style.clipPath = '';
-        frame.style.willChange = '';
+        settleOpen(frame);
         setPhase('open');
         return;
       }
 
-      const animation = frame.animate([from, PREVIEW_FULL_FRAME], {
-        duration: PREVIEW_DURATION_MS,
-        easing: PREVIEW_EASING,
-        fill: 'forwards',
-      });
+      const animation = frame.animate(
+        [
+          { ...from, [PREVIEW_REVEAL]: 0 },
+          { [PREVIEW_REVEAL]: 1, offset: REVEAL_BY },
+          { ...PREVIEW_FULL_FRAME, [PREVIEW_REVEAL]: 1 },
+        ],
+        { duration: PREVIEW_DURATION_MS, easing: PREVIEW_EASING, fill: 'forwards' },
+      );
       animationRef.current = animation;
       animation.finished
         .then(() => {
@@ -285,9 +378,7 @@ export const PreviewPortal = ({
             return;
           }
           animationRef.current = null;
-          frame.style.transform = 'none';
-          frame.style.clipPath = '';
-          frame.style.willChange = '';
+          settleOpen(frame);
           animation.cancel();
           setPhase('open');
         })
@@ -320,24 +411,23 @@ export const PreviewPortal = ({
     }
 
     const frame = mediaFrameRef.current;
-    const returnRect = getReturnRect();
+    if (prefersReducedMotion()) {
+      finishClose(frame, 'none');
+      return;
+    }
+
+    const source = sourceMediaRef.current;
+    const returnRect =
+      (source?.isConnected && prepareReturnRef.current?.(source)) || getReturnRect();
     const targetRect = toPreviewRect(anchorRef.current.getBoundingClientRect());
     if (!isValidRect(returnRect) || !isValidRect(targetRect)) {
       finishClose(frame, getComputedStyle(frame).transform);
       return;
     }
 
-    if (prefersReducedMotion()) {
-      finishClose(frame, 'none');
-      return;
-    }
-
-    // Starts from wherever the media sits now (fully open, or frozen mid-opening by handleClose).
-    const from = {
-      transform: frame.style.transform || PREVIEW_FULL_FRAME.transform,
-      clipPath: frame.style.clipPath || PREVIEW_FULL_FRAME.clipPath,
-    };
-    const to = getCoverFlip(returnRect, targetRect, getSourceRadius(sourceMediaRef.current));
+    // Starts from the pose handleClose froze.
+    const from = readFlipFrame(frame.style);
+    const to = getCoverFlip(returnRect, targetRect, getSourceLook(source));
     frame.style.transformOrigin = '0 0';
     frame.style.willChange = 'transform, clip-path';
 
@@ -355,7 +445,7 @@ export const PreviewPortal = ({
         }
         animationRef.current = null;
         animation.cancel();
-        frame.style.clipPath = to.clipPath;
+        applyFlipFrame(frame, to);
         finishClose(frame, to.transform);
       })
       .catch(() => undefined);
@@ -370,10 +460,13 @@ export const PreviewPortal = ({
   useLayoutEffect(() => {
     if (phase === 'open') {
       closeButtonRef.current?.focus({ preventScroll: true });
+      // The neighbours join the row in this render; the frame goes up around the picture before
+      // they can be seen.
+      holdRow(0);
     } else if (phase === 'opening' || phase === 'closing') {
       dialogRef.current?.focus({ preventScroll: true });
     }
-  }, [phase]);
+  }, [holdRow, phase]);
 
   const handleDialogKeyDown = useCallback((event: ReactKeyboardEvent<HTMLDivElement>) => {
     if (event.key !== 'Tab' || !dialogRef.current) {
@@ -404,24 +497,6 @@ export const PreviewPortal = ({
   }, []);
 
   useEffect(() => {
-    // Paging only once open: the opening flight is computed for the current image's shape.
-    if (!controlsVisible || !hasNavigation) {
-      return;
-    }
-    const handleKey = (event: KeyboardEvent) => {
-      if (event.key === 'ArrowLeft') {
-        event.preventDefault();
-        onPreviousRef.current?.();
-      } else if (event.key === 'ArrowRight') {
-        event.preventDefault();
-        onNextRef.current?.();
-      }
-    };
-    document.addEventListener('keydown', handleKey);
-    return () => document.removeEventListener('keydown', handleKey);
-  }, [controlsVisible, hasNavigation]);
-
-  useEffect(() => {
     return () => {
       cancelAnimation();
       restoreSource();
@@ -432,36 +507,28 @@ export const PreviewPortal = ({
     return null;
   }
 
-  const previousButton = onPrevious ? (
-    <button
-      type="button"
-      aria-label="Previous image"
-      aria-hidden={!controlsVisible}
-      tabIndex={controlsVisible ? 0 : -1}
-      onClick={onPrevious}
-      className={cn(
-        'focus-ring-overlay icon-button bg-overlay-control text-overlay-control-foreground hover:bg-overlay-control-hover pointer-events-auto absolute top-0 left-1 size-10 -translate-y-1/2 md:-left-15',
-        !controlsVisible && 'invisible pointer-events-none',
-      )}
-    >
-      <ChevronLeftIcon className="size-5" />
-    </button>
-  ) : null;
-  const nextButton = onNext ? (
-    <button
-      type="button"
-      aria-label="Next image"
-      aria-hidden={!controlsVisible}
-      tabIndex={controlsVisible ? 0 : -1}
-      onClick={onNext}
-      className={cn(
-        'focus-ring-overlay icon-button bg-overlay-control text-overlay-control-foreground hover:bg-overlay-control-hover pointer-events-auto absolute top-0 right-1 size-10 -translate-y-1/2 md:-right-15',
-        !controlsVisible && 'invisible pointer-events-none',
-      )}
-    >
-      <ChevronRightIcon className="size-5" />
-    </button>
-  ) : null;
+  const hidden = 'invisible pointer-events-none opacity-0';
+  const navButtons = ([-1, 1] as const).map(direction => {
+    const Icon = direction < 0 ? ChevronLeftIcon : ChevronRightIcon;
+    const off = !controlsVisible || (direction < 0 ? shown === 0 : shown === count - 1);
+    return (
+      <button
+        key={direction}
+        type="button"
+        aria-label={direction < 0 ? 'Previous image' : 'Next image'}
+        aria-hidden={off}
+        tabIndex={off ? -1 : 0}
+        onClick={() => page(direction)}
+        className={cn(
+          NAV_BUTTON,
+          direction < 0 ? 'left-1 md:-left-15' : 'right-1 md:-right-15',
+          off && hidden,
+        )}
+      >
+        <Icon className="size-5" />
+      </button>
+    );
+  });
 
   return (
     <Overlay
@@ -475,34 +542,91 @@ export const PreviewPortal = ({
       className={cn('items-center justify-center px-4 py-4 md:px-6 md:py-6', className)}
       backdropClassName="bg-overlay-backdrop dark:backdrop-blur"
     >
-      <div
+      <motion.div
         ref={dialogRef}
         role="document"
         aria-label={ariaLabel}
         tabIndex={-1}
         onKeyDown={handleDialogKeyDown}
-        onTouchStart={controlsVisible ? onTouchStart : undefined}
-        onTouchEnd={controlsVisible ? onTouchEnd : undefined}
-        className="relative flex max-h-full max-w-full items-center justify-center"
+        {...panHandlers}
+        // Sideways drags are ours; pinching stays the browser's.
+        style={{ touchAction: hasNavigation && !zoomed ? 'pan-y pinch-zoom' : undefined }}
+        // Focus only parks here while the media flies; a ring would trace the box mid-flight.
+        className="relative flex max-h-full max-w-full items-center justify-center outline-none"
       >
         <div
           ref={anchorRef}
           className={cn(
-            'relative max-h-[80svh] max-w-[90vw]',
+            'relative [--preview-max-w:90vw]',
             contentClassName,
-            hasNavigation ? 'md:max-w-[calc(100vw-8rem)]' : 'md:max-w-[calc(100vw-7rem)]',
+            hasNavigation
+              ? 'md:[--preview-max-w:min(90vw,calc(100vw_-_8rem))]'
+              : 'md:[--preview-max-w:min(90vw,calc(100vw_-_7rem))]',
           )}
-          style={{
-            aspectRatio: anchorAspectRatio,
-            // svh, not vh: iOS resolves vh against the URL-bar-hidden viewport, which is taller
-            // than the fixed overlay actually gets — the close button above the media would be
-            // pushed off screen.
-            width: `min(90vw, ${80 * anchorAspectRatio}svh, 64rem)`,
-          }}
+          // svh, not vh: iOS resolves vh against the URL-bar-hidden viewport, which is taller
+          // than the fixed overlay actually gets — the close button above the media would be
+          // pushed off screen.
+          style={{ aspectRatio: anchorAspectRatio, width: getSlideWidth(anchorAspectRatio) }}
         >
           <div ref={previewFrameRef} className="absolute inset-0">
             <div ref={mediaFrameRef} className="absolute inset-0">
-              {children}
+              {/* Every picture of the row at the size it would be shown, side by side; the one
+                  in the frame is offset to land exactly on it. */}
+              <div
+                ref={trackRef}
+                // Laid out only: clicks beside the picture fall through to the backdrop. Its own
+                // layer while it can be paged, so a turn starts without a repaint.
+                className={cn(
+                  'pointer-events-none absolute top-0 flex h-full items-center',
+                  pannable && 'will-change-transform',
+                )}
+                style={{
+                  left: `calc(0px - ${
+                    widths
+                      .slice(0, shown)
+                      .map((width, at) => `${width} - ${getSlideSpacing(width, widths[at + 1])}`)
+                      .join(' - ') || '0px'
+                  })`,
+                }}
+              >
+                {row.map((slide, slideIndex) => {
+                  const isShown = slideIndex === shown;
+                  // The neighbours are drawn ahead of time, just outside the frame.
+                  const isDrawn = phase === 'open' && Math.abs(slideIndex - shown) <= 1;
+                  return (
+                    <div
+                      key={slide.src}
+                      aria-hidden={isShown ? undefined : true}
+                      className={cn(
+                        'relative shrink-0',
+                        isShown && 'pointer-events-auto',
+                        !isShown && !isDrawn && 'invisible',
+                      )}
+                      style={{
+                        aspectRatio: slide.aspectRatio ?? mediaAspectRatio,
+                        width: widths[slideIndex],
+                        marginLeft: slideIndex
+                          ? getSlideSpacing(widths[slideIndex - 1], widths[slideIndex])
+                          : undefined,
+                      }}
+                    >
+                      {/* Only the picture asked for takes part in the flight; the rest join once
+                          it has landed. */}
+                      {isShown || phase === 'open' ? slide.media : null}
+                      {slide.footer ? (
+                        <div
+                          className={cn(
+                            'pointer-events-none absolute top-full left-0 mt-2 w-full transition-opacity duration-(--fz-dur-normal)',
+                            isShown && !controlsVisible && 'invisible opacity-0',
+                          )}
+                        >
+                          {slide.footer}
+                        </div>
+                      ) : null}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           </div>
           <button
@@ -514,22 +638,11 @@ export const PreviewPortal = ({
             onClick={handleClose}
             className={cn(
               'focus-ring-overlay icon-button bg-overlay-control text-overlay-control-foreground hover:bg-overlay-control-hover hover:text-overlay-control-foreground absolute -top-12 right-0 z-20 size-11 md:-right-12 md:size-10',
-              !controlsVisible && 'invisible pointer-events-none',
+              !controlsVisible && hidden,
             )}
           >
             <XIcon className="size-4.5" />
           </button>
-          {footer ? (
-            <div
-              aria-hidden={!controlsVisible}
-              className={cn(
-                'absolute top-full left-0 mt-2 w-full',
-                !controlsVisible && 'invisible',
-              )}
-            >
-              {footer}
-            </div>
-          ) : null}
           {aside && phase === 'open' ? (
             <aside
               style={asideLayout.style}
@@ -546,14 +659,13 @@ export const PreviewPortal = ({
           ) : null}
         </div>
         {hasNavigation ? (
-          // Sized to the frame a square image gets (the anchor's width formula at ratio 1), so the
-          // arrows stay put while paging between portrait and landscape images.
-          <div className="pointer-events-none absolute top-1/2 left-1/2 h-0 w-[min(90vw,80svh,64rem)] -translate-x-1/2 md:w-[min(90vw,calc(100vw-8rem),80svh,64rem)]">
-            {previousButton}
-            {nextButton}
+          // Sized to the widest frame any image gets (the anchor's width cap), so on wide screens
+          // the arrows sit outside every image and stay put while paging between shapes.
+          <div className="pointer-events-none absolute top-1/2 left-1/2 h-0 w-[min(90vw,64rem)] -translate-x-1/2 md:w-[min(90vw,calc(100vw-8rem),64rem)]">
+            {navButtons}
           </div>
         ) : null}
-      </div>
+      </motion.div>
     </Overlay>
   );
 };

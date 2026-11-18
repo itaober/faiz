@@ -5,6 +5,7 @@ import { NodeViewWrapper } from '@tiptap/react';
 import { PlusIcon, XIcon } from 'lucide-react';
 import { useEffect, useId, useRef, useState } from 'react';
 
+import ImageGallery from '@/components/image-gallery';
 import { cn } from '@/lib/utils';
 import type { MdxImageGalleryItem } from '@/lib/utils/editor-image';
 import { SUPPORTED_IMAGE_TYPES } from '@/lib/utils/image';
@@ -14,11 +15,10 @@ import { parseGalleryImages } from './image-gallery-extension';
 import { resolveEditorImageSrc } from './image-preview-store';
 
 /**
- * Editor view for the `imageGallery` node — the same card-less "large image +
- * filmstrip" layout as the published gallery, plus editing affordances (switch
- * main, caption, add, remove, reorder). Read-only (preview mode) hides controls
- * so it mirrors the read view exactly. Mirrors the single-image figure's box
- * model (centered, `max-w-xl` image) so it sizes correctly inside the node view.
+ * Editor view for the `imageGallery` node — a "large image + filmstrip" layout
+ * with editing affordances (switch main, caption, add, remove, reorder).
+ * Read-only (preview mode) renders the published strip itself, so preview
+ * matches the read view exactly.
  */
 export function ImageGalleryNodeView({
   node,
@@ -56,6 +56,24 @@ export function ImageGalleryNodeView({
 
   if (count === 0) {
     return null;
+  }
+
+  if (!editable) {
+    return (
+      <NodeViewWrapper className="my-4">
+        <ImageGallery
+          items={images.map(image => {
+            const label = image.alt || image.caption;
+            return {
+              src: resolveEditorImageSrc(image.src),
+              alt: label || 'Content image',
+              caption: label || undefined,
+            };
+          })}
+          layout="post"
+        />
+      </NodeViewWrapper>
+    );
   }
 
   const selected = images[safeIndex];
@@ -135,21 +153,15 @@ export function ImageGalleryNodeView({
       </div>
 
       <div className="relative mt-2 min-h-5 w-full max-w-xl">
-        {editable ? (
-          <input
-            data-gallery-interactive
-            className="text-muted-foreground focus:text-foreground placeholder:text-muted-foreground/55 w-full truncate border-none bg-transparent px-10 text-center text-sm outline-none"
-            value={caption}
-            placeholder="Add a caption…"
-            aria-label="Image caption"
-            onMouseDown={event => event.stopPropagation()}
-            onChange={event => updateCaption(event.target.value)}
-          />
-        ) : (
-          <p className="text-muted-foreground w-full truncate px-10 text-center text-sm">
-            {caption}
-          </p>
-        )}
+        <input
+          data-gallery-interactive
+          className="text-muted-foreground focus:text-foreground placeholder:text-muted-foreground/55 w-full truncate border-none bg-transparent px-10 text-center text-sm outline-none"
+          value={caption}
+          placeholder="Add a caption…"
+          aria-label="Image caption"
+          onMouseDown={event => event.stopPropagation()}
+          onChange={event => updateCaption(event.target.value)}
+        />
         <span className="text-muted-foreground/70 pointer-events-none absolute top-1/2 right-0 -translate-y-1/2 font-mono text-xs">
           {safeIndex + 1}/{count}
         </span>
@@ -161,7 +173,7 @@ export function ImageGalleryNodeView({
           <div
             key={image.src}
             data-gallery-interactive
-            draggable={editable}
+            draggable
             onDragStart={event => {
               dragIndexRef.current = index;
               event.dataTransfer.effectAllowed = 'move';
@@ -200,47 +212,41 @@ export function ImageGalleryNodeView({
                 className="h-full w-full object-contain"
               />
             </button>
-            {editable ? (
-              <button
-                type="button"
-                onMouseDown={event => event.stopPropagation()}
-                onClick={() => removeImage(index)}
-                className="bg-overlay-control text-overlay-control-foreground hover:bg-overlay-control-hover focus-ring absolute -top-1.5 -right-1.5 flex size-5 items-center justify-center rounded-full backdrop-blur transition"
-                aria-label={`Remove image ${index + 1}`}
-              >
-                <XIcon className="size-3" />
-              </button>
-            ) : null}
+            <button
+              type="button"
+              onMouseDown={event => event.stopPropagation()}
+              onClick={() => removeImage(index)}
+              className="bg-overlay-control text-overlay-control-foreground hover:bg-overlay-control-hover focus-ring absolute -top-1.5 -right-1.5 flex size-5 items-center justify-center rounded-full backdrop-blur transition"
+              aria-label={`Remove image ${index + 1}`}
+            >
+              <XIcon className="size-3" />
+            </button>
           </div>
         ))}
 
-        {editable ? (
-          <>
-            <button
-              type="button"
-              data-gallery-interactive
-              onMouseDown={event => event.stopPropagation()}
-              onClick={() => document.getElementById(fileInputId)?.click()}
-              className="border-border text-muted-foreground/70 hover:text-foreground hover:border-foreground/40 focus-ring flex size-12 shrink-0 items-center justify-center rounded-md border border-dashed transition md:size-14"
-              aria-label="Add images to gallery"
-            >
-              <PlusIcon className="size-4.5" />
-            </button>
-            <input
-              id={fileInputId}
-              type="file"
-              accept={SUPPORTED_IMAGE_TYPES.join(',')}
-              multiple
-              className="hidden"
-              aria-label="Add images to gallery"
-              onChange={event => {
-                const files = Array.from(event.target.files ?? []);
-                event.target.value = '';
-                addFiles(files).catch(() => undefined);
-              }}
-            />
-          </>
-        ) : null}
+        <button
+          type="button"
+          data-gallery-interactive
+          onMouseDown={event => event.stopPropagation()}
+          onClick={() => document.getElementById(fileInputId)?.click()}
+          className="border-border text-muted-foreground/70 hover:text-foreground hover:border-foreground/40 focus-ring flex size-12 shrink-0 items-center justify-center rounded-md border border-dashed transition md:size-14"
+          aria-label="Add images to gallery"
+        >
+          <PlusIcon className="size-4.5" />
+        </button>
+        <input
+          id={fileInputId}
+          type="file"
+          accept={SUPPORTED_IMAGE_TYPES.join(',')}
+          multiple
+          className="hidden"
+          aria-label="Add images to gallery"
+          onChange={event => {
+            const files = Array.from(event.target.files ?? []);
+            event.target.value = '';
+            addFiles(files).catch(() => undefined);
+          }}
+        />
       </div>
     </NodeViewWrapper>
   );

@@ -37,9 +37,10 @@ export default function MemoCardInline({ memo, children }: IMemoCardInlineProps)
           <span className="flex items-center gap-2">
             <time
               dateTime={memo.createdTime}
-              className="text-muted-foreground/70 font-sans text-sm font-medium"
+              className="text-muted-foreground font-sans text-sm font-medium"
             >
-              {memo.createdTime}
+              {/* Stored as YYYY-MM-DD HH:mm:ss; the seconds are noise to a reader. */}
+              {memo.createdTime.slice(0, 16)}
             </time>
             {/* Edit affordance sits right after the timestamp (not in the gutter). */}
             {mounted && isEdit && !isEditing && (
@@ -58,7 +59,8 @@ export default function MemoCardInline({ memo, children }: IMemoCardInlineProps)
         <div className="flex h-auto w-3 shrink-0 justify-center">
           <div className="border-border h-full border-l" />
         </div>
-        <div className="min-w-0 flex-1">
+        {/* The gap to the next memo sits inside the row, so the timeline runs through it. */}
+        <div className="min-w-0 flex-1 pt-1.5 pb-10 [&>:first-child]:mt-0 [&>:last-child]:mb-0">
           {isEditing ? (
             <MemoEditorSurface memo={memo} onCancel={() => setEditingId(null)} />
           ) : (
