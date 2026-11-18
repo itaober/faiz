@@ -27,6 +27,7 @@ const getReusableImageSrc = (image: HTMLImageElement | null | undefined) => {
 interface IPreviewTriggerProps {
   children: React.ReactNode;
   className?: string;
+  style?: CSSProperties;
   ariaLabel?: string;
   as?: 'div' | 'span';
   contained?: boolean;
@@ -37,6 +38,7 @@ interface IPreviewTriggerProps {
 export const PreviewTrigger = ({
   children,
   className,
+  style,
   ariaLabel = 'Open preview',
   as = 'div',
   contained = false,
@@ -135,7 +137,7 @@ export const PreviewTrigger = ({
   );
 
   return (
-    <Component data-preview={isPreview} className={cn('relative', className)}>
+    <Component data-preview={isPreview} className={cn('relative', className)} style={style}>
       {media}
       <button
         ref={buttonRef}

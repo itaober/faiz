@@ -56,9 +56,9 @@ export default function MemosTitle() {
             <div className="border-accent size-3 rounded-full border" />
             <time
               dateTime={draftCreatedTime}
-              className="text-muted-foreground/70 font-sans text-sm font-medium"
+              className="text-muted-foreground font-sans text-sm font-medium"
             >
-              {draftCreatedTime} · now
+              {draftCreatedTime.slice(0, 16)} · now
             </time>
           </header>
           <div className="flex w-full gap-2 md:gap-4">

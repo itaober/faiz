@@ -14,6 +14,8 @@
      the foreground over the page — same neutral tone, lets the background show
      through so it never reads as a separate surface. Tune the 2% for presence. */
   --fz-image-frame: color-mix(in oklch, var(--foreground) 2%, transparent);
+  /* Tallest a lone image in an article gets: a portrait never takes the whole screen. */
+  --fz-article-image-h: min(600px, 75svh);
   --danger: oklch(0.59 0.18 25);
   --danger-soft: oklch(0.95 0.018 25);
   --success: oklch(0.62 0.13 150);
@@ -154,6 +156,13 @@ button {
 .icon-button:not(:disabled):active,
 .pressable:not(:disabled):active {
   transform: scale(0.97);
+}
+
+/* Registered so the preview's opening flight can fade it: see getRevealMask. */
+@property --fz-reveal {
+  syntax: '<number>';
+  inherits: false;
+  initial-value: 1;
 }
 
 /* Hairline over image edges so light covers/photos don't float on the page.
@@ -298,7 +307,7 @@ button {
   }
 
   .memo-editor-content p {
-    margin-block: 1.25em;
+    margin-block: 0.75rem;
     line-height: 1.75;
   }
 
@@ -1229,9 +1238,11 @@ button {
     align-items: center;
     margin-block: 1rem;
   }
+  /* Same cap as the read view's <Image>. */
   .tiptap .fz-editor-figure img {
-    width: 100%;
-    max-width: 36rem;
+    width: auto;
+    max-width: 100%;
+    max-height: var(--fz-article-image-h);
     height: auto;
     margin: 0;
     border-radius: var(--fz-radius-md);
@@ -1384,6 +1395,16 @@ button {
   --tw-prose-td-borders: var(--border);
   --tw-prose-kbd: var(--foreground);
   --tw-prose-kbd-shadows: var(--border);
+}
+
+/*
+ * 17px on wider screens: at 16px a 720px column holds ~45 CJK characters a line,
+ * past the comfortable 35–42. Phones keep 16px — their lines are already short.
+ */
+@media (min-width: 48rem) {
+  .prose {
+    font-size: 1.0625rem;
+  }
 }
 
 /*

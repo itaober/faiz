@@ -1,13 +1,12 @@
 import type { MDXComponents } from 'mdx/types';
-import NextImage from 'next/image';
 import NextLink from 'next/link';
 import type { MDXRemoteProps } from 'next-mdx-remote/rsc';
 import { MDXRemote } from 'next-mdx-remote/rsc';
 import type { AnchorHTMLAttributes, ImgHTMLAttributes } from 'react';
 
 import ExternalLinkHoverCard from '@/components/external-link-hover-card';
-import { Preview, PreviewImage, PreviewPortal, PreviewTrigger } from '@/components/preview';
-import { isAssetKey, isTransformableSrc, resolveAssetSrc } from '@/lib/assets';
+import MediaStrip from '@/components/media-strip';
+import { isAssetKey, resolveAssetSrc } from '@/lib/assets';
 import { getImageMeta } from '@/lib/data/images';
 import { toRenderableMdx, unescapeMarkdownValue } from '@/lib/utils/editor-image';
 
@@ -126,42 +125,26 @@ const Image = async ({ src, alt = '', caption }: IImageProps) => {
   }
 
   const storedSrc = unescapeMarkdownValue(String(src));
-  const imageSrc = resolveAssetSrc(storedSrc);
-  const imageAlt = unescapeMarkdownValue(String(alt));
-  const _caption = caption || imageAlt;
-  const resolvedAlt = imageAlt.trim() || _caption || 'Content image';
-  const previewLabel = `Open image preview${resolvedAlt ? `: ${resolvedAlt}` : ''}`;
-  const imageSizes = '(max-width: 768px) calc(100vw - 2.5rem), 36rem';
+  const imageAlt = unescapeMarkdownValue(String(alt)).trim();
+  const label = caption || imageAlt;
   const meta = isAssetKey(storedSrc) ? await getImageMeta(storedSrc) : null;
 
   return (
-    <Preview>
-      <span className="not-prose mb-4 block w-full px-2">
-        <PreviewTrigger
-          as="span"
-          previewSrc={imageSrc}
-          ariaLabel={previewLabel}
-          className="mx-auto block w-full max-w-xl overflow-hidden rounded-md md:rounded-lg"
-        >
-          <NextImage
-            src={imageSrc}
-            alt={resolvedAlt}
-            width={meta?.width ?? 0}
-            height={meta?.height ?? 0}
-            sizes={imageSizes}
-            placeholder={meta?.blurDataURL ?? 'empty'}
-            unoptimized={!isTransformableSrc(imageSrc)}
-            className="fz-img-outline h-auto w-full"
-          />
-        </PreviewTrigger>
-        {_caption ? (
-          <span className="text-muted-foreground mt-2 block text-center text-sm">{_caption}</span>
-        ) : null}
-      </span>
-      <PreviewPortal ariaLabel={`Image preview: ${resolvedAlt}`}>
-        <PreviewImage src={imageSrc} alt={resolvedAlt} />
-      </PreviewPortal>
-    </Preview>
+    <span className="mb-4 block">
+      <MediaStrip
+        layout="article"
+        items={[
+          {
+            src: resolveAssetSrc(storedSrc),
+            alt: imageAlt || label || 'Content image',
+            caption: label || undefined,
+            width: meta?.width,
+            height: meta?.height,
+            blurDataURL: meta?.blurDataURL,
+          },
+        ]}
+      />
+    </span>
   );
 };
 

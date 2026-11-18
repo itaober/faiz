@@ -1,163 +1,51 @@
-'use client';
-
-import Image from 'next/image';
-import { useEffect, useState } from 'react';
-
-import { Preview, PreviewImage, PreviewPortal, PreviewTrigger } from '@/components/preview';
-import { isTransformableSrc, resolveAssetSrc } from '@/lib/assets';
-import { cn } from '@/lib/utils';
+import MediaStrip, { type MediaItem } from '@/components/media-strip';
+import { isAssetKey, resolveAssetSrc } from '@/lib/assets';
+import { getImageMeta } from '@/lib/data/images';
 import { type MdxImageGalleryItem, unescapeMarkdownValue } from '@/lib/utils/editor-image';
 
 interface MDXImageGalleryProps {
   images?: Array<MdxImageGalleryItem | string>;
 }
 
-interface NormalizedImage {
-  alt: string;
-  src: string;
-}
-
-const IMAGE_SIZES = '(max-width: 768px) calc(100vw - 2.5rem), 36rem';
-
-const normalizeImage = (
+const toMediaItem = async (
   value: MdxImageGalleryItem | string | null | undefined,
-): NormalizedImage | null => {
-  if (typeof value === 'string') {
-    const src = unescapeMarkdownValue(value).trim();
-    return src ? { alt: 'Content image', src: resolveAssetSrc(src) } : null;
-  }
-  if (!value?.src) {
+): Promise<MediaItem | null> => {
+  const raw = typeof value === 'string' ? value : value?.src;
+  const stored = raw ? unescapeMarkdownValue(raw).trim() : '';
+  if (!stored) {
     return null;
   }
-  const src = unescapeMarkdownValue(value.src).trim();
-  if (!src) {
-    return null;
-  }
-  const alt = value.alt ? unescapeMarkdownValue(value.alt).trim() : '';
-  const caption = value.caption ? unescapeMarkdownValue(value.caption).trim() : '';
-  return { alt: alt || caption, src: resolveAssetSrc(src) };
+  const alt =
+    typeof value === 'object' && value?.alt ? unescapeMarkdownValue(value.alt).trim() : '';
+  const caption =
+    typeof value === 'object' && value?.caption ? unescapeMarkdownValue(value.caption).trim() : '';
+  const label = alt || caption;
+  // A recorded size reserves each slot before its file arrives; legacy URLs have none and size
+  // themselves on load.
+  const meta = isAssetKey(stored) ? await getImageMeta(stored) : null;
+  return {
+    src: resolveAssetSrc(stored),
+    alt: label || 'Content image',
+    caption: label || undefined,
+    width: meta?.width,
+    height: meta?.height,
+    blurDataURL: meta?.blurDataURL,
+  };
 };
 
-/**
- * Read-view gallery for two or more images: a fixed-height (square) main image
- * shown `object-contain` so switching never shifts the layout, a thumbnail
- * filmstrip, and click-to-zoom via the shared <Preview> lightbox (with prev/next).
- * Card-less so it flows in the prose like the standalone <Image>.
- */
-export default function MDXImageGallery({ images }: MDXImageGalleryProps) {
-  const normalized = (images ?? [])
-    .map(normalizeImage)
-    .filter((image): image is NormalizedImage => Boolean(image));
-  const count = normalized.length;
-  const [selectedIndex, setSelectedIndex] = useState(0);
-  const safeIndex = Math.min(selectedIndex, Math.max(0, count - 1));
+/** Read view for a run of images in a post: the same fixed-height strip memos use. */
+export default async function MDXImageGallery({ images }: MDXImageGalleryProps) {
+  const items = (await Promise.all((images ?? []).map(toMediaItem))).filter(
+    (image): image is MediaItem => Boolean(image),
+  );
 
-  useEffect(() => {
-    if (selectedIndex !== safeIndex) {
-      setSelectedIndex(safeIndex);
-    }
-  }, [safeIndex, selectedIndex]);
-
-  if (count === 0) {
+  if (items.length === 0) {
     return null;
   }
 
-  const selected = normalized[safeIndex];
-  const caption = selected.alt;
-  const isGallery = count > 1;
-  const previewLabel = `Open image preview${caption ? `: ${caption}` : ''}`;
-  const showPrevious = () => setSelectedIndex((safeIndex - 1 + count) % count);
-  const showNext = () => setSelectedIndex((safeIndex + 1) % count);
-
   return (
-    <Preview>
-      <span className="not-prose mb-4 flex w-full flex-col">
-        <span className="mx-auto flex w-full max-w-xl flex-col px-2">
-          {isGallery ? (
-            <PreviewTrigger
-              as="span"
-              contained
-              previewSrc={selected.src}
-              ariaLabel={previewLabel}
-              className="relative block aspect-square w-full overflow-hidden rounded-md bg-[var(--fz-image-frame)] md:rounded-lg"
-            >
-              <Image
-                src={selected.src}
-                alt={caption || 'Content image'}
-                fill
-                sizes={IMAGE_SIZES}
-                className="object-contain"
-                unoptimized={!isTransformableSrc(selected.src)}
-              />
-            </PreviewTrigger>
-          ) : (
-            <PreviewTrigger
-              as="span"
-              previewSrc={selected.src}
-              ariaLabel={previewLabel}
-              className="block w-full overflow-hidden rounded-md md:rounded-lg"
-            >
-              <Image
-                src={selected.src}
-                alt={caption || 'Content image'}
-                width={0}
-                height={0}
-                sizes={IMAGE_SIZES}
-                className="h-auto w-full"
-                unoptimized={!isTransformableSrc(selected.src)}
-              />
-            </PreviewTrigger>
-          )}
-
-          {isGallery ? (
-            <span className="relative mt-2 block min-h-5 w-full">
-              <span className="text-muted-foreground block truncate px-10 text-center text-sm">
-                {caption}
-              </span>
-              <span className="text-muted-foreground/70 pointer-events-none absolute top-1/2 right-0 -translate-y-1/2 font-mono text-xs">
-                {safeIndex + 1}/{count}
-              </span>
-            </span>
-          ) : caption ? (
-            <span className="text-muted-foreground mt-2 block text-center text-sm">{caption}</span>
-          ) : null}
-
-          {isGallery ? (
-            <span className="mt-1 flex w-full gap-2 overflow-x-auto p-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-              {normalized.map((image, index) => (
-                <button
-                  key={image.src}
-                  type="button"
-                  onClick={() => setSelectedIndex(index)}
-                  className={cn(
-                    'focus-ring relative size-12 shrink-0 overflow-hidden rounded-md bg-[var(--fz-image-frame)] transition md:size-14',
-                    index === safeIndex ? 'opacity-100' : 'opacity-50 hover:opacity-90',
-                  )}
-                  aria-label={`Show image ${index + 1}`}
-                  aria-current={index === safeIndex ? 'true' : undefined}
-                >
-                  <Image
-                    src={image.src}
-                    alt=""
-                    fill
-                    sizes="4rem"
-                    className="object-contain"
-                    unoptimized={!isTransformableSrc(image.src)}
-                  />
-                </button>
-              ))}
-            </span>
-          ) : null}
-        </span>
-      </span>
-
-      <PreviewPortal
-        ariaLabel={`Image preview: ${caption || 'image'}`}
-        onPrevious={isGallery ? showPrevious : undefined}
-        onNext={isGallery ? showNext : undefined}
-      >
-        <PreviewImage src={selected.src} alt={caption || 'Content image'} />
-      </PreviewPortal>
-    </Preview>
+    <span className="mb-4 block">
+      <MediaStrip items={items} layout="article" />
+    </span>
   );
 }
